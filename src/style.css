@@ -29,3 +29,24 @@ body[data-feature="kcd2"] .scene-fallback{filter:hue-rotate(60deg) saturate(.7)}
 body[data-feature="wilds"] .scene-fallback{filter:hue-rotate(25deg) saturate(1.05)}
 .game-card:nth-child(2n) .card-fallback{background:linear-gradient(153deg,#393353,#11212c 83%)}
 .game-card:nth-child(3n) .card-fallback{background:linear-gradient(160deg,#274a4c,#11162d 84%)}
+
+/* Cover art is layered above the fallback, below caption and readability shade. */
+.game-cover{position:absolute;inset:0;z-index:1}
+.game-card-shade{z-index:2;pointer-events:none}
+.game-card-content{z-index:3;pointer-events:none}
+@media (min-width:711px) and (max-height:950px){
+ .shell{padding-top:24px;padding-bottom:14px;gap:15px;grid-template-rows:40px minmax(195px,1fr) auto auto 16px}
+ .spotlight{padding-top:12px}
+ .spotlight h1{font-size:clamp(52px,4.7vw,82px);margin:11px 0}
+ .feature-subtitle{min-height:31px;line-height:1.5}
+ .feature-meta{margin-top:10px}
+ .hero-actions{margin-top:17px}
+ .section-titlebar{margin-bottom:9px}
+ .game-card{height:clamp(145px,19.3vh,194px);flex-basis:clamp(135px,10.5vw,178px)}
+ .game-rail{min-height:160px}
+ .session-card{padding:13px 20px}
+ .session-mark{height:48px}
+ .shortcut{padding:8px 4px;gap:7px}
+ .lower-section{max-height:104px}
+ .footer{font-size:9px}
+}
