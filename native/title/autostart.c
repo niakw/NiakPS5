@@ -40,41 +40,56 @@ static void report(const char *msg,int result) {
  * Never collect accounts, credentials, PSN tokens or any other user's media.
  * Source is the local PS5 profile cache; destination is one private app asset.
  */
-static void copy_current_avatar_png(int user) {
-    if (user < 0)return;
-    char path[256];
-    snprintf(path,sizeof(path),
-             "/system_data/priv/cache/profile/0x%08X/avatar.png",
-             (unsigned)user);
-    FILE *in=fopen(path,"rb");
-    if(!in)return;
+static int copy_profile_image(const char *source,const char *dest,
+                              const unsigned char *magic,size_t signature_size) {
+    FILE *in=fopen(source,"rb");
+    if(!in)return 0;
     struct stat st;
-    if(fstat(fileno(in),&st)!=0 || !S_ISREG(st.st_mode) ||
-       st.st_size<33 || st.st_size>2*1024*1024) {
-        fclose(in);return;
-    }
-    unsigned char *data=(unsigned char *)malloc((size_t)st.st_size);
-    if(!data){fclose(in);return;}
+    if(fstat(fileno(in),&st)!=0||!S_ISREG(st.st_mode)||
+       st.st_size<144||st.st_size>2*1024*1024) {fclose(in);return 0;}
     const size_t size=(size_t)st.st_size;
-    static const unsigned char png[8]={137,80,78,71,13,10,26,10};
-    const int ok=fread(data,1,size,in)==size && memcmp(data,png,8)==0;
+    unsigned char *data=(unsigned char*)malloc(size);
+    if(!data){fclose(in);return 0;}
+    int ok=fread(data,1,size,in)==size && memcmp(data,magic,signature_size)==0;
     fclose(in);
-    if(ok){
-        const char *root="/data/homebrew/PPSA99386/assets";
-        struct stat dir;
-        if(lstat(root,&dir)==0 && S_ISDIR(dir.st_mode)){
-            char out[256];snprintf(out,sizeof(out),"%s/niak-profile.png",root);
-            const int fd=open(out,O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,0644);
-            if(fd>=0){
+    if(ok) {
+        struct stat folder;
+        if(lstat("/data/homebrew/PPSA99386/assets",&folder)==0 &&
+           S_ISDIR(folder.st_mode)) {
+            char temp[256];
+            snprintf(temp,sizeof(temp),"%s.tmp",dest);
+            const int fd=open(temp,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW,0600);
+            if(fd>=0) {
                 const ssize_t n=write(fd,data,size);
-                const int sync_rc=fsync(fd);
+                ok=n==(ssize_t)size && fsync(fd)==0 && rename(temp,dest)==0;
                 close(fd);
-                if(n!=(ssize_t)size || sync_rc!=0)unlink(out);
-                else report("Local PS5 avatar copied (no account data logged)",0);
-            }
+                if(!ok)unlink(temp);
+            }else ok=0;
+        }else ok=0;
+    }
+    free(data);return ok;
+}
+static void copy_current_avatar_png(int user) {
+    if(user<0)return;
+    char profile[256],source[320];
+    snprintf(profile,sizeof(profile),
+             "/system_data/priv/cache/profile/0x%08X",(unsigned)user);
+    static const unsigned char png[8]={137,80,78,71,13,10,26,10};
+    static const unsigned char dds[4]={'D','D','S',' '};
+    snprintf(source,sizeof(source),"%s/avatar.png",profile);
+    if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.png",png,8)) {
+        report("Current user PNG avatar staged",0);
+        return;
+    }
+    for(int i=0;i<3;++i) {
+        const char *name=i==0?"avatar128.dds":i==1?"avatar260.dds":"avatar64.dds";
+        snprintf(source,sizeof(source),"%s/%s",profile,name);
+        if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.dds",dds,4)) {
+            report("Current user DDS avatar staged",0);
+            return;
         }
     }
-    free(data);
+    report("Current user avatar inaccessible: no image staged",0);
 }
 
 /* A voluntary, low-frequency monitor for the transition game -> Sony Home.

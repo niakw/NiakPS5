@@ -15,6 +15,10 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog
           /tmp/niak-catalog
+      - name: Validate native PS5 DDS avatar decoder on host
+        run: |
+          g++ -std=c++20 -Wall -Wextra -Werror -I native/title native/title/avatar_dds.cpp native/title/tests/avatar_dds_test.cpp -o /tmp/niak-dds-test
+          /tmp/niak-dds-test
       - name: Compile and test local ShadowMountPlus API reader
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/shadowmount_api.c native/tests/shadowmount_test.c -lsqlite3 -o /tmp/niak-shadowmount

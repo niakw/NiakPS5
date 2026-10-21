@@ -102,7 +102,7 @@ def prepare(kit: Path, project: Path):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("game_icons.cpp", "game_icons.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
-    for filename in ("profile.cpp", "profile.hpp"):
+    for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("lodepng.cpp", "lodepng.h"):
         shutil.copy2(project / "native" / "title" / "vendor" / filename, src_niak / filename)
