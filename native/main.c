@@ -34,6 +34,9 @@ typedef struct {
  NiakTextCache text_cache;
  NiakNavRepeat nav;
  float focus_x;
+ Uint64 last_frame_count;
+ Uint32 backdrop_due;
+ int backdrop_pending;
  char renderer_desc[64];
  SDL_Texture *backdrop;
  NiakGame games[NIAKPS5_MAX_GAMES];
@@ -86,6 +89,7 @@ static SDL_Texture *cover_for(App *app,int index){
  return app->covers[victim];
 }
 static void reload_background(App *app){
+ app->backdrop_pending=0;
  if(app->backdrop){SDL_DestroyTexture(app->backdrop);app->backdrop=NULL;}
  if(app->game_count>0)app->backdrop=image(app,app->games[app->selected].background);
  app->dirty=1;
@@ -225,7 +229,7 @@ static void draw(App *app) {
 }
 static void select_game(App *app,int next) {
  if(next<0 || next>=app->game_count || next==app->selected)return;
- app->selected=next;reload_background(app);
+ app->selected=next;app->backdrop_pending=1;app->backdrop_due=SDL_GetTicks()+135;app->dirty=1;
 }
 static void launch_selected(App *app) {
  if(app->game_count==0)return;
@@ -257,6 +261,7 @@ int main(int argc,char **argv){
  for(int i=0;i<COVER_CACHE_MAX;i++)app->cover_index[i]=-1;
  app->focus_x=75.0f;
  app->running=1;app->dirty=1;
+ SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"linear");
  if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER)!=0){fprintf(stderr,"SDL_Init: %s\n",SDL_GetError());free(app);return 1;}
  IMG_Init(IMG_INIT_PNG|IMG_INIT_JPG);
  if(TTF_Init()!=0){fprintf(stderr,"TTF_Init: %s\n",TTF_GetError());SDL_Quit();free(app);return 1;}
@@ -279,7 +284,7 @@ int main(int argc,char **argv){
  scan_games(app);
  while(app->running) {
    SDL_Event event;
-   if(SDL_WaitEventTimeout(&event,100)){
+   if(SDL_WaitEventTimeout(&event,16)){
      do {
        if(event.type==SDL_QUIT)app->running=0;
        if(event.type==SDL_KEYDOWN&&!event.key.repeat){
@@ -312,10 +317,16 @@ int main(int argc,char **argv){
      int step=niak_nav_tick(&app->nav,dir,SDL_GetTicks());
      if(step<0)input(app,1);else if(step>0)input(app,2);
    }else niak_nav_tick(&app->nav,0,SDL_GetTicks());
+   Uint32 tick=SDL_GetTicks();
+   if(app->backdrop_pending && (Sint32)(tick-app->backdrop_due)>=0)reload_background(app);
+   Uint64 perf=SDL_GetPerformanceCounter();
+   Uint64 freq=SDL_GetPerformanceFrequency();
+   float dt=app->last_frame_count && freq ? (float)((double)(perf-app->last_frame_count)/(double)freq):1.0f/60.0f;
+   app->last_frame_count=perf;
    int start=app->selected>=COVER_MAX?app->selected-(COVER_MAX-1):0;
    float target=(float)(75+(app->selected-start)*194);
    float before=app->focus_x;
-   app->focus_x=niak_ease(before,target,0.016f,14.0f);
+   app->focus_x=niak_ease(before,target,dt,14.0f);
    if(fabsf(target-app->focus_x)<0.25f)app->focus_x=target;
    if(app->focus_x!=before)app->dirty=1;
    time_t now=time(NULL);if(now!=app->clock_second){app->clock_second=now;app->dirty=1;}
