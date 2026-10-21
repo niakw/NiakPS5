@@ -61,18 +61,19 @@ Les jeux d'exemple sont stockés dans \`src/catalog.js\`. Une date de sortie est
 
 Visuels d'illustration : CDN Steam via les identifiants des fiches de jeux, dont PRAGMATA (2026), Resident Evil Requiem (2026) et Clair Obscur: Expedition 33 (2025). Les visuels peuvent être indisponibles, auquel cas les dégradés et pictogrammes locaux restent visibles. Steam sert seulement d'illustration pour la démo, **pas** de source d'information sur les installations PS5. Les métadonnées devront être mises à jour (ou fournies par un futur service de catalogue) pour refléter automatiquement les prochaines sorties.
 
-## Lanceur natif PS5 — un seul fichier
+## NiakPS5 — véritable accueil graphique natif
 
-Le paquet **`NiakPS5.elf`** est un exécutable unique : interface SDL2 plein écran, fontes intégrées, découverte locale des jeux PS5 et DualSense. Il se copie dans `/data/pldmgr/NiakPS5.elf` et se lance depuis Payload Manager, sans second ELF, archive d'assets à déployer, configuration autoloader ou bootstrap `hbldr`.
+**L'ancien ELF SDL lancé dans Payload Manager est abandonné pour l'affichage graphique :** Payload Manager ne fournit pas le contexte vidéo attendu. Le nouveau [projet de titre GPU](native/title/README.md) est une **application native OpenGL PS5**, dérivée du kit `ps5-homebrew-ui`, avec navigation DualSense, palette menthe NiakTV et catalogue PS5 en lecture seule.
 
-**État de validation : compilable par CI, fonctionnement PS5 13.60 non démontré.** Le chargement ELF en tant que payload ne garantit pas l'accès à l'affichage vidéo Sony ; consulter `/data/niakps5.log` et les notifications pour diagnostiquer. `SceShellUI` n'est pas remplacé. Consulter [le guide technique](native/README.md).
+La distribution visée est `NiakPS5-title-PPSA99386.zip`, dont **le seul dossier à installer** est :
 
-## Étapes natives à valider sur console
+```text
+/data/homebrew/PPSA99386/
+```
 
-1. Exécution du seul ELF dans le contexte de Payload Manager et disponibilité de SDL2 vidéo.
-2. Accès au catalogue PS5 en lecture seule et affichage des titres.
-3. Ouverture et retour des jeux via services systèmes, DualSense, mémoire et performances.
-4. Si Payload Manager ne fournit pas de fenêtre vidéo, hébergement en application native compatible sans modification de `/system_ex`.
+ShadowMountPlus enregistre ce dossier en tant que titre lançable depuis le menu Sony. Son `eboot.bin` et les fichiers d'accompagnement forment **une seule application** : ne pas les exécuter séparément. Aucune modification de `SceShellUI` ni des partitions système.
+
+Le rendu natif PS5 13.60, l'accès à `app.db` depuis le sandbox et le lancement d'autres titres **ne sont pas encore validés sur ta console**. Voir les [instructions](native/title/README.md) et le [workflow de compilation](.github/workflows/native-title.yml).
 
 ## Licence et crédits
 

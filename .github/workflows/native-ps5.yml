@@ -1,9 +1,5 @@
 name: Build NiakPS5 single ELF
 on:
-  push:
-    paths:
-      - native/**
-      - .github/workflows/native-ps5.yml
   workflow_dispatch:
 permissions:
   contents: read
