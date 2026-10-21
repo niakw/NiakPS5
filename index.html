@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#081719">
+  <meta name="color-scheme" content="dark">
+  <title>NiakPS5 — Votre console. Votre espace.</title>
+  <link rel="stylesheet" href="./src/style.css">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body data-palette="mint" data-background="game">
+  <div class="scene" aria-hidden="true">
+    <div class="scene-fallback"></div>
+    <img id="scene-a" class="scene-image" alt="">
+    <img id="scene-b" class="scene-image" alt="">
+    <div class="scene-shade"></div><div class="scene-noise"></div>
+  </div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="left-head">
+        <div class="identity" aria-label="NiakPS5">
+          <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M3 23V5h5l12 12V5h5v18h-5L8 11v12z"/></svg>
+          <span>NIAK<span class="brand-suffix">PS5</span></span>
+        </div>
+        <nav class="main-nav" aria-label="Navigation principale">
+          <button class="nav-tab active" type="button" data-action="games" data-navigate aria-current="page">Jeux</button>
+          <button class="nav-tab" type="button" data-action="media" data-navigate>Multimédia</button>
+        </nav>
+      </div>
+      <div class="top-right">
+        <span id="date" class="date"></span>
+        <time id="clock" class="clock"></time>
+        <span class="head-separator"></span>
+        <button class="icon-button" type="button" data-action="search" data-navigate aria-label="Rechercher" title="Rechercher"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 5 5"/></svg></button>
+        <button class="icon-button" type="button" data-action="notifications" data-navigate aria-label="Notifications" title="Notifications"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button>
+        <button class="icon-button" type="button" data-action="settings" data-navigate aria-label="Réglages" title="Réglages"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg></button>
+        <button class="profile" type="button" data-action="profile" data-navigate aria-label="Profil" title="Profil"><span>N</span></button>
+      </div>
+    </header>
+    <section class="spotlight" aria-labelledby="feature-title">
+      <div class="spotlight-content">
+        <div class="eyebrow"><span class="pulse-dot"></span><span id="feature-tag">JEU DU MOMENT</span><span class="eyebrow-line"></span><span id="feature-year">2026</span></div>
+        <h1 id="feature-title">Votre console. <em>Votre espace.</em></h1>
+        <p id="feature-subtitle" class="feature-subtitle">Vos jeux, au premier plan.</p>
+        <div class="feature-meta"><span class="platform-tag">PS5</span><span id="feature-genre">Votre sélection</span><span class="meta-dot">•</span><span id="feature-status">À découvrir</span></div>
+        <div class="hero-actions">
+          <button id="feature-primary" type="button" class="primary-cta" data-action="details" data-navigate><svg viewBox="0 0 20 20"><path d="m7 4 9 6-9 6z" fill="currentColor" stroke="none"/></svg><span id="primary-label">Découvrir le jeu</span></button>
+          <button type="button" class="secondary-cta" data-action="library" data-navigate><svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>Ma bibliothèque</button>
+        </div>
+      </div>
+      <div class="spotlight-side"><span class="small-cap">NIAK / PLAY</span><span>01<span class="side-line"></span>06</span></div>
+    </section>
+    <section class="library-section" aria-labelledby="library-title">
+      <div class="section-titlebar"><div class="title-cluster"><h2 id="library-title">Ma bibliothèque <i></i></h2><span id="library-label" class="section-note">Une sélection à découvrir</span></div><button type="button" class="text-link" data-action="all-games" data-navigate>Tout voir <span>↗</span></button></div>
+      <div id="game-rail" class="game-rail" role="group" aria-label="Jeux"></div>
+    </section>
+    <section class="lower-section" aria-label="Raccourcis de la console">
+      <div class="session-card">
+        <div><span class="eyebrow muted">VOTRE ESPACE</span><h2>Prêt pour la suite.</h2><p id="session-summary">Une interface qui met vos jeux en avant, sans publicité.</p></div>
+        <div class="session-mark" aria-hidden="true"><svg viewBox="0 0 90 90"><path d="M9 68V17h12l45 46V17h14v51H66L22 24v44z"/></svg></div>
+      </div>
+      <div class="shortcuts">
+        <button class="shortcut" type="button" data-action="captures" data-navigate><svg viewBox="0 0 30 30"><rect x="4" y="8" width="22" height="18" rx="3"/><circle cx="15" cy="17" r="5"/><path d="M10 8l2-4h6l2 4"/></svg><span>Captures</span></button>
+        <button class="shortcut" type="button" data-action="downloads" data-navigate><svg viewBox="0 0 30 30"><path d="M15 3v16m-6-6 6 6 6-6M5 22v4h20v-4"/></svg><span>Téléchargements</span></button>
+        <button class="shortcut" type="button" data-action="friends" data-navigate><svg viewBox="0 0 30 30"><circle cx="11" cy="10" r="4"/><path d="M3 26v-4a8 8 0 0 1 16 0v4M21 7a4 4 0 0 1 0 8m2 5a7 7 0 0 1 4 6"/></svg><span>Amis</span></button>
+        <button class="shortcut" type="button" data-action="settings" data-navigate><svg viewBox="0 0 30 30"><path d="M4 9h22M4 21h22M11 4v10M20 16v10"/></svg><span>Réglages</span></button>
+      </div>
+    </section>
+    <footer class="footer"><span id="wallpaper-credit">Fond · Jeu du moment</span><span class="pad-hint"><span class="pad-glyph cross">×</span> Sélectionner <span class="pad-separator">·</span><span class="pad-glyph circle">○</span> Retour <span class="pad-separator">·</span><span class="pad-glyph triangle">△</span> Réglages</span></footer>
+  </main>
+  <div id="panel-overlay" class="overlay" hidden>
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <div class="drawer-top"><div><span class="eyebrow">À VOTRE FAÇON</span><h2 id="drawer-title">Réglages</h2></div><button class="close-button" type="button" data-action="close" data-navigate aria-label="Fermer"><svg viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></svg></button></div>
+      <div id="drawer-content"></div>
+    </aside>
+  </div>
+  <div id="search-overlay" class="overlay search-overlay" hidden>
+    <div class="search-box" role="dialog" aria-modal="true" aria-label="Rechercher un jeu"><label for="game-search">Rechercher un jeu</label><div class="search-line"><input id="game-search" type="search" placeholder="Nom du jeu…" autocomplete="off"><button type="button" data-action="search-close" data-navigate aria-label="Fermer la recherche">Fermer</button></div><div id="search-results" class="search-results"></div></div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

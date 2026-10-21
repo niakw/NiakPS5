@@ -1,0 +1,1 @@
+{"name":"niakps5","private":true,"version":"0.1.0","type":"module","scripts":{"test":"node --test tests/*.test.mjs","check":"node --check src/app.js && node --check src/catalog.js"}}
