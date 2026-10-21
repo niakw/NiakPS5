@@ -58,5 +58,10 @@ mkdir -p "$root/dist"
 rm -rf "$out"
 cp -a "$stage/dist/$title" "$out"
 (cd "$root/dist" && zip -qr "NiakPS5-title-$title.zip" "$title")
+if [[ -s "$root/dist/autostart/niakps5_autostart.elf" ]]; then
+  cp "$root/native/title/AUTOSTART.md" "$root/dist/README-AUTOSTART.md"
+  (cd "$root/dist" && zip -qr "NiakPS5-AutoHome-$title.zip" \
+    "$title" autostart/niakps5_autostart.elf README-AUTOSTART.md)
+fi
 echo "Built native NiakPS5 app folder: $out"
 echo "Install the entire $title directory under /data/homebrew/."

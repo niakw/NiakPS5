@@ -35,6 +35,7 @@ jobs:
           test -s dist/PPSA99386/sce_module/libc.prx
           test -s dist/autostart/niakps5_autostart.elf
           test -s dist/NiakPS5-title-PPSA99386.zip
+          test -s dist/NiakPS5-AutoHome-PPSA99386.zip
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -49,5 +50,6 @@ jobs:
           name: NiakPS5-native-home-PPSA99386
           path: |
             dist/NiakPS5-title-PPSA99386.zip
+            dist/NiakPS5-AutoHome-PPSA99386.zip
             dist/autostart/niakps5_autostart.elf
           if-no-files-found: error

@@ -73,3 +73,9 @@ Consulter [AUTOSTART.md](AUTOSTART.md). Le payload auxiliaire demande l'ouvertur
 ## API locale ShadowMountPlus (fallback pour les permissions)
 
 Le titre tente maintenant `POST http://127.0.0.1:10101/api/v1/games` en lecture seule avant de réunir les résultats avec app.db et /data/homebrew. Le client HTTP est borné à 2 Mio, boucle locale uniquement et délais de réception limités ; il ne demande aucun scan, montage, suppression, élévation ni changement de configuration. Cela nécessite une version de ShadowMountPlus qui expose déjà cette API (documentée dans la série 1.7). En l'absence de serveur, on conserve les autres méthodes et l'état explicite « indisponible » ; aucune donnée de la bibliothèque n'est envoyée sur Internet.
+
+## Fonds de jeux récents : état précis
+
+`fetch_daily_games.py` exploite l'API **Steam Store** au moment de la compilation pour trouver des jeux réellement sortis depuis moins de 365 jours, récupérer au maximum sept captures horizontales et les préparer dans les assets de l'application. Aucun identifiant personnel de PS5 n'est envoyé. Une rotation fondée sur la date locale choisit une image par jour ; l'aurore/fumée reste présente et sert de fallback si les ressources n'existent pas. La CI reconstruit le paquet chaque matin.
+
+**Limite actuelle :** la génération du paquet est quotidienne, mais le titre installé n'actualise pas encore ses images en HTTPS depuis la PS5. Il conserve son lot embarqué jusqu'à mise à jour du paquet. Il ne faut pas prétendre à un téléchargement journalier autonome avant l'intégration d'un transport HTTPS fiable et d'un cache atomique dans le stockage privé `/download0`. Les captures appartiennent à leurs éditeurs ; il faut respecter leurs droits.

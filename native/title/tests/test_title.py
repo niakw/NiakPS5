@@ -22,6 +22,15 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sce_module/libc.prx", source)
         self.assertNotIn("niakps5_bootstrap.elf", source)
 
+    def test_daily_wallpaper_pipeline(self):
+        source = (ROOT / "title" / "fetch_daily_games.py").read_text()
+        native = (ROOT / "title" / "daily_backdrop.cpp").read_text()
+        compile(source, "fetch_daily_games.py", "exec")
+        self.assertIn("Steam Store API", source)
+        self.assertIn("path_full", source)
+        self.assertIn("niak_daily_backdrop", native)
+        self.assertIn("std::localtime", native)
+
     def test_real_top_navigation(self):
         from pathlib import Path
         code = (ROOT / "title" / "patch_home.py").read_text()
