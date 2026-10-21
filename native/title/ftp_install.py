@@ -12,6 +12,7 @@ from io import BytesIO
 from pathlib import Path
 import posixpath
 import re
+import json
 
 TITLE = "PPSA99386"
 PAYLOAD = "/data/pldmgr/payloads/niakps5/niakps5.elf"
@@ -100,6 +101,41 @@ def copy_avatar_for_ftp(ftp, user_id=None):
     print("Avatar: no readable profile image; Sony profile left untouched.")
     return False
 
+def upload_local_homebrew_names(ftp):
+    """Build a small local-only title overlay from real PS5 param.json files.
+    It stays on the owner's PS5; no online lookup or repository upload.
+    """
+    root="/data/homebrew"
+    try: entries=ftp.nlst(root)
+    except (error_perm,AttributeError):return 0
+    records={}
+    for dirname in entries:
+        ident=posixpath.basename(dirname.rstrip("/"))
+        if not re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident):continue
+        try: body=_bounded_retrieve(ftp,f"{root}/{ident}/sce_sys/param.json")
+        except (OSError,ValueError):continue
+        if not body or len(body)>65536:continue
+        try: meta=json.loads(body)
+        except (ValueError,UnicodeDecodeError):continue
+        params=meta.get("localizedParameters") or {}
+        languages=["fr-FR","en-US",str(params.get("defaultLanguage",""))]
+        languages += [k for k in params if isinstance(params[k],dict)]
+        title=meta.get("titleName")
+        if not title:
+            for lang in languages:
+                value=params.get(lang)
+                if isinstance(value,dict) and value.get("titleName"):
+                    title=value["titleName"];break
+        if isinstance(title,str):
+            title=" ".join(title.split())[:120]
+            if title and "\t" not in title:records[ident]=title
+    if records:
+        contents="".join(f"{id}\t{name}\t\t\t\n" for id,name in sorted(records.items()))
+        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",
+               contents.encode("utf-8"))
+    print(f"Titles: {len(records)} homebrew names resolved locally.")
+    return len(records)
+
 def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None):
     if directory.name != TITLE or not (directory / "sce_sys/param.json").is_file():
         raise ValueError("Extract PPSA99386/ and run the installer inside that folder")
@@ -112,6 +148,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
                 continue
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
     copy_avatar_for_ftp(ftp,avatar_user_id)
+    upload_local_homebrew_names(ftp)
     if not autoload:
         print("Titre installe. L'autoload n'est pas active sans --autoload.")
         return
