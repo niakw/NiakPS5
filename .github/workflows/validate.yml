@@ -47,6 +47,8 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -o /tmp/niakps5-diagnostic-host native/diagnostic.c
           python3 native/tests/test_diagnostic.py /tmp/niakps5-diagnostic-host
+      - name: Verify native PS5 title staging contracts
+        run: python3 -m unittest discover -s native/title/tests -p "test_*.py" -v
       - name: Compile native SDL frontend on host
         run: |
           python3 native/tools/embed_assets.py

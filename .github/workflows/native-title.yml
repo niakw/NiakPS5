@@ -1,0 +1,48 @@
+name: Build native PS5 Niak Home title (experimental)
+on:
+  push:
+    paths:
+      - native/title/**
+      - native/catalog.c
+      - native/catalog.h
+      - .github/workflows/native-title.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  title:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends             clang-18 lld-18 llvm-18 ninja-build cmake make git curl             python3 python3-pip python3-mako python3-yaml             pkg-config zip unzip zlib1g-dev xxd ca-certificates
+      - name: Source-level validation
+        run: |
+          python3 -m unittest discover -s native/title/tests -p 'test_*.py' -v
+          python3 -m py_compile native/title/prepare.py
+          bash -n native/title/build.sh
+      - name: Build native title using pinned GPU renderer
+        run: bash native/title/build.sh
+      - name: Confirm complete title package
+        run: |
+          test -s dist/PPSA99386/eboot.bin
+          test -s dist/PPSA99386/sce_sys/param.json
+          test -s dist/PPSA99386/sce_module/libc.prx
+          test -s dist/NiakPS5-title-PPSA99386.zip
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('dist/PPSA99386/sce_sys/param.json').read_text())
+          assert p['titleId']=='PPSA99386'
+          assert p['localizedParameters'][p['localizedParameters']['defaultLanguage']]['titleName']=='NiakPS5'
+          print('Title metadata verified.')
+          PY
+          sha256sum dist/NiakPS5-title-PPSA99386.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NiakPS5-native-home-PPSA99386
+          path: dist/NiakPS5-title-PPSA99386.zip
+          if-no-files-found: error
