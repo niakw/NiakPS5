@@ -20,7 +20,7 @@ jobs:
       - name: Toolchain dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends             clang-18 lld-18 llvm-18 ninja-build cmake make git curl             python3 python3-pip python3-mako python3-yaml             pkg-config zip unzip zlib1g-dev xxd ca-certificates
+          sudo apt-get install -y --no-install-recommends             clang-18 lld-18 llvm-18 ninja-build cmake make git curl             python3 python3-pip python3-pil python3-mako python3-yaml             pkg-config zip unzip zlib1g-dev xxd ca-certificates
       - name: Source-level validation
         run: |
           python3 -m unittest discover -s native/title/tests -p 'test_*.py' -v
