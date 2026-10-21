@@ -1,42 +1,57 @@
-# NiakPS5 — un seul ELF PS5 (expérimental)
+# NiakPS5 — véritable accueil graphique, en application PS5
 
-## Installation : un fichier
+## Ce que l'on installe
 
-La distribution PS5 contient **un seul** exécutable `NiakPS5.elf` à copier dans :
+**Un seul dossier de titre**, et non plusieurs ELF de Payload Manager :
 
 ```text
-/data/pldmgr/NiakPS5.elf
+/data/homebrew/PPSA99386/
+    eboot.bin
+    sce_sys/param.json
+    sce_sys/icon0.png
+    sce_module/libc.prx
+    assets/...
 ```
 
-À lancer dans Payload Manager **après** l'environnement jailbreak habituel. **Aucun autre fichier NiakPS5 n'est à copier** : interface native, logique SQLite, navigation DualSense, palettes et fontes Manrope / Instrument Serif sont compilées dans cet ELF. Les illustrations de jeux sont lues dans les répertoires de la console, sans être intégrées comme des jeux factices.
+L'installation est analogue aux titres Homebrew UI Lab et PS5LM : le titre est ajouté au menu Sony par **ShadowMountPlus**, puis s'ouvre en plein écran avec OpenGL natif et le DualSense.
 
-### Attention : compatibilité matérielle
+**Important : l'expérience visuelle NiakPS5 peut devenir ton accueil habituel de la session homebrew, mais ce dossier ne remplace pas `SceShellUI`, les écrans de sécurité Sony ou le bouton PS.** Le retour Home et les autres fonctions système demeurent gérés par la PS5. Les exemples de kits ne constituent pas une preuve de remplacement du processus `SceShellUI`.
 
-La compilation croisée et les tests PC prouvent la validité du binaire, **pas** sa capacité à ouvrir une fenêtre graphique dans le processus créé par Payload Manager sur une PS5 firmware 13.60. Ce chemin exécute SDL2 **directement** ; il ne crée pas de processus "bigapp". Un processus de payload n'a pas nécessairement les droits ou les services vidéo d'une application installée.
+Le code est une adaptation GPL-3.0-or-later du kit [mihawk-99/PS5_VKHomebrewUI](https://github.com/mihawk-99/PS5_VKHomebrewUI) au commit épinglé `2188642afbcc8d84d36149124f3d9e39dc1b1a05`, dont le rendu OpenGL vient de BlackBearReloaded. Le dossier de compilation conserve ses notices/licences et la base vidéo/contrôleur vérifiée par l'amont.
 
-En cas d'échec ou d'écran inchangé, vérifiez la notification et le fichier `/data/niakps5.log` par FTP. Le binaire appelle `sceKernelSendNotificationRequest` au démarrage et en cas d'erreur SDL ; en fonction du loader et du firmware, les notifications peuvent aussi ne pas être visibles. Le log est uniquement écrit sous `/data`, jamais dans `/system_ex`.
+## Architecture
 
-**L'ancienne méthode `niakps5_bootstrap.elf` + `niakps5_ui.elf` est abandonnée** pour la distribution par défaut. Le chemin expérimental `hbldr` et son risque de montage système sont isolés hors du build normal. Ne plus lancer l'ancien bootstrap.
+- `native/title/build.sh` récupère un **commit exact** du moteur GPU PS5, dans un dossier temporaire ignorant les sources du projet.
+- `native/title/prepare.py` prépare **une seule** variante Aurora Shelf appelée NiakPS5, avec des onglets Niak/Jeux/Multimédia/Réglages et la palette menthe.
+- Le catalogue de démonstration amont est **remplacé** par notre scanner `native/catalog.c`, utilisant SQLite en lecture seule. S'il n'est pas autorisé à accéder à `/system_data/priv/mms/app.db` depuis le sandbox natif, l'interface affiche clairement « Bibliothèque indisponible », **pas de jeux inventés**.
+- Une sélection de jeu valide peut appeler `sceSystemServiceLaunchApp`. Ce lancement depuis un titre concurrent reste à vérifier sur le firmware 13.60 et l'échec est journalisé.
+- Pour l'instant, la pochette est **procédurale** avec le titre réel, pas encore une jaquette `icon0.png` importée. Le moteur permet l'upload de textures ; cette étape reste à intégrer après le premier test de la base graphique.
 
-Si l'exécution directe ne reçoit pas d'accès vidéo, il faudra ensuite porter le lanceur en application homebrew native correctement hébergée. Ne pas résoudre ce problème en remplaçant ou en remountant les fichiers système Sony.
+## Construire sur Linux
 
-## Build
+La compilation GPU est distincte du précédent workflow ELF et demande les dépendances officielles du moteur :
 
 ```sh
-export PS5_PAYLOAD_SDK=/chemin/vers/ps5-payload-sdk
-native/fetch-sqlite.sh
-make -C native
-ls -lh native/build/NiakPS5.elf
+bash native/title/build.sh
+# donne dist/NiakPS5-title-PPSA99386.zip
 ```
 
-Le script `native/tools/embed_assets.py` génère `native/build/embedded_assets.h` à partir des deux fonts sous `native/assets/`. C'est **une étape de compilation locale**, pas un fichier à installer sur la console. Les polices sont ensuite ouvertes depuis la mémoire via `SDL_RWFromConstMem`, sans extraction sur disque.
+Elle télécharge les dépendances épinglées et peut prendre du temps. La source est GPL ; conserver les notices des dépendances et respecter les licences.
 
-Le moteur SDL2 initialise l'affichage en plein écran 1920×1080, tente l'accélération vidéo disponible et possède un repli logiciel. La base `/system_data/priv/mms/app.db` est consultée en lecture seule, avec vérification des installations détectées et appel `sceSystemServiceLaunchApp` pour les jeux sélectionnés. Ces appels devront être validés sur le firmware cible.
+## Installer sur PS5 13.60
 
-## Délimitation
+1. Conserver ton environnement jailbreak normal, avec **ShadowMountPlus** actif.
+2. Copier par FTP le **dossier entier** `PPSA99386` dans `/data/homebrew/`. Ne pas déposer `eboot.bin` dans `/data/pldmgr/`.
+3. Laisser ShadowMountPlus enregistrer le titre ; si nécessaire, relancer son mécanisme d'enregistrement suivant sa documentation.
+4. Lancer **NiakPS5** depuis son icône dans l'accueil Sony. Tester d'abord l'ouverture, le focus DualSense et le retour Sony.
+5. Avant d'utiliser le bouton de lancement d'un jeu, vérifier que la liste ne contient que les titres réellement installés.
 
-- Pas de remplacement de `SceShellUI`, ni de capture du bouton PS.
-- Pas d'autoloader tant que l'exécution directe n'a pas été validée.
-- Pas d'injection de processus, `ptrace`, remontage `/system_ex` ou modification de base Sony.
-- Les fichiers `diagnostic.c` et `bootstrap.c` demeurent dans le dépôt pour l'historique et les études, **non présents dans le ELF livré**.
-- Sources et attribution GPL-3.0-or-later ; polices SIL OFL, notices conservées dans `fonts/`.
+Ne pas supprimer ni remplacer `SceShellUI`, ne pas remonter `/system_ex` en écriture, ne pas réactiver l'ancien bootstrap `hbldr`.
+
+## Limites à valider
+
+- Compilation et runtime de **cette adaptation** sur PS5 firmware 13.60 : **non validés matériellement**.
+- Accès à `app.db` depuis un titre sandboxé : inconnu ; la version originale du scanner a été validée seulement sur PC.
+- Retour et lancement PS4/PS5 : non prouvés ; une permission ou un service hôte peut être nécessaire.
+- Le moteur GPU doit être testé avec l'intégralité des bibliothèques embarquées sur cette console avant d'en faire un accueil par défaut.
+- La priorité suivante est une source réelle de jaquettes et une procédure d'autolancement facultative, seulement si sûre et réversible.
