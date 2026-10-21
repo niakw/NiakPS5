@@ -33,3 +33,9 @@ Un vrai remplacement du design de \`SceShellUI\` avec ta propre disposition de m
 - **NiakPS5 UI complète au premier plan, lancée automatiquement** : cible de ce mini-payload.
 - **Thème des ressources visuelles du Sony Home** : un second mode de travail, réversible, mais avec disposition Sony.
 - **Remplacement du processus SceShellUI** : non pris en charge et non justifié par la validation actuelle.
+
+## Option expérimentale : retour après la fermeture d'un jeu
+
+L'option `--return-after-game` de l'installeur crée le marqueur `/data/niakps5-return-after-game.enabled`. Le payload reste en veille, compare l'ID de l'application au premier plan et, **seulement après avoir vu un jeu remplacer NiakPS5 puis se fermer**, tente de revenir sur l'accueil après environ dix secondes sans grand titre actif.
+
+Ce mécanisme ne peut pas lire le bouton PS (intercepté par le système) et **ne peut pas remplacer le menu Sony**. Il ne se déclenche pas lorsque le jeu reste actif derrière le Control Center. Cela reste expérimental : la validation sur firmware 13.60 est indispensable avant activation. Désactivation sans désinstaller : créer `/data/niakps5-autostart.disable` ou supprimer `/data/niakps5-return-after-game.enabled`. Le moniteur s'arrête s'il ne parvient pas à identifier l'application ou si une tentative de retour échoue. Aucun hook ni accès mémoire système.

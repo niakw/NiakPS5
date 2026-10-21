@@ -47,7 +47,7 @@ def upload(ftp, path, content):
         # Not every PS5 FTP server implements SITE CHMOD; archive encodes POSIX modes.
         pass
 
-def install(ftp, directory, autoload):
+def install(ftp, directory, autoload, return_after_game=False):
     if directory.name != TITLE or not (directory / "sce_sys/param.json").is_file():
         raise ValueError("Extract PPSA99386/ and run the installer inside that folder")
     for local in sorted(directory.rglob("*")):
@@ -88,6 +88,10 @@ def install(ftp, directory, autoload):
     lines = [line for line in lines if not line.startswith("AUTOLOAD_ENABLED=")]
     lines.append("AUTOLOAD_ENABLED=1")
     upload(ftp, CONFIG, ("\n".join(lines)+"\n").encode())
+    # Activate only once both the binary and the autoload configuration exist.
+    upload(ftp, "/data/niakps5-autostart.enabled", b"")
+    if return_after_game:
+        upload(ftp, "/data/niakps5-return-after-game.enabled", b"")
     print("Autoload configure en derniere position. Desactiver via le fichier")
     print("/data/niakps5-autostart.disable ou retirer l'entree du Payload Manager.")
 
@@ -97,13 +101,17 @@ def main():
     cli.add_argument("--port", type=int, default=2121)
     cli.add_argument("--user", default="anonymous")
     cli.add_argument("--autoload", action="store_true", help="Activer le lancement apres jailbreak")
+    cli.add_argument("--return-after-game", action="store_true",
+                     help="Surveiller uniquement la fermeture d'un jeu, sans intercepter le bouton PS")
     args = cli.parse_args()
+    if args.return_after_game and not args.autoload:
+        cli.error("--return-after-game requires --autoload")
     directory = Path(__file__).resolve().parent.parent
     password = "" if args.user == "anonymous" else getpass("Mot de passe FTP: ")
     with FTP() as ftp:
         ftp.connect(args.host, args.port, timeout=20)
         ftp.login(args.user, password)
-        install(ftp, directory, args.autoload)
+        install(ftp, directory, args.autoload, args.return_after_game)
 
 if __name__ == "__main__":
     main()
