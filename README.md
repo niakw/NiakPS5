@@ -63,7 +63,9 @@ Visuels d'illustration : CDN Steam via les identifiants des fiches de jeux, dont
 
 ## Lanceur PS5 natif (développement)
 
-Un premier socle natif SDL2, lecteur de jeux installés et bootstrap ELF réversible est désormais dans [`native/`](native/README.md). Il vise à devenir l’accueil quotidien de la console avec la même DA que NiakTV. **Il ne remplace pas le processus protégé `SceShellUI` et n’a pas encore été validé sur une PS5 physique.** La compilation SDL2 sur Linux et les tests de base de données sont exécutés en CI séparément ; ils ne prouvent pas que le binaire PS5 fonctionne sur le firmware cible.
+La version native SDL2 est désormais dans [`native/`](native/README.md) : lecteur de jeux installés en lecture seule, focus DualSense, jaquettes locales, lancement par l’API système et bootstrap bigapp réversible. **Les deux ELF ont été compilés avec succès** par [GitHub Actions](https://github.com/niakw/NiakPS5/actions/workflows/native-ps5.yml), avec un paquet de distribution expérimental téléchargeable depuis les artefacts de chaque exécution verte. Le fonctionnement effectif sur PS5 13.60 **n’a pas encore été testé matériellement**. Le processus protégé `SceShellUI` n’est pas remplacé ; Sony reste disponible comme secours.
+
+L’[intégration de WebKit Autoloader 0.5.2](native/AUTOLOAD.md) est optionnelle et réversible, et ne doit être activée **qu’après** un lancement manuel réussi du binaire natif et un test du retour par rond. Le démarrage à froid de la PS5 continue d’afficher le menu Sony jusqu’au lancement de l’exploit.
 
 ## Étapes natives restant à faire
 
