@@ -22,7 +22,7 @@ jobs:
       - name: Toolchain dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends             clang-18 lld-18 llvm-18 ninja-build cmake make git curl             python3 python3-pip python3-pil python3-mako python3-yaml             pkg-config zip unzip zlib1g-dev xxd ca-certificates
+          sudo apt-get install -y --no-install-recommends             clang-18 lld-18 llvm-18 ninja-build cmake make git curl             python3 python3-pip python3-pil python3-mako python3-yaml libegl1-mesa-dev libgl1-mesa-dev libsqlite3-dev             pkg-config zip unzip zlib1g-dev xxd ca-certificates
       - name: Source-level validation
         run: |
           python3 -m unittest discover -s native/title/tests -p 'test_*.py' -v
@@ -30,6 +30,22 @@ jobs:
           bash -n native/title/build.sh
       - name: Build native title using pinned GPU renderer
         run: bash native/title/build.sh
+      - name: Capture real NiakPS5 UI using Mesa OpenGL
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          EGL_PLATFORM: surfaceless
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          python3 native/title/host_preview.py --kit .build/ps5-title-kit
+          bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
+          python3 native/title/validate_preview.py build/niak-preview
+      - name: Upload genuine native UI previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NiakPS5-OpenGL-interface-preview
+          path: build/niak-preview/*.png
+          if-no-files-found: warn
       - name: Confirm complete title package
         run: |
           test -s dist/PPSA99386/eboot.bin
