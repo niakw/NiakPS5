@@ -51,7 +51,7 @@ int main(void){
   snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/eboot.bin",root);
   FILE *eboot=fopen(path,"wb");assert(eboot);fputs("fixture eboot",eboot);fclose(eboot);
   snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/param.json",root);
-  FILE *param=fopen(path,"wb");assert(param);fputs("{\\"titleName\\":\\"Exemple\\"}",param);fclose(param);
+  FILE *param=fopen(path,"wb");assert(param);fputs("{\"titleName\":\"Exemple\"}",param);fclose(param);
   snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/icon0.png",root);
   FILE *homeicon=fopen(path,"wb");assert(homeicon);fputs("png",homeicon);fclose(homeicon);
   snprintf(path,sizeof(path),"%s/data/homebrew/CUSA99999",root);make_dir(path);
