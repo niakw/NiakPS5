@@ -154,6 +154,34 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
                  x, 505, 20, it.accent);
 
 """ + visual[end:]
+    # The upstream detail sheet has three invented rating/playtime/player tiles.
+    # NiakPS5 has none of these facts; show a verified title ID instead.
+    sheet_start = visual.find('        // Three stat tiles; the first is a gauge drawn with arcs.')
+    sheet_end = visual.find('        // Actions: one highlight that springs between the rows.', sheet_start)
+    if sheet_start < 0 or sheet_end < 0:
+        raise SystemExit("Upstream demo detail tiles changed; review required")
+    facts = """        // Verified PS5 identifier only; no fictional scores or hours played.
+        const Rect fact{x, sheet.y + 298, 700, 124};
+        list.rounded_rect(fact, 24, kWhite.with_alpha(0.08f));
+        ui::text(list, fonts.semibold, "IDENTIFIANT DU TITRE", fact.x + 24, fact.y + 38,
+                 17, kWhite.with_alpha(0.55f));
+        std::snprintf(text, sizeof(text), "%s",
+                      it.title_id[0] ? it.title_id : "CATALOGUE INACCESSIBLE");
+        ui::text(list, fonts.semibold, text, fact.x + 24, fact.y + 92, 34, kWhite);
+
+"""
+    visual = visual[:sheet_start] + facts + visual[sheet_end:]
+    visual = visual.replace('const char *actions[kActions] = {it.progress > 0.0f ? "Resume" : "Play",',
+                            'const char *actions[kActions] = {it.title_id[0] ? "Jouer" : "Indisponible",')
+    visual = visual.replace('"Remove from favorites" : "Add to favorites"', 
+                            '"Retirer favori (session)" : "Ajouter favori (session)"')
+    visual = visual.replace('                                         "Close"};', '                                         "Fermer"};')
+    visual = visual.replace('"Choose"}, {ui::Button::circle, "Back"', 
+                            '"Choisir"}, {ui::Button::circle, "Retour"')
+    visual = visual.replace('"Details"},\n                                      {ui::Button::triangle, "Favorite"', 
+                            '"Details"},\n                                      {ui::Button::triangle, "Favori (session)"')
+    visual = visual.replace('ui::text(list, fonts.semibold, "B", 1800, 91, 22,',
+                            'ui::text(list, fonts.semibold, "N", 1800, 91, 22,')
     visual = visual.replace('it.progress > 0.0f ? "Resume" : "Play"',
                             'it.title_id[0] ? "Jouer" : "Indisponible"')
     extra = visual.find('        const Rect more{x + 240, 540, 64, 64};')
