@@ -35,9 +35,7 @@ jobs:
           test -s dist/PPSA99386/eboot.bin
           test -s dist/PPSA99386/sce_sys/param.json
           test -s dist/PPSA99386/sce_module/libc.prx
-          test -s dist/autostart/niakps5_autostart.elf
-          test -s dist/NiakPS5-title-PPSA99386.zip
-          test -s dist/NiakPS5-AutoHome-PPSA99386.zip
+          test -s dist/PPSA99386.zip
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -46,12 +44,21 @@ jobs:
           assert p['localizedParameters'][p['localizedParameters']['defaultLanguage']]['titleName']=='NiakPS5'
           print('Title metadata verified.')
           PY
-          sha256sum dist/NiakPS5-title-PPSA99386.zip
+          python3 - <<'PY'
+          import stat
+          from zipfile import ZipFile
+          with ZipFile('dist/PPSA99386.zip') as z:
+              assert z.testzip() is None
+              assert all(p.startswith('PPSA99386/') for p in z.namelist())
+              assert not any(p.endswith('.zip') or p.endswith('.elf') for p in z.namelist())
+              assert (z.getinfo('PPSA99386/').external_attr >> 16) & 0o777 == 0o755
+              assert (z.getinfo('PPSA99386/eboot.bin').external_attr >> 16) & 0o777 == 0o755
+              assert (z.getinfo('PPSA99386/sce_sys/param.json').external_attr >> 16) & 0o777 == 0o644
+          print('FTP ZIP verified (one root folder, modes, no nested ZIP)')
+          PY
+          sha256sum dist/PPSA99386.zip
       - uses: actions/upload-artifact@v4
         with:
           name: NiakPS5-native-home-PPSA99386
-          path: |
-            dist/NiakPS5-title-PPSA99386.zip
-            dist/NiakPS5-AutoHome-PPSA99386.zip
-            dist/autostart/niakps5_autostart.elf
+          path: dist/PPSA99386.zip
           if-no-files-found: error

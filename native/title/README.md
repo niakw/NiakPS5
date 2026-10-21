@@ -33,7 +33,7 @@ La compilation GPU est distincte du précédent workflow ELF et demande les dép
 
 ```sh
 bash native/title/build.sh
-# donne dist/NiakPS5-title-PPSA99386.zip
+# donne dist/PPSA99386.zip
 ```
 
 Elle télécharge les dépendances épinglées et peut prendre du temps. La source est GPL ; conserver les notices des dépendances et respecter les licences.
@@ -79,3 +79,9 @@ Le titre tente maintenant `POST http://127.0.0.1:10101/api/v1/games` en lecture 
 `fetch_daily_games.py` exploite l'API **Steam Store** au moment de la compilation pour trouver des jeux réellement sortis depuis moins de 365 jours, récupérer au maximum sept captures horizontales et les préparer dans les assets de l'application. Aucun identifiant personnel de PS5 n'est envoyé. Une rotation fondée sur la date locale choisit une image par jour ; l'aurore/fumée reste présente et sert de fallback si les ressources n'existent pas. La CI reconstruit le paquet chaque matin.
 
 **Limite actuelle :** la génération du paquet est quotidienne, mais le titre installé n'actualise pas encore ses images en HTTPS depuis la PS5. Il conserve son lot embarqué jusqu'à mise à jour du paquet. Il ne faut pas prétendre à un téléchargement journalier autonome avant l'intégration d'un transport HTTPS fiable et d'un cache atomique dans le stockage privé `/download0`. Les captures appartiennent à leurs éditeurs ; il faut respecter leurs droits.
+
+## Package FTP unique (sans imbriquation)
+
+La compilation fournit **exactement** `dist/PPSA99386.zip`. À l'intérieur, une seule racine : `PPSA99386/`, suivie de `eboot.bin`, `sce_sys/`, `sce_module/` et `assets/`. Les fichiers intermédiaires, le programme `niakps5_autostart.elf` et les autres ZIP ne sont **jamais** inclus dans ce paquet. Droits UNIX explicites dans l'archive et le dossier de build : dossiers 0755, `eboot.bin` 0755, autres fichiers 0644. Le packager rejette les symlinks et les archives imbriquées.
+
+Dézipper le **seul dossier `PPSA99386`** puis le transférer vers `/data/homebrew/` par FTP. Ce format n'exécute pas à lui seul un chargeur automatique : l'autodémarrage après jailbreak, distinct du titre natif, nécessite une intégration externe vérifiée, non embarquée dans le ZIP FTP. Le fonctionnement du scanner ShadowMountPlus et la récupération du vrai avatar restent à valider sur console.

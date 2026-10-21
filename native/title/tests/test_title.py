@@ -14,6 +14,36 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("ptrace(", source)
         self.assertNotIn("mount(", source)
 
+    def test_exact_ftp_package(self):
+        import tempfile
+        import json
+        import sys
+        import zipfile
+        import subprocess
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp) / "PPSA99386"
+            for path in ("eboot.bin", "sce_module/libc.prx", "sce_sys/param.json"):
+                target=base / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(json.dumps({"titleId":"PPSA99386"}) if
+                                  path.endswith("param.json") else "nonempty")
+            (base / "assets").mkdir()
+            package=Path(temp) / "PPSA99386.zip"
+            subprocess.run([sys.executable, str(ROOT / "title" / "pack_ftp.py"),
+                            "--folder", str(base), "--output", str(package)], check=True)
+            with zipfile.ZipFile(package) as z:
+                self.assertIsNone(z.testzip())
+                self.assertEqual([n.split("/")[0] for n in z.namelist()],
+                                 ["PPSA99386"] * len(z.namelist()))
+                self.assertFalse(any(n.endswith(".zip") for n in z.namelist()))
+                self.assertEqual((z.getinfo("PPSA99386/eboot.bin").external_attr >> 16) & 0o777, 0o755)
+                self.assertEqual((z.getinfo("PPSA99386/sce_module/libc.prx").external_attr >> 16) & 0o777, 0o644)
+            (base / "assets/inner.zip").write_text("forbidden")
+            with self.assertRaises(subprocess.CalledProcessError):
+                subprocess.run([sys.executable, str(ROOT / "title" / "pack_ftp.py"),
+                                "--folder", str(base), "--output", str(package)],
+                               check=True, capture_output=True)
+
     def test_standalone_native_title(self):
         source = (ROOT / "title" / "build.sh").read_text()
         self.assertIn("PPSA99386", source)
