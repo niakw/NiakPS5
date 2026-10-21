@@ -1,0 +1,10 @@
+.build/
+dist/
+__pycache__/
+*.pyc
+*.log
+*.db
+*.sqlite*
+.env
+.env.*
+!/native/title/vendor/

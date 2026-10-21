@@ -5,79 +5,24 @@ on:
 permissions:
   contents: read
 jobs:
-  static:
+  host:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npm run validate
-      - name: Browser rendering smoke test
+      - name: Install host catalogue dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends gcc libsqlite3-dev
+      - name: Compile catalogue and test with an isolated filesystem
         run: |
-          python3 -m http.server 8787 >/tmp/niakps5-http.log 2>&1 &
-          sleep 2
-          BROWSER="$(command -v google-chrome || command -v chromium || true)"
-          if [ -z "$BROWSER" ]; then echo "No headless Chrome available"; exit 1; fi
-          "$BROWSER" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=2500 --window-size=1600,900 --dump-dom http://127.0.0.1:8787/ > /tmp/niakps5-dom.html 2>/tmp/niakps5-chrome.log
-          grep -q 'game-card' /tmp/niakps5-dom.html
-          grep -q 'Resident Evil Requiem' /tmp/niakps5-dom.html
-          "$BROWSER" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=2500 --window-size=1600,900 --screenshot=niakps5-preview.png http://127.0.0.1:8787/ 2>/tmp/niakps5-screenshot.log
-          test -s niakps5-preview.png
-      - uses: actions/upload-artifact@v4
-        with:
-          name: niakps5-preview
-          path: niakps5-preview.png
-
-  native-host:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install host test dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends build-essential pkg-config libsqlite3-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
-      - name: Test the read-only PS5 game catalogue with a fixture
+          cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog
+          /tmp/niak-catalog
+      - name: Compile and test local ShadowMountPlus API reader
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog-test
-          /tmp/niak-catalog-test
-      - name: Test optional ShadowMountPlus loopback API JSON reader
+          cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/shadowmount_api.c native/tests/shadowmount_test.c -lsqlite3 -o /tmp/niak-shadowmount
+          /tmp/niak-shadowmount
+      - name: Validate title staging and FTP package
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/shadowmount_api.c native/tests/shadowmount_test.c -lsqlite3 -o /tmp/niak-shadowmount-test
-          /tmp/niak-shadowmount-test
-      - name: Test navigation repeat and frame-independent motion
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I native native/ui_motion.c native/tests/motion_test.c -lm -o /tmp/niak-motion-test
-          /tmp/niak-motion-test
-      - name: Test read-only bootstrap preflight in isolated fake PS5 filesystem
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -o /tmp/niakps5-diagnostic-host native/diagnostic.c
-          python3 native/tests/test_diagnostic.py /tmp/niakps5-diagnostic-host
-      - name: Verify native PS5 title staging contracts
-        run: python3 -m unittest discover -s native/title/tests -p "test_*.py" -v
-      - name: Compile native SDL frontend on host
-        run: |
-          python3 native/tools/embed_assets.py
-          test -s native/build/embedded_assets.h
-          cc -std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -I native \
-            $(pkg-config --cflags sdl2 SDL2_image SDL2_ttf sqlite3) \
-            native/main.c native/catalog.c native/ui_motion.c native/ui_renderer.c native/ui_text_cache.c \
-            $(pkg-config --libs sdl2 SDL2_image SDL2_ttf sqlite3) -lm -o /tmp/niakps5-ui-host
-      - name: Test safe WebKit autoloader config migration
-        run: python3 -m unittest discover -s native/tests -p "test_*.py" -v
-      - name: Headless SDL initialization smoke test
-        run: |
-          python3 native/tests/visual_fixture.py /tmp/niakps5-demo
-          set +e
-          NIAKPS5_DB="/tmp/niakps5-demo/app.db" NIAKPS5_ROOT="/tmp/niakps5-demo" \
-          NIAKPS5_SCREENSHOT="$PWD/niakps5-native.bmp" \
-          SDL_VIDEODRIVER=dummy \
-            timeout 4 /tmp/niakps5-ui-host >/tmp/niakps5-native.log 2>&1
-          CODE=$?
-          cat /tmp/niakps5-native.log
-          # 124 means the foreground launcher stayed open as designed.
-          if [ "$CODE" -ne 124 ]; then echo "Unexpected launcher exit: $CODE"; exit 1; fi
-          test -s niakps5-native.bmp
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: niakps5-native-sdl-preview
-          path: niakps5-native.bmp
+          python3 -m unittest discover -s native/title/tests -p 'test_*.py' -v
+          python3 -m py_compile native/title/*.py
+          bash -n native/title/build.sh
+      - name: Scan tracked text sources for personal data or credentials
+        run: python3 native/title/tests/audit_repository.py

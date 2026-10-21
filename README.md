@@ -1,80 +1,65 @@
 # NiakPS5
 
-**Votre console. Votre espace.** Une proposition d'accueil PS5 inspirée de [NiakTV](https://github.com/niakw/NiakTV) : même direction artistique, adaptée aux grandes jaquettes de jeux, à la navigation DualSense et à un fond de jeu du moment.
+Accueil graphique **expérimental** pour PS5 jailbreakée (titre `PPSA99386`), développé sur la **seule branche `main`**. Ce dépôt fournit un titre natif plein écran basé sur OpenGL, et non un ancien lanceur SDL Payload Manager.
 
-> **État : interface web de démonstration.** Ce dépôt ne remplace **pas** le shell de la PS5, ne contourne aucune protection et ne sait pas encore lancer des jeux ou lire les données système de la console. Un hôte natif compatible, à développer et valider séparément, est nécessaire. Les jeux visibles par défaut sont des **exemples**, pas des titres détectés sur votre console.
+## État des fonctionnalités
 
-## Direction artistique
+| Fonction | État |
+| --- | --- |
+| Interface native OpenGL et navigation DualSense | Testées sur la console de développement |
+| Catalogue via ShadowMountPlus 1.7 sur `127.0.0.1:10101` | Découverte des identifiants confirmée sur la console |
+| Véritables icônes de jeux | Intégrées avec `GET /api/v1/games/icon`, **validation console en attente** |
+| Noms des jeux | API ShadowMountPlus + `app.db` en lecture seule quand accessible, certains titres peuvent encore afficher l'ID |
+| Nom du profil local PS5 | Requête UserService, **validation console en attente** |
+| Avatar PS5 | **Non terminé** : profil privé et formats DDS non encore raccordés |
+| Réglages NiakPS5 | Fonctionnels, configurent seulement l'application |
+| Réglages système Sony | **Non intégrés** : accessibles via le Control Center/accueil d'origine |
+| Médias personnels/captures | **Non activés**, confidentialité par défaut |
+| Bouton PS et retour après jeu | Gestion par `SceShellUI` ; pas de remplacement vérifié |
+| Fonds jeux récents | Sélection quotidienne dans un lot Steam préparé à la compilation ; pas de téléchargement live PS5 |
 
-- Fond sombre en couches, accent menthe \`#91f5df\`, contrepoint violet \`#b5a4ff\`.
-- Manrope (navigation) et Instrument Serif (titre cinéma), comme NiakTV ; polices embarquées et notices OFL.
-- Icônes SVG au trait de la même famille, focus 2 px menthe + halo, survol et sélection manette cohérents.
-- Barre haute à la PS5 (Jeux / Multimédia, recherche, notifications, réglages, profil), vedette immersive, rail des jaquettes, raccourcis console.
-- Fond de **jeu récent sorti** plutôt que fond de film TMDB : sélection éditoriale 2025–2026, rotation quotidienne locale, adaptation au jeu survolé/sélectionné, transition douce.
-- Palettes Menthe / Violet / Bleu / Graphite, fond Jeu / Dégradé / Uni, mode performance, navigation dans la bibliothèque complète et animations réduites selon le système.
-- Aucun framework, aucune télémétrie, aucune publicité. Les fonctions de base sont consultables hors ligne ; les visuels de jeux nécessitent une connexion tant qu'ils ne sont pas mis en cache par un hôte natif.
+Les tests CI prouvent la compilation et les contrats logiciels, **pas** la compatibilité matérielle de chaque fonctionnalité.
 
-## Tester l'interface
-
-Le site est statique et fonctionne sans compilation. Un serveur local suffit :
-
-\`\`\`sh
-python3 -m http.server 8080
-# Ouvrir http://localhost:8080/
-\`\`\`
-
-Clavier : flèches (déplacement), Entrée (valider), Échap/Retour arrière (retour), **T** (réglages).
-DualSense via Gamepad API si le navigateur la rend disponible : croix confirmer, rond retour, triangle réglages, carré bibliothèque, croix directionnelle / sticks déplacement. Le bouton PS reste géré par le système, pas par l'app.
-
-\`\`\`sh
-npm test
-\`\`\`
-
-## Données et intégration PS5
-
-L'API de présentation ne suppose aucune lecture libre du système. Lorsque l'hôte PS5 fournira une liste de jeux autorisée :
-
-\`\`\`js
-window.NiakPS5.setLibrary([
-  {
-    id: "CUSA00000", title: "Exemple installé", installed: true,
-    year: 2026, genre: "Action", description: "Description",
-    // Image locale servie par le même hôte :
-    cover: "/art/cover.webp", hero: "/art/hero.webp"
-  }
-]);
-window.NiakPS5Bridge = {
-  launchGame: async id => { /* appel natif autorisé */ },
-  captures: async () => { /* optionnel */ },
-  downloads: async () => { /* optionnel */ },
-  friends: async () => { /* optionnel */ },
-  notifications: async () => { /* optionnel */ },
-  profile: async () => { /* optionnel */ }
-};
-\`\`\`
-
-Le frontend refuse les URLs d'images arbitraires : uniquement les ressources Steam explicites et les chemins locaux \`/art/\`. L'identifiant de jeu est traité comme opaque. **Aucun lancement, installation, nettoyage ou modification système n'est simulé comme réussi.** Les appels sans hôte affichent un message explicite.
-
-## Fonds de jeux récents
-
-Les jeux d'exemple sont stockés dans \`src/catalog.js\`. Une date de sortie est utilisée pour ne pas présenter un jeu futur comme sorti. Un jeu est sélectionné de manière déterministe chaque jour, ou le plus récent si la rotation est désactivée.
-
-Visuels d'illustration : CDN Steam via les identifiants des fiches de jeux, dont PRAGMATA (2026), Resident Evil Requiem (2026) et Clair Obscur: Expedition 33 (2025). Les visuels peuvent être indisponibles, auquel cas les dégradés et pictogrammes locaux restent visibles. Steam sert seulement d'illustration pour la démo, **pas** de source d'information sur les installations PS5. Les métadonnées devront être mises à jour (ou fournies par un futur service de catalogue) pour refléter automatiquement les prochaines sorties.
-
-## NiakPS5 — véritable accueil graphique natif
-
-**L'ancien ELF SDL lancé dans Payload Manager est abandonné pour l'affichage graphique :** Payload Manager ne fournit pas le contexte vidéo attendu. Le nouveau [projet de titre GPU](native/title/README.md) est une **application native OpenGL PS5**, dérivée du kit `ps5-homebrew-ui`, avec navigation DualSense, palette menthe NiakTV et catalogue PS5 en lecture seule.
-
-La distribution visée est `NiakPS5-title-PPSA99386.zip`, dont **le seul dossier à installer** est :
+## Un seul ZIP FTP
 
 ```text
-/data/homebrew/PPSA99386/
+PPSA99386.zip
+└── PPSA99386/
+    ├── eboot.bin
+    ├── sce_sys/
+    ├── sce_module/
+    ├── assets/
+    └── tools/
+        ├── niakps5.elf
+        ├── ftp_install.py
+        └── AUTOSTART.md
 ```
 
-ShadowMountPlus enregistre ce dossier en tant que titre lançable depuis le menu Sony. Son `eboot.bin` et les fichiers d'accompagnement forment **une seule application** : ne pas les exécuter séparément. Aucune modification de `SceShellUI` ni des partitions système.
+Aucune archive imbriquée. Le dossier `PPSA99386` s'installe sous `/data/homebrew/PPSA99386`.
 
-Le rendu natif PS5 13.60, l'accès à `app.db` depuis le sandbox et le lancement d'autres titres **ne sont pas encore validés sur ta console**. Voir les [instructions](native/title/README.md) et le [workflow de compilation](.github/workflows/native-title.yml).
+Le payload `tools/niakps5.elf` est **distinct** de l'application graphique : il peut demander l'ouverture du titre **une fois après le jailbreak**. Il n'est pas exécuté automatiquement du seul fait d'avoir extrait le ZIP. Après avoir vérifié le fonctionnement manuel du titre, l'installation FTP peut être réalisée sur PC avec :
 
-## Licence et crédits
+```bash
+python3 PPSA99386/tools/ftp_install.py --host IP_PS5 --port 2121 --autoload
+```
 
-Projet sous **GPL-3.0-or-later**. Direction artistique adaptée du projet NiakTV du même auteur. Manrope et Instrument Serif : licences SIL Open Font License, notices conservées sous \`fonts/\`. Les artworks et marques des jeux demeurent la propriété de leurs ayants droit. NiakPS5 n'est ni affilié ni approuvé par Sony ou Valve.
+Le script copie également `tools/niakps5.elf` dans `/data/pldmgr/payloads/niakps5/niakps5.elf` et préserve/sauvegarde `/data/pldmgr/autoload.txt`. Sans `--autoload`, seule l'application est copiée. Voir [documentation détaillée](native/title/README.md).
+
+L'autoload **ne remplace pas** `SceShellUI`. Le bouton PS et les fonctions système Sony continuent d'être contrôlés par la console. Un redémarrage ou une désactivation de l'autoload restaure le comportement d'origine.
+
+## Construire et tester
+
+```bash
+python3 -m unittest discover -s native/title/tests -p 'test_*.py'
+bash native/title/build.sh
+```
+
+L'assemblage récupère une révision figée de [PS5_VKHomebrewUI](https://github.com/mihawk-99/PS5_VKHomebrewUI), prépare la version NiakPS5, compile et crée `dist/PPSA99386.zip`.
+
+Les polices Manrope et Instrument Serif sont utilisées avec leurs licences OFL. Le décodeur PNG tiers (LodePNG) conserve sa licence dans ses sources. La base graphique amont reste GPL-3.0-or-later.
+
+## Confidentialité et sécurité
+
+Le dépôt ne doit contenir **aucune** adresse personnelle ou IP privée, identifiant de compte, mot de passe FTP, clé API, capture privée ou base de données de la console. Les accès catalogue et icônes passent par une API **loopback** qui doit rester liée à `127.0.0.1` ; aucune donnée de profil n'est envoyée sur Internet. Les captures personnelles ne sont ni collectées ni transférées.
+
+Les outils de packaging n'écrivent pas dans `/system` ni `/system_ex` et ne remplacent pas le processus `SceShellUI`. Ne pas ajouter de hook expérimental du bouton PS au démarrage. Un nettoyage du contenu courant du dépôt ne purge pas automatiquement son historique Git : toute information sensible détectée dans l'historique nécessiterait un traitement distinct.
