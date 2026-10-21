@@ -13,7 +13,9 @@ class FakeFTP:
     def __init__(self,files=None):
         self.files=dict(files or {})
     def nlst(self,path):
-        return [k for k in self.files if k.startswith(path+"/")]
+        prefix=path.rstrip("/")+"/"
+        return sorted({prefix+key[len(prefix):].split("/",1)[0]
+                       for key in self.files if key.startswith(prefix)})
     def mkd(self,path):pass
     def storbinary(self,command,buf):
         assert command.startswith("STOR ")
