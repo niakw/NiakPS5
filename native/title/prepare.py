@@ -89,8 +89,8 @@ def prepare(kit: Path, project: Path):
     replace_once(shell, '    banner_ = kBannerSeconds;\n}\n', '    banner_ = 0.0f;\n}\n')
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
-    replace_once(catalog_h, '    bool homebrew = false;
-    std::uint32_t cover = 0;', '    char title_id[16] = {};\n    std::uint32_t cover = 0;')
+    replace_once(catalog_h, '    std::uint32_t cover = 0;',
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::vector<Item> items_;')
 
