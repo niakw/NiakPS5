@@ -344,16 +344,16 @@ Catalog::Catalog()
     else
     {
         // A truthful non-launchable placeholder, not a fictitious installed game.
-        owned_titles_.emplace_back("Bibliotheque indisponible");
+        owned_titles_.emplace_back("Bibliothèque indisponible");
         Item item{};
         item.title = owned_titles_.back().c_str();
         item.studio = "NIAKPS5";
         item.genre = "VERIFICATION";
         item.blurb = db_count < 0 && home_count < 0
-                ? "Acces refuse a app.db et /data/homebrew depuis cette application."
+                ? "Accès refusé à app.db et /data/homebrew depuis cette application."
                 : db_count < 0
                     ? "app.db inaccessible; aucun dossier homebrew valide et accessible."
-                    : "Aucun titre installe accessible dans ce contexte.";
+                    : "Aucun titre installé accessible dans ce contexte.";
         item.year = 0;
         item.rating = 0;
         item.progress = 0;

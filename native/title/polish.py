@@ -51,6 +51,12 @@ def patch(kit):
     s=s.replace("Retour a l'accueil Sony / parametres PS5","Quitter vers l'accueil Sony")
     for a,b in translations.items():
         if a in s:s=s.replace(a,b)
+    s=s.replace('"Bibliotheque PS5"','"Bibliothèque PS5"')
+    s=s.replace('"Aucune photo ou video personnelle"','"Aucune photo ou vidéo personnelle"')
+    s=s.replace('"Rond : revenir aux onglets"','"Rond : revenir aux onglets"')
+    s=s.replace('"Choisir"','"Choisir"')
+    s=s.replace('"Details"','"Détails"')
+    s=s.replace('"Profil non lie"','"Profil non lié"')
     p.write_text(s,"utf-8")
     print("Polished UI: full-UV PS5 covers, working up navigation, French glyphs and aligned Jouer")
 

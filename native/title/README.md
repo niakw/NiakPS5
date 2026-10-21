@@ -97,3 +97,13 @@ python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --port 2121 --autoloa
 Le script dépose le dossier dans `/data/homebrew/PPSA99386/`, copie le payload dans `/data/pldmgr/payloads/niakps5/niakps5.elf`, ajoute **son chemin absolu en dernier** dans `/data/pldmgr/autoload.txt` et active AUTOLOAD_ENABLED dans la configuration existante. Les versions actuelles de Payload Manager acceptent les chemins absolus sous `/data/pldmgr`. Il sauvegarde les deux fichiers de configuration avant changement (`.niakps5.bak`) et ne modifie pas Kstuff ou ShadowMountPlus. **À lancer seulement si le titre graphique est déjà testé.**
 
 Le bouton PS reste géré par le shell Sony. Le déclencheur est one-shot : il ne rétablit pas le titre automatiquement après chaque jeu. Une implémentation sûre du retour à l'accueil et de l'avatar privé nécessite une validation distincte ; le ZIP ne prétend pas les inclure déjà.
+
+## Titres réels, fonds PS5 et limites des descriptions
+
+Le paquet inclut désormais une base textuelle hors ligne de titres PS4 et PS5 (andshrew/PlayStation-Titles, MIT), enrichie pour certains jeux avec genres, éditeur et sortie depuis sharpemu/sharpemu-site. Elle est utilisée lorsque ShadowMountPlus fournit seulement un identifiant PPSA/CUSA. L'installeur FTP peut en outre créer un fichier privé `niak-local-titles.tsv` à partir des `sce_sys/param.json` des applications homebrew.
+
+La description affichée provient des **métadonnées factuelles disponibles**, et non d'un résumé éditorial inventé. Les œuvres sans résumé disponible ne reçoivent pas une intrigue fictive. Les noms et images publiés par les ayants droit restent leurs marques et créations.
+
+Les 14 visuels embarqués dans `assets/niak-daily` proviennent d'un relevé GitHub des sorties récentes PS5 et des images d'éditeurs PlayStation. Un bug TGA empêchait précédemment le chargement des images en rejetant leur pied de fichier standard de 26 octets ; ce bug est corrigé. Le titre sélectionne désormais un visuel différent chaque jour selon sa date locale. **La bibliothèque de visuels installée n'est pas encore renouvelée automatiquement par HTTPS** : la CI produit de nouveaux paquets régulièrement, mais leur installation sur console reste distincte.
+
+Un élément « Paramètres PS5 » ne doit pas prétendre ouvrir directement un service Sony non supporté : l'option quitte vers l'accueil Sony. Aucun accès à des réglages sensibles ou fonction système n'a été contourné.
