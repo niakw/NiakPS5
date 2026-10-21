@@ -25,8 +25,21 @@ def patch(kit):
                  'niak_draw_rotating_case(list,it,art,clock_,fonts);')
     s=exactly(s,'list.image(it.cover, rect, gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);',
                  'list.image(it.cover, rect, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);')
+    # Focused game tile is itself the animated physical PS4/PS5 case, not a
+    # splash screen or a new loader. Unfocused tiles remain native flat icons;
+    # homebrew titles always retain their app icon.
     s=exactly(s,'list.image(it.cover, ring, gfx::kCanvasUv, kWhite, 26);',
-                 'list.image(it.cover, ring, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 26);')
+                 'niak_draw_rotating_case(list, it, ring, '
+                 'context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_, fonts);')
+    # Reset the case's on-card animation on each D-pad/stick focus change.
+    s=exactly(s,'                shelf.column = next;',
+                 '                shelf.column = next;\\n                case_selected_at_ = clock_;')
+    s=exactly(s,'                row_ = next;',
+                 '                row_ = next;\\n                case_selected_at_ = clock_;')
+    s=exactly(s,'    bool top_focus_ = false;',
+                 '    bool top_focus_ = false;\\n    float case_selected_at_ = 0.0f;')
+    s=exactly(s,'            row_ = active_tab_ == 2 && shelves_.size() > 1 ? 1 : 0;',
+                 '            row_ = active_tab_ == 2 && shelves_.size() > 1 ? 1 : 0;\\n            case_selected_at_ = clock_;')
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 28);',
                  'list.image(it.cover, art, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 28);')
     s=exactly(s,'#include "niak/profile.hpp"', '#include "niak/profile.hpp"\n#include "niak/case_renderer.hpp"')

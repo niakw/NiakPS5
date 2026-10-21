@@ -72,6 +72,17 @@ class NativeTitleTests(unittest.TestCase):
                          "row_ == 0", "NiakPS5", "DÉTECTÉ", "play.x + 146"):
             self.assertIn(expected,source)
 
+    def test_focus_case_replaces_selected_tile_and_not_a_loader(self):
+        source=(ROOT/"title"/"polish.py").read_text()
+        case=(ROOT/"title"/"case_renderer.cpp").read_text()
+        self.assertIn("niak_draw_rotating_case(list, it, ring",source)
+        self.assertIn("case_selected_at_",source)
+        self.assertIn("shelf.column = next;",source)
+        self.assertIn("row_ = next;",source)
+        self.assertIn("game.homebrew",case)
+        self.assertNotIn("loading_percent",case)
+        self.assertNotIn("progress_percent",case)
+
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
         for name in ("case_front","case_back","PS4","PS5","front_hold",
