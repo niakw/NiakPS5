@@ -63,18 +63,35 @@ void niak_draw_rotating_case(hui::gfx::DrawList &list,const hui::demo::Item &gam
             // Never counterfeit printed rear artwork. A verified title and
             // its real publisher metadata can be shown on a neutral insert.
             list.rounded_rect(paper,4,Color::rgb(0x1b3037));
-            if(face_w>180) {
-                if(front && game.cover) {
-                    const float sz=std::min(260.0f,paper.w-26);
-                    list.image(game.cover,{paper.cx()-sz*0.5f,paper.y+25,sz,sz},
+            // Small focused shelf cases must have real, readable content too:
+            // the old 180px cutoff left both physical faces entirely empty.
+            if (front) {
+                if (game.cover && paper.w>25.0f && paper.h>60.0f) {
+                    const float sz=std::max(12.0f,
+                        std::min(paper.w-12.0f,paper.h*0.71f));
+                    const float top=paper.y+std::max(6.0f,(paper.h-sz)*0.37f);
+                    list.image(game.cover,{paper.cx()-sz*0.5f,top,sz,sz},
                                game.cover_is_image?gfx::kFullUv:gfx::kCanvasUv,
                                Color::rgb(0xffffff),5);
-                }else if(!front) {
-                    ui::text(list,fonts.semibold,"FICHE DU JEU",paper.x+17,paper.y+45,
-                             21,Color::rgb(0x9af2de));
-                    ui::paragraph(list,fonts.regular,game.blurb,paper.x+17,paper.y+94,
-                                  18,paper.w-34,25,Color::rgb(0xe2ebed),6);
                 }
+                if (face_w>80.0f)
+                    ui::paragraph(list,fonts.semibold,game.title,
+                                  paper.x+6,paper.y+paper.h-18,
+                                  face_w>180.0f?17.0f:11.0f,paper.w-12,
+                                  face_w>180.0f?22.0f:13.0f,
+                                  Color::rgb(0xecf5f6),2);
+            } else if(face_w>70.0f) {
+                const bool small=face_w<180.0f;
+                const float margin=small?7.0f:17.0f;
+                ui::text(list,fonts.semibold,small?"AU DOS":"FICHE DU JEU",
+                         paper.x+margin,paper.y+(small?23.0f:45.0f),
+                         small?12.0f:21.0f,Color::rgb(0x9af2de));
+                ui::paragraph(list,fonts.regular,
+                              game.blurb&&game.blurb[0]?game.blurb:game.title,
+                              paper.x+margin,paper.y+(small?43.0f:94.0f),
+                              small?11.0f:18.0f,paper.w-2.0f*margin,
+                              small?14.0f:25.0f,
+                              Color::rgb(0xe2ebed),small?5:6);
             }
         }
         const Rect band{caseface.x+5,caseface.y+4,caseface.w-10,25};
