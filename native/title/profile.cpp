@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <cstring>
 extern "C" {
-int sceUserServiceGetInitialUser(int *user);
+int sceUserServiceGetForegroundUser(int *user);
 int sceUserServiceGetUserName(int user, char *name, std::size_t capacity);
 }
 const char *niak_ps5_user_label()
@@ -21,7 +21,7 @@ const char *niak_ps5_user_label()
         initialized=true;
         int user=-1;
         char name[64]{};
-        if (sceUserServiceGetInitialUser(&user)==0 && user>=0 &&
+        if (sceUserServiceGetForegroundUser(&user)==0 && user>=0 &&
             sceUserServiceGetUserName(user,name,sizeof(name))==0 &&
             name[0] && std::strlen(name)<sizeof(name))
         {
