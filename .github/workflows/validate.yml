@@ -48,7 +48,7 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -I native \
             $(pkg-config --cflags sdl2 SDL2_image SDL2_ttf sqlite3) \
             native/main.c native/catalog.c native/ui_motion.c native/ui_renderer.c native/ui_text_cache.c \
-            $(pkg-config --libs sdl2 SDL2_image SDL2_ttf sqlite3) -o /tmp/niakps5-ui-host
+            $(pkg-config --libs sdl2 SDL2_image SDL2_ttf sqlite3) -lm -o /tmp/niakps5-ui-host
       - name: Test safe WebKit autoloader config migration
         run: python3 -m unittest discover -s native/tests -p "test_*.py" -v
       - name: Headless SDL initialization smoke test
