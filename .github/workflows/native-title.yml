@@ -37,7 +37,7 @@ jobs:
           GALLIUM_DRIVER: llvmpipe
         run: |
           python3 native/title/host_preview.py --kit .build/ps5-title-kit
-          bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
+          USE_CCACHE=0 bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
           python3 native/title/validate_preview.py build/niak-preview
       - name: Upload genuine native UI previews
         if: always()
