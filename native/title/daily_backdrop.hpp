@@ -2,5 +2,6 @@
 #pragma once
 #include <cstdint>
 namespace hui::gfx { class Renderer; }
-void niak_load_daily_backdrops(hui::gfx::Renderer &renderer);
+void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,
+                               const char *directory="/app0/assets/niak-daily");
 std::uint32_t niak_daily_backdrop();

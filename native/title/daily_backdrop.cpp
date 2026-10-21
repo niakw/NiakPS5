@@ -40,10 +40,12 @@ bool load_png(const char *path, int &width, int &height,
     width=int(w);height=int(h);return true;
 }
 }
-void niak_load_daily_backdrops(hui::gfx::Renderer &renderer) {
+void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *directory) {
+    if(!directory) return;
     for(int i=0;i<14;++i) {
-        char path[128];
-        std::snprintf(path,sizeof(path),"/app0/assets/niak-daily/wall-%02d.png",i);
+        char path[384];
+        const int length=std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
+        if(length<=0||length>=int(sizeof(path)))continue;
         int w=0,h=0;
         std::vector<unsigned char> rgba;
         if(!load_png(path,w,h,rgba))continue; // tolerate missing corrupt members

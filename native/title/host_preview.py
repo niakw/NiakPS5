@@ -36,6 +36,12 @@ def patch(kit):
     }
     return;
 #endif''')
+    # Host renderer must load the same downloaded PS5 wallpapers as the
+    # deployed title. Preview absolute paths differ from /app0.
+    one(main,'#include "demo/catalog.hpp"',
+        '#include "demo/catalog.hpp"\\n#include "niak/daily_backdrop.hpp"')
+    one(main,'    hui::demo::Catalog catalog;',
+        '    niak_load_daily_backdrops(renderer,(assets+"/niak-daily").c_str());\\n    hui::demo::Catalog catalog;')
     platform=kit/"host/platform_host.cpp"
     platform.write_text(platform.read_text("utf8")+'''
 extern "C" int sceSystemServiceLaunchApp(const char*,const char**,void*){return -1;}
