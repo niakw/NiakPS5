@@ -69,3 +69,7 @@ La découverte de titres sur supports externes (`/mnt/usb*/homebrew`, `/mnt/ext*
 ## Démarrage automatique (au lieu de choisir la tuile)
 
 Consulter [AUTOSTART.md](AUTOSTART.md). Le payload auxiliaire demande l'ouverture du titre automatiquement **après la chaîne de jailbreak**, avec opt-in et désactivation. Ce n'est pas une modification ou substitution de `SceShellUI` et ce mécanisme n'est pas encore validé en 13.60. Ne pas l'activer tant que le lancement manuel du nouveau titre n'est pas validé.
+
+## API locale ShadowMountPlus (fallback pour les permissions)
+
+Le titre tente maintenant `POST http://127.0.0.1:10101/api/v1/games` en lecture seule avant de réunir les résultats avec app.db et /data/homebrew. Le client HTTP est borné à 2 Mio, boucle locale uniquement et délais de réception limités ; il ne demande aucun scan, montage, suppression, élévation ni changement de configuration. Cela nécessite une version de ShadowMountPlus qui expose déjà cette API (documentée dans la série 1.7). En l'absence de serveur, on conserve les autres méthodes et l'état explicite « indisponible » ; aucune donnée de la bibliothèque n'est envoyée sur Internet.

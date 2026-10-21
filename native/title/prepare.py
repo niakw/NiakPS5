@@ -88,7 +88,7 @@ def prepare(kit: Path, project: Path):
 
     src_niak = kit / "src/niak"
     src_niak.mkdir(parents=True, exist_ok=True)
-    for filename in ("catalog.c", "catalog.h"):
+    for filename in ("catalog.c", "catalog.h", "shadowmount_api.c", "shadowmount_api.h"):
         shutil.copy2(project / "native" / filename, src_niak / filename)
     for filename in ("daily_backdrop.cpp", "daily_backdrop.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
@@ -223,7 +223,7 @@ CATALOG_CPP = r'''// SPDX-License-Identifier: GPL-3.0-or-later
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "niak/catalog.h"
+#include "niak/catalog.h"\n#include "niak/shadowmount_api.h"
 #ifdef __cplusplus
 }
 #endif
@@ -243,6 +243,20 @@ Catalog::Catalog()
     std::size_t count = db_count > 0 ? static_cast<std::size_t>(db_count) : 0;
     // PS5 user title sandbox may deny app.db. Discover valid /data/homebrew
     // structures independently, even when app.db is missing or inaccessible.
+    std::vector<NiakGame> api_games(NIAKPS5_MAX_GAMES);
+    const int api_count = niak_scan_shadowmount(api_games.data(), api_games.size());
+    if (api_count > 0)
+    {
+        for (int n = 0; n < api_count && count < games.size(); ++n)
+        {
+            const NiakGame &candidate = api_games[static_cast<std::size_t>(n)];
+            std::size_t i=0;
+            for (;i<count;++i)if(std::strcmp(games[i].id,candidate.id)==0)break;
+            if (i==count)games[count++]=candidate;
+            else if (candidate.title[0])std::snprintf(games[i].title,sizeof(games[i].title),
+                        "%s",candidate.title);
+        }
+    }
     std::vector<NiakGame> homebrews(NIAKPS5_MAX_GAMES);
     const int home_count = niak_scan_homebrews("", homebrews.data(), homebrews.size());
     if (home_count > 0)
@@ -258,8 +272,8 @@ Catalog::Catalog()
                 games[count++] = candidate;
         }
     }
-    sys::log("[NiakPS5] read-only catalog: app.db=%d, homebrew folders=%d, unique=%zu",
-             db_count, home_count, count);
+    sys::log("[NiakPS5] read-only catalog: app.db=%d, homebrew folders=%d, api=%d, unique=%zu",
+             db_count, home_count, api_count, count);
     if (count > 0)
     {
         for (std::size_t n = 0; n < count; ++n)
@@ -268,11 +282,13 @@ Catalog::Catalog()
             owned_titles_.emplace_back(game.title);
             Item item{};
             item.title = owned_titles_.back().c_str();
-            item.studio = game.discovered_from_homebrew ? "DECOUVERTE /DATA" : "INSTALLE";
-            item.genre = game.discovered_from_homebrew ? "HOMEBREW" : "PS5";
-            item.blurb = game.discovered_from_homebrew
-                ? "Dossier present dans /data/homebrew. Enregistrement du titre non confirme."
-                : "Jeu detecte dans la base PS5. Lancement a verifier.";
+            item.studio = game.discovered_from_homebrew == 2 ? "SHADOWMOUNT API" : game.discovered_from_homebrew ? "DECOUVERTE /DATA" : "INSTALLE";
+            item.genre = game.discovered_from_homebrew == 2 ? "PS5 / PS4" : game.discovered_from_homebrew ? "HOMEBREW" : "PS5";
+            item.blurb = game.discovered_from_homebrew == 2
+                ? "Titre renvoye par l'API locale ShadowMountPlus. Lancement a verifier."
+                : game.discovered_from_homebrew
+                    ? "Dossier present dans /data/homebrew. Enregistrement non confirme."
+                    : "Jeu detecte dans la base PS5. Lancement a verifier.";
             item.year = 0;
             item.rating = 0;
             item.progress = 0;
