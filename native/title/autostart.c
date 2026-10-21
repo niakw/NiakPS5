@@ -62,7 +62,7 @@ static int copy_profile_image(const char *source,const char *dest,
             const int fd=open(temp,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW,0600);
             if(fd>=0) {
                 const ssize_t n=write(fd,data,size);
-                ok=n==(ssize_t)size && fsync(fd)==0 && rename(temp,dest)==0;
+                ok=n==(ssize_t)size && fchmod(fd,0644)==0 && fsync(fd)==0 && rename(temp,dest)==0;
                 close(fd);
                 if(!ok)unlink(temp);
             }else ok=0;
