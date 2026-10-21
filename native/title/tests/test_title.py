@@ -60,8 +60,8 @@ class NativeTitleTests(unittest.TestCase):
         source = (ROOT / "title" / "fetch_daily_games.py").read_text()
         native = (ROOT / "title" / "daily_backdrop.cpp").read_text()
         compile(source, "fetch_daily_games.py", "exec")
-        self.assertIn("store.steampowered.com", source)
-        self.assertIn("path_full", source)
+        self.assertIn("sharpemu/sharpemu-site", source)
+        self.assertIn("image.api.playstation.com", source)
         self.assertIn("niak_daily_backdrop", native)
         self.assertIn("std::localtime", native)
 

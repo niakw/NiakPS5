@@ -1,68 +1,64 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Local daily backdrop cache (download handled outside PS5 at build time).
+// Daily PlayStation 5 backgrounds from locally packaged optimized PNGs.
 #include "niak/daily_backdrop.hpp"
+#include "niak/lodepng.h"
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
 #include <array>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <ctime>
 #include <vector>
 
 namespace {
-std::array<std::uint32_t, 14> textures{};
-int images=0;
-bool load_tga(const char *path, int *width, int *height, std::vector<std::uint8_t> &rgba) {
+std::array<std::uint32_t,14> images{};
+int count=0;
+bool load_png(const char *path, int &width, int &height,
+              std::vector<unsigned char> &rgba) {
     FILE *f=std::fopen(path,"rb");
-    if (!f) return false;
-    std::uint8_t header[18]{};
-    bool ok=std::fread(header,1,18,f)==18;
-    const int w=header[12] | (header[13]<<8);
-    const int h=header[14] | (header[15]<<8);
-    const int channels=header[16]/8;
-    if (!ok || header[1]!=0 || header[2]!=2 || header[0]!=0 ||
-        w<320 || h<180 || w>1920 || h>1080 || (channels!=3 && channels!=4)) {
-        std::fclose(f);return false;
-    }
-    const std::size_t bytes=static_cast<std::size_t>(w)*h*channels;
-    std::vector<std::uint8_t> rgb(bytes);
-    ok=std::fread(rgb.data(),1,bytes,f)==bytes;
-    // Pillow writes the legal 26-byte TRUEVISION-XFILE footer after pixels.
-    // The old exact-EOF check rejected EVERY valid packaged TGA wallpaper.
-    // Decode only the bounded raster; ignore the optional footer.
+    if(!f)return false;
+    if(std::fseek(f,0,SEEK_END)!=0){std::fclose(f);return false;}
+    long bytes=std::ftell(f);
+    if(bytes<32||bytes>4*1024*1024||std::fseek(f,0,SEEK_SET)!=0)
+    {std::fclose(f);return false;}
+    std::vector<unsigned char> png(static_cast<std::size_t>(bytes));
+    bool ok=std::fread(png.data(),1,png.size(),f)==png.size();
     std::fclose(f);
-    if (!ok)return false;
-    rgba.resize(static_cast<std::size_t>(w)*h*4);
-    const bool top=(header[17]&0x20)!=0;
-    for (int y=0;y<h;++y)for (int x=0;x<w;++x) {
-        const std::size_t src=(static_cast<std::size_t>(top?y:(h-1-y))*w+x)*channels;
-        const std::size_t dst=(static_cast<std::size_t>(y)*w+x)*4;
-        rgba[dst]=rgb[src+2];rgba[dst+1]=rgb[src+1];
-        rgba[dst+2]=rgb[src];rgba[dst+3]=255;
-    }
-    *width=w;*height=h;return true;
+    if(!ok)return false;
+    // Guard decompression bombs before asking the PNG decoder to allocate.
+    if(png.size()<24||png[0]!=137||png[1]!=80||png[2]!=78||png[3]!=71)
+        return false;
+    unsigned w=(unsigned(png[16])<<24)|(unsigned(png[17])<<16)|
+               (unsigned(png[18])<<8)|png[19];
+    unsigned h=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
+               (unsigned(png[22])<<8)|png[23];
+    if(w!=1280||h!=720)return false;
+    unsigned decoded_w=0,decoded_h=0;
+    if(lodepng::decode(rgba,decoded_w,decoded_h,png)!=0 ||
+       decoded_w!=w||decoded_h!=h||
+       rgba.size()!=std::size_t(w)*h*4)return false;
+    width=int(w);height=int(h);return true;
 }
-} // namespace
-
+}
 void niak_load_daily_backdrops(hui::gfx::Renderer &renderer) {
-    for(int n=0;n<14;++n) {
-        char path[110];
-        std::snprintf(path,sizeof(path),"/app0/assets/niak-daily/wall-%02d.tga",n);
-        int w=0,h=0;std::vector<std::uint8_t> rgba;
-        if(!load_tga(path,&w,&h,rgba))break;
-        const auto id=renderer.create_texture(w,h,rgba.data());
-        if (!id)break;
-        textures[static_cast<std::size_t>(n)]=id;
-        ++images;
+    for(int i=0;i<14;++i) {
+        char path[128];
+        std::snprintf(path,sizeof(path),"/app0/assets/niak-daily/wall-%02d.png",i);
+        int w=0,h=0;
+        std::vector<unsigned char> rgba;
+        if(!load_png(path,w,h,rgba))continue; // tolerate missing corrupt members
+        auto texture=renderer.create_texture(w,h,rgba.data());
+        if(!texture)continue;
+        images[static_cast<std::size_t>(count++)]=texture;
     }
-    hui::sys::log("[NiakPS5] daily wallpapers cached=%d; image delivery not sent to console",images);
+    hui::sys::log("[NiakPS5] PS5 wallpaper pool: %d media textures",count);
 }
 std::uint32_t niak_daily_backdrop() {
-    if(images==0)return 0;
-    const std::time_t now=std::time(nullptr);
-    // Stable one-game-per-local-day rotation; no network or disk access per frame.
-    const std::tm *local=std::localtime(&now);
-    if(!local)return textures[0];
-    const int day=(local->tm_year+1900)*372+local->tm_mon*31+local->tm_mday;
-    return textures[static_cast<std::size_t>((day%images+images)%images)];
+    if(count==0)return 0;
+    const auto t=std::time(nullptr);
+    const std::tm *date=std::localtime(&t);
+    if(!date)return images[0];
+    // One image for the user's entire local calendar day.
+    const int serial=(date->tm_year+1900)*372+date->tm_mon*31+date->tm_mday;
+    return images[static_cast<std::size_t>((serial%count+count)%count)];
 }
