@@ -49,10 +49,19 @@ jobs:
         run: python3 -m unittest discover -s native/tests -p "test_*.py" -v
       - name: Headless SDL initialization smoke test
         run: |
+          python3 native/tests/visual_fixture.py /tmp/niakps5-demo
           set +e
+          NIAKPS5_DB="/tmp/niakps5-demo/app.db" NIAKPS5_ROOT="/tmp/niakps5-demo" \
+          NIAKPS5_SCREENSHOT="$PWD/niakps5-native.bmp" \
           NIAKPS5_ASSETS="$PWD/native/assets" SDL_VIDEODRIVER=dummy \
             timeout 4 /tmp/niakps5-ui-host >/tmp/niakps5-native.log 2>&1
           CODE=$?
           cat /tmp/niakps5-native.log
           # 124 means the foreground launcher stayed open as designed.
           if [ "$CODE" -ne 124 ]; then echo "Unexpected launcher exit: $CODE"; exit 1; fi
+          test -s niakps5-native.bmp
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: niakps5-native-sdl-preview
+          path: niakps5-native.bmp

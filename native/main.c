@@ -75,7 +75,14 @@ static void reload_background(App *app){
 }
 static void scan_games(App *app){
  clear_cover_cache(app);
- int result=niak_scan_games(DATABASE_PATH,"/",app->games,NIAKPS5_MAX_GAMES);
+ /* Desktop verification can override fixture paths; PS5 paths are fixed. */
+ const char *db=DATABASE_PATH,*root="/";
+#ifndef __PS5__
+ const char *test_db=getenv("NIAKPS5_DB"),*test_root=getenv("NIAKPS5_ROOT");
+ if(test_db && *test_db)db=test_db;
+ if(test_root && *test_root)root=test_root;
+#endif
+ int result=niak_scan_games(db,root,app->games,NIAKPS5_MAX_GAMES);
  app->game_count=result<0?0:result;app->selected=0;
  if(result<0)set_status(app,"Lecture de la base PS5 impossible. Rond : accueil Sony.");
  else if(result==0)set_status(app,"Aucun jeu installe detecte. Carre : actualiser.");
@@ -188,6 +195,19 @@ static void draw(App *app) {
    text(app,app->body,"Rond : fermer le panneau",1280,444,theme->text,0);
    text(app,app->small,"Accueil Sony conserve, aucune modification systeme.",1280,585,theme->soft,570);
  }
+ #ifndef __PS5__
+ static int captured=0;
+ const char *screenshot=getenv("NIAKPS5_SCREENSHOT");
+ if(!captured && screenshot && *screenshot){
+  captured=1;
+  SDL_Surface *pixels=SDL_CreateRGBSurfaceWithFormat(0,W,H,32,SDL_PIXELFORMAT_ARGB8888);
+  if(pixels){
+   if(SDL_RenderReadPixels(r,NULL,SDL_PIXELFORMAT_ARGB8888,pixels->pixels,pixels->pitch)==0)
+    SDL_SaveBMP(pixels,screenshot);
+   SDL_FreeSurface(pixels);
+  }
+ }
+#endif
  SDL_RenderPresent(r);app->dirty=0;
 }
 static void select_game(App *app,int next) {
