@@ -49,7 +49,8 @@ function renderRail() {
 function showGame(id) {
   if(id && !state.games.some(g=>g.id===id))return;
   state.selectedId=id||null;
-  const game=currentGame();if(!game){$("feature-title").textContent="Votre bibliothèque vous attend.";$("feature-subtitle").textContent="Aucun jeu n'a encore été fourni par la console.";$("feature-tag").textContent="VOTRE ESPACE";$("feature-year").textContent="";$("feature-genre").textContent="Bibliothèque";$("feature-status").textContent="Aucun jeu";$("primary-label").textContent="Aucun jeu à lancer";$("feature-primary").disabled=true;return}
+  const game=currentGame();
+  document.body.dataset.feature=game?.id||"default";if(!game){$("feature-title").textContent="Votre bibliothèque vous attend.";$("feature-subtitle").textContent="Aucun jeu n'a encore été fourni par la console.";$("feature-tag").textContent="VOTRE ESPACE";$("feature-year").textContent="";$("feature-genre").textContent="Bibliothèque";$("feature-status").textContent="Aucun jeu";$("primary-label").textContent="Aucun jeu à lancer";$("feature-primary").disabled=true;return}
   $("feature-primary").disabled=false;
   $("feature-title").textContent=game.title;
   $("feature-subtitle").textContent=game.description || "Votre prochain jeu commence ici.";
