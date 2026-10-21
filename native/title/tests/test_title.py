@@ -65,6 +65,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_daily_backdrop", native)
         self.assertIn("std::localtime", native)
 
+    def test_wallpaper_readability_contract(self):
+        source=(ROOT / "title" / "patch_home.py").read_text()
+        preview=(ROOT / "title" / "validate_preview.py").read_text()
+        self.assertIn("Color::rgb(0x081014, 0.68f)", source)
+        self.assertIn("Wallpaper washes out NiakPS5", preview)
+        self.assertIn("caseface.w+6", (ROOT / "title" / "case_renderer.cpp").read_text())
+
     def test_final_rendering_contracts(self):
         source=(ROOT / "title" / "polish.py").read_text()
         compile(source,"polish.py","exec")

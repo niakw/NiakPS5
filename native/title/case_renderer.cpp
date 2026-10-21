@@ -29,6 +29,9 @@ void niak_draw_rotating_case(hui::gfx::DrawList &list,const hui::demo::Item &gam
     yaw=std::fmod(yaw,tau);
     const bool front=std::cos(yaw)>=0.0f;
     const bool is_ps4=game.title_id[0]=='C';
+    // Never infer the platform from the title's marketing name.
+    // CUSA is PS4; a PPSA retail title is PS5. Both keep their distinct cases.
+
     // Selected game receives a physical retail case. Applications keep their
     // natural square icon rather than a fictional PS5/PS4 commercial package.
     if(game.homebrew || !game.title_id[0]) {
@@ -50,6 +53,9 @@ void niak_draw_rotating_case(hui::gfx::DrawList &list,const hui::demo::Item &gam
     const Color plastic=is_ps4?Color::rgb(0x104db1):Color::rgb(0xcbdde9);
     const Color edge=is_ps4?Color::rgb(0x083273):Color::rgb(0xa4b9ca);
     list.shadow({x0+16,y0+25,actual_w,bounds.h},25,38,Color::rgb(0x000000,0.62f));
+    // Realistic upper/lower molded plastic lip, visible throughout the rotation.
+    list.rounded_rect({caseface.x-3,y0-6,caseface.w+6,8},5,edge.with_alpha(0.94f));
+    list.rounded_rect({caseface.x-3,y0+bounds.h-2,caseface.w+6,8},5,edge.with_alpha(0.88f));
     list.rounded_rect({caseface.x-4,y0-3,caseface.w+8,bounds.h+6},16,plastic);
     list.rounded_rect(spine,5,edge);
     if(face_w>18) {
