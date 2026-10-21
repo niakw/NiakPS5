@@ -43,6 +43,10 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I native native/ui_motion.c native/tests/motion_test.c -lm -o /tmp/niak-motion-test
           /tmp/niak-motion-test
+      - name: Test read-only bootstrap preflight in isolated fake PS5 filesystem
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -o /tmp/niakps5-diagnostic-host native/diagnostic.c
+          python3 native/tests/test_diagnostic.py /tmp/niakps5-diagnostic-host
       - name: Compile native SDL frontend on host
         run: |
           cc -std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -I native \

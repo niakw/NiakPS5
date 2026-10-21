@@ -16,13 +16,15 @@ GUI_LIBS := \
   $(LIB)/libjpeg.a $(LIB)/libwebp.a $(LIB)/libwebpdemux.a $(LIB)/libsharpyuv.a \
   -lSceSystemService -lSceUserService -lSceVideoOut -lSceAudioOut \
   -lScePad -lSceKeyboard -lSceImeDialog -lkernel_sys -lm -lz -lbz2 -liconv
-all: build/niakps5_ui.elf build/niakps5_bootstrap.elf
+all: build/niakps5_ui.elf build/niakps5_bootstrap.elf build/niakps5_diagnostic.elf
 $(SQLITE):
 	./fetch-sqlite.sh
 build:
 	mkdir -p build
 build/niakps5_ui.elf: main.c catalog.c catalog.h ui_motion.c ui_motion.h ui_renderer.c ui_renderer.h ui_text_cache.c ui_text_cache.h $(SQLITE) | build
 	$(CC) $(WARN) -o $@ main.c catalog.c ui_motion.c ui_renderer.c ui_text_cache.c $(SQLITE) $(GUI_LIBS)
+build/niakps5_diagnostic.elf: diagnostic.c | build
+	$(CC) $(WARN) -o $@ diagnostic.c -lkernel_sys
 build/niakps5_bootstrap.elf: bootstrap.c $(LOADER) | build
 	$(CC) $(WARN) -o $@ bootstrap.c $(LOADER) -lSceSystemService -lSceUserService -lkernel_sys -lm -lz -lbz2 -liconv
 clean:
