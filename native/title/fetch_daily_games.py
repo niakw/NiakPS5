@@ -48,11 +48,15 @@ def build(output, now=None, max_games=MAX_GAMES):
     api = {"store.steampowered.com"}
     url = "https://store.steampowered.com/api/featuredcategories/?cc=fr&l=english"
     feed = json.loads(fetch(url, MAX_JSON, api))
-    rows = feed.get("new_releases", {}).get("items", [])
+    # Prioritize the store's popular titles that actually released recently.
+    # "new_releases" alone is polluted with very small / adult-only releases.
+    best = feed.get("top_sellers", {}).get("items", [])
+    fresh = feed.get("new_releases", {}).get("items", [])
+    rows = best + fresh
     used = set()
     records = []
     # Explicitly launched games only, released in past 365 days.
-    for row in rows[:28]:
+    for row in rows[:80]:
         if len(records) >= max_games:
             break
         appid = row.get("id", row.get("appid"))
@@ -70,7 +74,21 @@ def build(output, now=None, max_games=MAX_GAMES):
             day = released_at(release.get("date", ""))
             if release.get("coming_soon") or day is None or not today - timedelta(days=365) <= day <= today:
                 continue
-            if not game.get("is_free", False) and game.get("required_age", 0) >= 18:
+            # Adult content can be free and required_age can be a string.
+            # Keep the TV/console home wallpaper suitable for a shared room.
+            age = str(game.get("required_age", "0"))
+            if age.isdecimal() and int(age) >= 18:
+                continue
+            descriptors = game.get("content_descriptors") or {}
+            flags = set(descriptors.get("ids") or [])
+            if any(x in flags for x in (3, 4, 5)):
+                continue
+            title = str(game.get("name", "")).lower()
+            if any(token in title for token in
+                   ("hentai", "porn", "sex ", "sex:", "xxx", "erotic",
+                    "lust", "nudity", "fetish", "adult only")):
+                continue
+            if game.get("type") not in ("game", None):
                 continue
             shots = game.get("screenshots", [])[:3]
             for shot in shots:
