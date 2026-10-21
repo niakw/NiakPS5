@@ -28,3 +28,29 @@ jobs:
         with:
           name: niakps5-preview
           path: niakps5-preview.png
+
+  native-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host test dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends build-essential pkg-config libsqlite3-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
+      - name: Test the read-only PS5 game catalogue with a fixture
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog-test
+          /tmp/niak-catalog-test
+      - name: Compile native SDL frontend on host
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -I native \
+            $(pkg-config --cflags sdl2 SDL2_image SDL2_ttf sqlite3) \
+            native/main.c native/catalog.c \
+            $(pkg-config --libs sdl2 SDL2_image SDL2_ttf sqlite3) -o /tmp/niakps5-ui-host
+      - name: Headless SDL initialization smoke test
+        run: |
+          set +e
+          NIAKPS5_ASSETS="$PWD/native/assets" SDL_VIDEODRIVER=dummy \
+            timeout 4 /tmp/niakps5-ui-host >/tmp/niakps5-native.log 2>&1
+          CODE=$?
+          cat /tmp/niakps5-native.log
+          # 124 means the foreground launcher stayed open as designed.
+          if [ "$CODE" -ne 124 ]; then echo "Unexpected launcher exit: $CODE"; exit 1; fi

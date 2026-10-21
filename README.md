@@ -61,9 +61,13 @@ Les jeux d'exemple sont stockés dans \`src/catalog.js\`. Une date de sortie est
 
 Visuels d'illustration : CDN Steam via les identifiants des fiches de jeux, dont PRAGMATA (2026), Resident Evil Requiem (2026) et Clair Obscur: Expedition 33 (2025). Les visuels peuvent être indisponibles, auquel cas les dégradés et pictogrammes locaux restent visibles. Steam sert seulement d'illustration pour la démo, **pas** de source d'information sur les installations PS5. Les métadonnées devront être mises à jour (ou fournies par un futur service de catalogue) pour refléter automatiquement les prochaines sorties.
 
+## Lanceur PS5 natif (développement)
+
+Un premier socle natif SDL2, lecteur de jeux installés et bootstrap ELF réversible est désormais dans [`native/`](native/README.md). Il vise à devenir l’accueil quotidien de la console avec la même DA que NiakTV. **Il ne remplace pas le processus protégé `SceShellUI` et n’a pas encore été validé sur une PS5 physique.** La compilation SDL2 sur Linux et les tests de base de données sont exécutés en CI séparément ; ils ne prouvent pas que le binaire PS5 fonctionne sur le firmware cible.
+
 ## Étapes natives restant à faire
 
-1. Choisir un hôte exécutable réellement compatible avec la PS5 / le firmware cible et un mécanisme d'ouverture accessible, sans modifier le shell système.
+1. Compiler les ELF à partir du SDK PS5/PacBrew et valider le bootstrap bigapp sur le firmware cible, sans modifier le shell système.
 2. Fournir une bibliothèque et des miniatures depuis une API native locale contrôlée ; l'interface ne scanne pas elle-même les partitions.
 3. Implémenter et valider les appels d'ouverture de jeu et les fonctions système une par une.
 4. Tester DualSense, mémoire, cache des images, mode hors ligne et performances **sur la console réelle**.
