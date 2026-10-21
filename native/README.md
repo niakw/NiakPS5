@@ -28,6 +28,10 @@ WebKit autoloader / elfldr (après jailbreak)
 
 **Sortie de secours :** touche rond ferme l'application native et rend la main à l'accueil Sony. Il n'existe **aucun** mécanisme d'autodémarrage qui persiste au redémarrage du firmware sans l'environnement de jailbreak.
 
+## Choix du moteur
+
+L'audit des [trois kits d'interface OpenGL/Vulkan](ENGINE.md) a identifié la séparation moteur/UI/plateforme comme direction. Le code comporte désormais des modules de rendu SDL accéléré si disponible, de cache texture et de navigation animée. **Ce n'est pas encore le backend OpenGL/Vulkan des références** ; le port GPU dédié reste à réaliser.
+
 ## Fonctionnalités natives intégrées
 
 - Affichage SDL2 plein écran 1920 × 1080, navigation DualSense (croix, rond, carré, triangle et flèches) et clavier en environnement de développement.
