@@ -19,6 +19,8 @@ git -C "$stage" reset --hard "$kit_revision"
 test "$(git -C "$stage" rev-parse HEAD)" = "$kit_revision"
 # This checkout is ephemeral and only prepared for our own GPU UI.
 python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root"
+# Best-effort recent games from Steam; offline/error => original animated smoke.
+python3 "$root/native/title/fetch_daily_games.py" --output "$stage/assets/niak-daily"
 python3 "$root/native/title/patch_home.py" --kit "$stage"
 # Upstream ps5-opengl release URL was withdrawn; use a mirrored archive
 # ONLY if it passes the *original upstream* pinned archive and manifest SHA-256.

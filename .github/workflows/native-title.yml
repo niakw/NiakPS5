@@ -6,6 +6,8 @@ on:
       - native/catalog.c
       - native/catalog.h
       - .github/workflows/native-title.yml
+  schedule:
+    - cron: '30 5 * * *'
   workflow_dispatch:
 permissions:
   contents: read

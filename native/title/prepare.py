@@ -90,6 +90,14 @@ def prepare(kit: Path, project: Path):
     src_niak.mkdir(parents=True, exist_ok=True)
     for filename in ("catalog.c", "catalog.h"):
         shutil.copy2(project / "native" / filename, src_niak / filename)
+    for filename in ("daily_backdrop.cpp", "daily_backdrop.hpp"):
+        shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
+    replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
+                 '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"')
+    replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',
+                 '    niak_load_daily_backdrops(renderer);\n    demo::Catalog catalog;')
+    replace_once(aurora, '#include "ui/glyphs.hpp"',
+                 '#include "ui/glyphs.hpp"\n#include "niak/daily_backdrop.hpp"')
     # The PacBrew SQLite build references localtime_r, not exported by the
     # title's clean-room runtime. Provide the POSIX API locally; SQLite date
     # parsing is not used by our read-only catalogue queries.

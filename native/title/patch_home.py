@@ -29,6 +29,16 @@ def patch(kit):
         }
         else
             update_shelves(input, feedback);""")
+    text = once(text, '        gfx::DrawList &list = frame.scene;', '''        gfx::DrawList &list = frame.scene;
+        // Keep the animated aurora/smoke behind real game artwork.
+        if (const std::uint32_t wallpaper = niak_daily_backdrop())
+        {
+            list.image(wallpaper, {0, 0, gfx::kVirtualWidth, gfx::kVirtualHeight},
+                       gfx::kFullUv, kWhite.with_alpha(0.38f));
+            list.gradient_rect({0, 0, gfx::kVirtualWidth, gfx::kVirtualHeight}, 0,
+                               Color::rgb(0x081014, 0.18f),
+                               Color::rgb(0x051015, 0.76f));
+        }''')
     text = once(text, "        draw_top_bar(list);\n        draw_hero(list);\n        draw_shelves(list);",
     """        draw_top_bar(list);
         if (active_tab_ < 2)
