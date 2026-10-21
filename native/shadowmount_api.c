@@ -126,6 +126,10 @@ int niak_parse_shadowmount_games(const char *json,NiakGame *games,size_t capacit
   if(!member_string(begin,p,"name",game.title,sizeof(game.title))||!game.title[0])
    snprintf(game.title,sizeof(game.title),"%s",game.id);
   game.discovered_from_homebrew=2;
+  char source_path[512]={0};
+  if(member_string(begin,p,"path",source_path,sizeof(source_path)) &&
+     strncmp(source_path,"/data/homebrew/",15)==0)
+    game.is_homebrew=1;
   int duplicate=0;
   for(size_t i=0;i<count;i++)if(strcmp(games[i].id,game.id)==0)duplicate=1;
   if(!duplicate)games[count++]=game;

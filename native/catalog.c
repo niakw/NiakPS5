@@ -125,6 +125,7 @@ int niak_scan_homebrews(const char *filesystem_root,NiakGame *games,size_t capac
      * Do not claim the title is registered or invent a commercial name. */
     copy_text(game->title,sizeof(game->title),id);
     game->discovered_from_homebrew=1;
+    game->is_homebrew=1;
     n=snprintf(icon,sizeof(icon),"%s/sce_sys/icon0.png",folder);
     if(n>0&&n<(int)sizeof(icon)&&is_plain_file(icon))
       copy_text(game->icon,sizeof(game->icon),icon);

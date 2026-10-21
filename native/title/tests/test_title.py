@@ -76,7 +76,7 @@ class NativeTitleTests(unittest.TestCase):
         source = (ROOT / "title" / "prepare.py").read_text()
         self.assertIn('niak_scan_games("/system_data/priv/mms/app.db"', source)
         self.assertIn("Bibliotheque indisponible", source)
-        self.assertIn("shelves_.resize(1)", source)
+        self.assertIn("shelves_.resize(2)", source)
         self.assertIn("sceSystemServiceLaunchApp", source)
         self.assertIn("niak-manrope.huifont", source)
         self.assertIn("niak-instrument-serif.huifont", source)

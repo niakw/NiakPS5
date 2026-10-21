@@ -41,11 +41,18 @@ def prepare(kit: Path, project: Path):
             if (item.year == 2026)
                 shelves_[2].items.push_back(i);
         }'''
-    new = '''        // A single real-library shelf; never include the upstream demo catalogue.
-        shelves_.resize(1);
+    new = '''        // Library and verified homebrew apps, without imaginary application cards.
+        shelves_.resize(2);
         shelves_[0].title = "Bibliotheque PS5";
+        shelves_[1].title = "Applications et homebrews";
         for (int i = 0; i < static_cast<int>(items.size()); ++i)
-            shelves_[0].items.push_back(i);'''
+        {
+            shelves_[0].items.push_back(i);
+            if (items[static_cast<std::size_t>(i)].homebrew)
+                shelves_[1].items.push_back(i);
+        }
+        if (shelves_[1].items.empty())
+            shelves_.resize(1);'''
     replace_once(aurora, old, new)
     replace_once(aurora, '"Aurora Shelf",', '"NiakPS5",')
     replace_once(aurora, '"A console home screen: hero panel, cover shelves, frosted details",',
@@ -82,7 +89,8 @@ def prepare(kit: Path, project: Path):
     replace_once(shell, '    banner_ = kBannerSeconds;\n}\n', '    banner_ = 0.0f;\n}\n')
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
-    replace_once(catalog_h, '    std::uint32_t cover = 0;', '    char title_id[16] = {};\n    std::uint32_t cover = 0;')
+    replace_once(catalog_h, '    bool homebrew = false;
+    std::uint32_t cover = 0;', '    char title_id[16] = {};\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::vector<Item> items_;')
 
@@ -312,6 +320,7 @@ Catalog::Catalog()
                 : game.discovered_from_homebrew
                     ? "Dossier present dans /data/homebrew. Enregistrement non confirme."
                     : "Jeu detecte dans la base PS5. Lancement a verifier.";
+            item.homebrew = game.is_homebrew != 0;
             item.year = 0;
             item.rating = 0;
             item.progress = 0;

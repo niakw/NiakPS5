@@ -11,6 +11,7 @@ int main(void){
  "{\"title_id\":\"PPSA99999/../\",\"name\":\"Bad\"}]}";
  int n=niak_parse_shadowmount_games(json,g,5);
  assert(n==2);assert(strcmp(g[0].title,"Jeu PS5")==0);
+ assert(g[0].is_homebrew==1);assert(g[1].is_homebrew==0);
  assert(strcmp(g[1].id,"CUSA00222")==0);
  assert(niak_parse_shadowmount_games("{\"status\": 13,\"games\":[]}",g,5)==-1);
  assert(niak_parse_shadowmount_games("{\"status\":0,\"games\":[]}",g,5)==0);

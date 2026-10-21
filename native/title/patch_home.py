@@ -19,7 +19,7 @@ def patch(kit):
             update_sheet(input, feedback);
         else if (top_focus_)
             update_tabs(input, feedback);
-        else if (active_tab_ >= 2)
+        else if (active_tab_ == 3 || (active_tab_ == 2 && shelves_.size() < 2))
             update_page(input, feedback);
         else if (input.nav == Direction::up || input.is_pressed(Action::menu))
         {
@@ -41,7 +41,7 @@ def patch(kit):
         }''')
     text = once(text, "        draw_top_bar(list);\n        draw_hero(list);\n        draw_shelves(list);",
     """        draw_top_bar(list);
-        if (active_tab_ < 2)
+        if (active_tab_ < 2 || (active_tab_ == 2 && shelves_.size() > 1))
         {
             draw_hero(list);
             draw_shelves(list);
@@ -62,6 +62,7 @@ def patch(kit):
             active_tab_ = selected_tab_;
             top_focus_ = false;
             settings_cursor_ = 0;
+            row_ = active_tab_ == 2 && shelves_.size() > 1 ? 1 : 0;
             feedback.play(audio::Cue::open);
         }
         if (input.is_pressed(Action::back))
