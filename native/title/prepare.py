@@ -92,6 +92,26 @@ def prepare(kit: Path, project: Path):
         shutil.copy2(project / "native" / filename, src_niak / filename)
     for filename in ("daily_backdrop.cpp", "daily_backdrop.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
+    for filename in ("game_icons.cpp", "game_icons.hpp"):
+        shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
+    for filename in ("lodepng.cpp", "lodepng.h"):
+        shutil.copy2(project / "native" / "title" / "vendor" / filename, src_niak / filename)
+    art_file = kit / "src/demo/catalog_art.cpp"
+    replace_once(art_file, '#include "gfx/renderer.hpp"',
+                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"')
+    replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',
+                 """    for (Item &item : items_)
+    {
+        // Prefer the true installed app icon from the local system catalogue.
+        // If absent/forbidden/corrupt, generate the existing neutral placeholder.
+        if (item.title_id[0])
+            item.cover = niak_load_game_icon(renderer, item.title_id);
+        if (item.cover)
+        {
+            ++index;
+            continue;
+        }
+        gfx::BackdropSpec spec;""")
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
                  '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"')
     replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',
