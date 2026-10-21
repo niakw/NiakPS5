@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace {
-std::array<std::uint32_t, 7> textures{};
+std::array<std::uint32_t, 14> textures{};
 int images=0;
 bool load_tga(const char *path, int *width, int *height, std::vector<std::uint8_t> &rgba) {
     FILE *f=std::fopen(path,"rb");
@@ -27,8 +27,9 @@ bool load_tga(const char *path, int *width, int *height, std::vector<std::uint8_
     const std::size_t bytes=static_cast<std::size_t>(w)*h*channels;
     std::vector<std::uint8_t> rgb(bytes);
     ok=std::fread(rgb.data(),1,bytes,f)==bytes;
-    // No extended fields, unexpected bytes or trailing data.
-    ok=ok && std::fgetc(f)==EOF;
+    // Pillow writes the legal 26-byte TRUEVISION-XFILE footer after pixels.
+    // The old exact-EOF check rejected EVERY valid packaged TGA wallpaper.
+    // Decode only the bounded raster; ignore the optional footer.
     std::fclose(f);
     if (!ok)return false;
     rgba.resize(static_cast<std::size_t>(w)*h*4);
@@ -44,7 +45,7 @@ bool load_tga(const char *path, int *width, int *height, std::vector<std::uint8_
 } // namespace
 
 void niak_load_daily_backdrops(hui::gfx::Renderer &renderer) {
-    for(int n=0;n<7;++n) {
+    for(int n=0;n<14;++n) {
         char path[110];
         std::snprintf(path,sizeof(path),"/app0/assets/niak-daily/wall-%02d.tga",n);
         int w=0,h=0;std::vector<std::uint8_t> rgba;
@@ -62,6 +63,6 @@ std::uint32_t niak_daily_backdrop() {
     // Stable one-game-per-local-day rotation; no network or disk access per frame.
     const std::tm *local=std::localtime(&now);
     if(!local)return textures[0];
-    const int day=local->tm_yday+local->tm_year*366;
+    const int day=(local->tm_year+1900)*372+local->tm_mon*31+local->tm_mday;
     return textures[static_cast<std::size_t>((day%images+images)%images)];
 }
