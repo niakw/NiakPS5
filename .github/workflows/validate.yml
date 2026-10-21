@@ -45,6 +45,8 @@ jobs:
             $(pkg-config --cflags sdl2 SDL2_image SDL2_ttf sqlite3) \
             native/main.c native/catalog.c \
             $(pkg-config --libs sdl2 SDL2_image SDL2_ttf sqlite3) -o /tmp/niakps5-ui-host
+      - name: Test safe WebKit autoloader config migration
+        run: python3 -m unittest discover -s native/tests -p "test_*.py" -v
       - name: Headless SDL initialization smoke test
         run: |
           set +e
