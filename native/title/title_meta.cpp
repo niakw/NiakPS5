@@ -3,11 +3,14 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <initializer_list>
 #include <unordered_map>
 using Index=std::unordered_map<std::string,NiakTitleMetadata>;
 static Index read_titles(){
  Index index;
- FILE *f=std::fopen("/app0/assets/niak-ps-titles.tsv","rb");if(!f)return index;
+ for(const char *source : {"/app0/assets/niak-ps-titles.tsv",
+                             "/app0/assets/niak-local-titles.tsv"}) {
+ FILE *f=std::fopen(source,"rb");if(!f)continue;
  char line[1200];
  while(std::fgets(line,sizeof(line),f)){
   if(!std::strchr(line,'\n') && !std::feof(f)){
@@ -21,9 +24,13 @@ static Index read_titles(){
   if(fields!=4)continue;
   v[4]=current;v[4][std::strcspn(v[4],"\r\n")]=0;
   if(std::strlen(v[0])!=9 || !*v[1])continue;
-  index.emplace(v[0],NiakTitleMetadata{v[1],v[2],v[3],v[4]});
+  const auto it=index.find(v[0]);
+  if(it==index.end()) index.emplace(v[0],NiakTitleMetadata{v[1],v[2],v[3],v[4]});
+  else if(std::strstr(source,"local-titles"))it->second.name=v[1];
  }
- std::fclose(f);return index;
+ std::fclose(f);
+ }
+ return index;
 }
 bool niak_title_metadata(const char *id,NiakTitleMetadata &out){
  if(!id || std::strlen(id)!=9)return false;
