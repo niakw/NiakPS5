@@ -1,0 +1,60 @@
+name: Build native PS5 ELF (experimental)
+on:
+  push:
+    paths:
+      - native/**
+      - .github/workflows/native-ps5.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang-18 lld-18 llvm-18 curl unzip ca-certificates pkg-config make
+      - name: Install pinned payload SDK and native port libraries
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/niak-sdk /tmp/niak-ports /opt/ps5-payload-sdk
+          curl -fL --retry 3 --max-time 300 \
+            https://github.com/ps5-payload-dev/sdk/releases/download/v0.44/ps5-payload-sdk.zip \
+            -o /tmp/niak-sdk.zip
+          unzip -q /tmp/niak-sdk.zip -d /tmp/niak-sdk
+          cp -a /tmp/niak-sdk/ps5-payload-sdk/. /opt/ps5-payload-sdk/
+          curl -fL --retry 3 --max-time 600 \
+            https://github.com/ps5-payload-dev/pacbrew-repo/releases/download/v0.41.1/ps5-payload-dev.tar.gz \
+            -o /tmp/niak-pacbrew.tar.gz
+          tar -xzf /tmp/niak-pacbrew.tar.gz -C /tmp/niak-ports
+          cp -a /tmp/niak-ports/opt/ps5-payload-sdk/target/user/homebrew/. /opt/ps5-payload-sdk/target/user/homebrew/
+          test -f /opt/ps5-payload-sdk/target/user/homebrew/lib/libSDL2.a
+          test -f /opt/ps5-payload-sdk/target/user/homebrew/lib/libSDL2_ttf.a
+          test -x /opt/ps5-payload-sdk/bin/prospero-clang
+      - name: Build ELF binaries
+        env:
+          PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+        run: |
+          export PATH="/usr/lib/llvm-18/bin:$PATH"
+          native/fetch-sqlite.sh
+          make -C native -j2
+          file native/build/*.elf
+          test -s native/build/niakps5_ui.elf
+          test -s native/build/niakps5_bootstrap.elf
+      - name: Assemble offline-ready data folder
+        run: |
+          mkdir -p dist/data/niakps5/assets dist/data/ps5_autoloader
+          cp native/build/niakps5_ui.elf dist/data/niakps5/
+          cp native/assets/manrope.ttf native/assets/instrument-serif.ttf dist/data/niakps5/assets/
+          cp native/build/niakps5_bootstrap.elf dist/data/ps5_autoloader/
+          cp native/build/niakps5_bootstrap.elf dist/data/
+          (cd dist && zip -qr ../niakps5-native-experimental.zip data)
+          sha256sum niakps5-native-experimental.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: niakps5-native-experimental-elf
+          path: niakps5-native-experimental.zip
+          if-no-files-found: error
