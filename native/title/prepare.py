@@ -161,14 +161,19 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
     if extra < 0 or extra_end < 0:
         raise SystemExit("Upstream hero actions changed; review required")
     visual = visual[:extra] + visual[extra_end:]
-    visual = visual.replace('''        ui::text(list, fonts.regular, "21:47", 1824 - 64, 92, 26, kWhite.with_alpha(0.8f),
-                 gfx::Align::right);''', '''        // Never show an invented wall-clock time.
+    time_start = visual.find('        ui::text(list, fonts.regular, "21:47"')
+    time_end = visual.find('        list.circle(1800, 82, 22,', time_start)
+    if time_start < 0 or time_end < 0:
+        raise SystemExit("Upstream top bar clock changed; review required")
+    clock = """        // The console clock, not a hardcoded demo time.
         char clock_text[8] = "--:--";
         const std::time_t wall = std::time(nullptr);
         if (const std::tm *local = std::localtime(&wall))
             std::strftime(clock_text, sizeof(clock_text), "%H:%M", local);
         ui::text(list, fonts.regular, clock_text, 1760, 92, 26,
-                 kWhite.with_alpha(0.8f), gfx::Align::right);''')
+                 kWhite.with_alpha(0.8f), gfx::Align::right);
+"""
+    visual = visual[:time_start] + clock + visual[time_end:]
     if '"21:47"' in visual or 'std::snprintf(text, sizeof(text), "%.1f"' in visual:
         raise SystemExit("Fake clock or rating remains in Aurora")
     aurora.write_text(visual, encoding="utf-8")
