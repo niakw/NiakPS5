@@ -16,7 +16,7 @@ GUI_LIBS := \
   $(LIB)/libjpeg.a $(LIB)/libwebp.a $(LIB)/libwebpdemux.a $(LIB)/libsharpyuv.a \
   -lSceSystemService -lSceUserService -lSceVideoOut -lSceAudioOut \
   -lScePad -lSceKeyboard -lSceImeDialog -lkernel_sys -lm -lz -lbz2 -liconv
-all: build/niakps5_ui.elf build/niakps5_bootstrap.elf build/niakps5_diagnostic.elf
+all: build/niakps5_ui.elf build/niakps5_diagnostic.elf
 $(SQLITE):
 	./fetch-sqlite.sh
 build:
@@ -25,8 +25,12 @@ build/niakps5_ui.elf: main.c catalog.c catalog.h ui_motion.c ui_motion.h ui_rend
 	$(CC) $(WARN) -o $@ main.c catalog.c ui_motion.c ui_renderer.c ui_text_cache.c $(SQLITE) $(GUI_LIBS)
 build/niakps5_diagnostic.elf: diagnostic.c | build
 	$(CC) $(WARN) -o $@ diagnostic.c -lkernel_sys
-build/niakps5_bootstrap.elf: bootstrap.c $(LOADER) | build
-	$(CC) $(WARN) -o $@ bootstrap.c $(LOADER) -lSceSystemService -lSceUserService -lkernel_sys -lm -lz -lbz2 -liconv
+# Dangerous legacy path: never part of default builds or downloadable artifacts.
+# For a controlled compatibility investigation only, requiring explicit opt-in:
+.PHONY: legacy-hbldr
+legacy-hbldr: | build
+	@test "$(I_ACKNOWLEDGE_LEGACY_HBLDR_RISK)" = "YES" || { echo "Refusing legacy hbldr. Consult DIAGNOSTIC.md before explicit opt-in."; exit 1; }
+	$(CC) $(WARN) -DNIAK_ENABLE_LEGACY_HBLDR -o build/niakps5_legacy_hbldr.elf bootstrap.c $(LOADER) -lSceSystemService -lSceUserService -lkernel_sys -lm -lz -lbz2 -liconv
 clean:
 	rm -rf build
 .PHONY: all clean

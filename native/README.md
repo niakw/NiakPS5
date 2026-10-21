@@ -11,8 +11,8 @@ Il **ne remplace pas encore le processus système** \`SceShellUI\`. La touche PS
 \`\`\`text
 WebKit autoloader / elfldr (après jailbreak)
                  |
-      niakps5_bootstrap.elf
-                 | hbldr_launch (bigapp)
+      niakps5_diagnostic.elf (prévalidation sans lancement)
+                 | présence fichiers / notification / log
                  v
            niakps5_ui.elf
             /          \
@@ -26,7 +26,7 @@ WebKit autoloader / elfldr (après jailbreak)
          jeu PS4/PS5 installé
 \`\`\`
 
-**Sortie de secours :** touche rond ferme l'application native et rend la main à l'accueil Sony. Il n'existe **aucun** mécanisme d'autodémarrage qui persiste au redémarrage du firmware sans l'environnement de jailbreak.
+**Sortie de secours, uniquement si l'interface native peut démarrer :** touche rond ferme l'application et revient normalement à l'accueil Sony. Comportement encore non validé sur PS5 13.60. Il n'existe **aucun** mécanisme d'autodémarrage qui persiste au redémarrage du firmware sans l'environnement de jailbreak.
 
 ## Choix du moteur
 
@@ -58,25 +58,23 @@ Les deux exécutables attendus, une fois la compilation croisée réussie, sont 
 
 Cette compilation **n'a pas encore été validée sur console**, et aucune compatibilité précise PS5 13.60 ne doit être présumée avant essais réels.
 
-## Installation expérimentale et réversible
+## Installation de diagnostic (réversible)
 
-**Ne pas activer d'autostart avant de réussir un lancement manuel.** Exiger un jailbreak opérationnel et le Homebrew Launcher PKG compatible avec \`hbldr\`, comme pour Nativehbl.
+**Voir [DIAGNOSTIC.md](DIAGNOSTIC.md).** L'archive PS5 ne contient plus l'ancien bootstrap bigapp. Installer seulement ces éléments sous `/data` :
 
-1. Copier par FTP **uniquement** les fichiers du lanceur vers :
-   - \`/data/niakps5_bootstrap.elf\`
-   - \`/data/niakps5/niakps5_ui.elf\`
-   - \`/data/niakps5/assets/manrope.ttf\`
-   - \`/data/niakps5/assets/instrument-serif.ttf\`
-2. Charger \`/data/niakps5_bootstrap.elf\` avec le gestionnaire de payloads ou le chargeur ELF déjà fonctionnel (il doit lancer le bigapp graphique).
-3. Tester : jaquettes, liste des jeux réellement installés, navigation et ouverture d'un jeu.
-4. Vérifier le retour à l'accueil Sony via **rond**, sans redémarrage ou plantage.
-5. **Après validation uniquement**, configurer le chemin du bootstrap dans l'autoloader que vous utilisez, avec délai pour laisser etaHEN/loader initialiser ses services. Garder une méthode de désactivation de l'autoloader.
+```text
+/data/pldmgr/niakps5_diagnostic.elf    <- lancer depuis Payload Manager
+/data/niakps5/niakps5_ui.elf          <- vérifier sa présence
+/data/niakps5/assets/manrope.ttf
+/data/niakps5/assets/instrument-serif.ttf
+```
 
-### Restauration
+Le diagnostic affiche une notification et écrit `/data/niakps5-diagnostic.log`, visible par FTP. Il ne crée pas de faux titre système, ne remonte pas `/system_ex` et ne lance pas de processus graphique.
 
-Désactiver l'entrée autoloader NiakPS5 ou ne plus charger le bootstrap ELF. L'application native ne modifie pas le shell Sony. Aucun désinstalleur système n'est nécessaire. Les seuls fichiers NiakPS5 créés sont les fichiers copiés par l'utilisateur dans \`/data/niakps5/\` et le bootstrap dédié.
+**Important :** l'ancien bootstrap dépendait d'un chargeur `hbldr` avec mécanisme de création d'une fausse application dans `/system_ex/app/FAKE00000`, d'attachement à `SceSysCore` et parfois d'un ancien fichier PS Now. Il pouvait échouer silencieusement, ou provoquer des changements de système. Ce mécanisme n'a pas été validé sur 13.60 : **ne le relancez pas**.
 
 ## Validation
+
 
 \`\`\`sh
 # Ubuntu / CI : logique de catalogue avec base SQLite factice

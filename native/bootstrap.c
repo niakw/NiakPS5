@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Legacy hbldr path: can remount /system_ex and manipulate SceSysCore.
+ * Deliberately excluded from normal releases; consult DIAGNOSTIC.md. */
+#ifndef NIAK_ENABLE_LEGACY_HBLDR
+#error "Legacy hbldr requires explicit opt-in with -DNIAK_ENABLE_LEGACY_HBLDR"
+#endif
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /* GPL loader primitives adapted from ps5-payload-dev/websrv via Rufidj/Nativehbl.
- * Launches a foreground bigapp; it does not alter PS5 system services. */
+ * Not validated on 13.60; can change mounts and process state. */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

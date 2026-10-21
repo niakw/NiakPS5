@@ -1,3 +1,5 @@
+> **DÉSACTIVÉ pour NiakPS5 (21/10/2026).** Le bootstrap hbldr original n'est pas validé sur PS5 13.60 et peut remonter `/system_ex` en écriture. Ne pas ajouter `niakps5_bootstrap.elf` à l'autoloader. Cette page documente une proposition historique **non autorisée pour les versions actuelles**. Voir [DIAGNOSTIC.md](DIAGNOSTIC.md) pour le prédiagnostic sûr.
+
 # WebKit Autoloader v0.5.2 : mode accueil
 
 NiakPS5 vise un **accueil de substitution après jailbreak**, pas un remplacement du processus système protégé. Le WebKit Autoloader v0.5.2 démarre depuis une **tuile du vrai menu PS5** ; il n'est pas chargé par le firmware avant l'interface Sony.

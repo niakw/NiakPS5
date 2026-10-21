@@ -63,9 +63,9 @@ Visuels d'illustration : CDN Steam via les identifiants des fiches de jeux, dont
 
 ## Lanceur PS5 natif (développement)
 
-La version native SDL2 est désormais dans [`native/`](native/README.md) : lecteur de jeux installés en lecture seule, focus DualSense, jaquettes locales, lancement par l’API système et bootstrap bigapp réversible. **Les deux ELF ont été compilés avec succès** par [GitHub Actions](https://github.com/niakw/NiakPS5/actions/workflows/native-ps5.yml), avec un paquet de distribution expérimental téléchargeable depuis les artefacts de chaque exécution verte. Le fonctionnement effectif sur PS5 13.60 **n’a pas encore été testé matériellement**. Le processus protégé `SceShellUI` n’est pas remplacé ; Sony reste disponible comme secours.
+La version native SDL2 est désormais dans [`native/`](native/README.md) : lecteur de jeux installés en lecture seule, focus DualSense, jaquettes locales, intégration prévue de l’API système. **Le build normal produit désormais un ELF de diagnostic sans modification système et l'interface native (non validée matériellement)**. Les ELF ont été compilés avec succès par [GitHub Actions](https://github.com/niakw/NiakPS5/actions/workflows/native-ps5.yml), avec un [kit de diagnostic sans chargeur hbldr](native/DIAGNOSTIC.md) téléchargeable depuis les artefacts des nouvelles exécutions vertes. Le fonctionnement effectif sur PS5 13.60 **n’a pas encore été testé matériellement**. Le processus protégé `SceShellUI` n’est pas remplacé ; Sony reste disponible comme secours.
 
-L’[intégration de WebKit Autoloader 0.5.2](native/AUTOLOAD.md) est optionnelle et réversible, et ne doit être activée **qu’après** un lancement manuel réussi du binaire natif et un test du retour par rond. Le démarrage à froid de la PS5 continue d’afficher le menu Sony jusqu’au lancement de l’exploit.
+L’[autodémarrage WebKit Autoloader 0.5.2](native/AUTOLOAD.md) est **désactivé pour NiakPS5** tant que la voie de lancement PS5 13.60 n'est pas vérifiée. L'ancien chargeur hbldr peut remonter `/system_ex` en écriture et ne doit plus être testé sans diagnostic et consentement explicite. Le démarrage à froid de la PS5 continue d’afficher le menu Sony jusqu’au lancement de l’exploit.
 
 ## Étapes natives restant à faire
 

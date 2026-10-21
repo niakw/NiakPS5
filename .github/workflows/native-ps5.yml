@@ -1,4 +1,4 @@
-name: Build native PS5 ELF (experimental)
+name: Build NiakPS5 safe diagnostic kit
 on:
   push:
     paths:
@@ -43,7 +43,6 @@ jobs:
           make -C native -j2
           file native/build/*.elf
           test -s native/build/niakps5_ui.elf
-          test -s native/build/niakps5_bootstrap.elf
           test -s native/build/niakps5_diagnostic.elf
       - name: Assemble safe diagnostic kit (legacy hbldr excluded)
         run: |
