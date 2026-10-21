@@ -146,7 +146,7 @@ document.addEventListener("focusin",e=>{
   if(e.target.matches("button"))e.target.classList.add("is-focused");
 });
 function navigables(){
-  const root=state.panel?$("panel-overlay"):!$("search-overlay").hidden?$("search-overlay"):$("app-root")||document.querySelector(".shell");
+  const root=state.panel?$("panel-overlay"):!$("search-overlay").hidden?$("search-overlay"):document.querySelector(".shell");
   return [...root.querySelectorAll("[data-navigate]")].filter(n=>!n.disabled&&n.getClientRects().length>0);
 }
 function navigate(direction) {
