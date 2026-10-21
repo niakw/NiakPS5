@@ -188,9 +188,11 @@ std::uint32_t niak_daily_backdrop() {
         std::thread([day,date=std::string(today)] {worker(day,date);}).detach();
     }
 #endif
-    if(s.pending) {
+    {
         std::vector<std::uint8_t> bytes;
         {
+            // The worker publishes only under this mutex. Never read the
+            // completion flag without locking (would be a C++ data race).
             std::lock_guard<std::mutex> lock(s.mutex);
             if(s.pending&&s.ready_day==day) {
                 bytes=std::move(s.bytes);

@@ -4,6 +4,8 @@
 #include "niak/daily_runtime.hpp"
 #include "niak/picojson.h"
 #include <algorithm>
+#include <cstdlib>
+#include <utility>
 #include <cstdint>
 #include <cstring>
 #include <string>
