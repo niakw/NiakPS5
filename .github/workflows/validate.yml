@@ -13,3 +13,18 @@ jobs:
         with:
           node-version: '22'
       - run: npm run validate
+      - name: Browser rendering smoke test
+        run: |
+          python3 -m http.server 8787 >/tmp/niakps5-http.log 2>&1 &
+          sleep 2
+          BROWSER="$(command -v google-chrome || command -v chromium || true)"
+          if [ -z "$BROWSER" ]; then echo "No headless Chrome available"; exit 1; fi
+          "$BROWSER" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=2500 --window-size=1600,900 --dump-dom http://127.0.0.1:8787/ > /tmp/niakps5-dom.html 2>/tmp/niakps5-chrome.log
+          grep -q 'game-card' /tmp/niakps5-dom.html
+          grep -q 'Resident Evil Requiem' /tmp/niakps5-dom.html
+          "$BROWSER" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=2500 --window-size=1600,900 --screenshot=niakps5-preview.png http://127.0.0.1:8787/ 2>/tmp/niakps5-screenshot.log
+          test -s niakps5-preview.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: niakps5-preview
+          path: niakps5-preview.png

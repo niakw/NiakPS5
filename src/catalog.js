@@ -27,9 +27,12 @@ export function releasedGames(games, date = new Date()) {
 export function dailyFeature(games, date = new Date(), daily = true) {
   const candidates = releasedGames(games,date);
   if (!candidates.length) return null;
-  if (!daily) return candidates[0];
+  const cutoff = new Date(date.getFullYear()-1,date.getMonth(),date.getDate());
+  const recent = releasedGames(candidates, date).filter(g => g.released >= [cutoff.getFullYear(),String(cutoff.getMonth()+1).padStart(2,"0"),String(cutoff.getDate()).padStart(2,"0")].join("-"));
+  const eligible = recent.length ? recent : candidates;
+  if (!daily) return eligible[0];
   const day = Math.floor(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate())/86400000);
-  return candidates[day % candidates.length];
+  return eligible[day % eligible.length];
 }
 export function normalizeLibrary(input) {
   if (!Array.isArray(input)) return [];

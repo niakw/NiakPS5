@@ -19,7 +19,7 @@ function applySettings() {
     btn.setAttribute("aria-pressed",String(group==="daily"||group==="performance" ? state.settings[group]=== (value==="true") : state.settings[group]===value));
   });
 }
-function currentGame() {return state.games.find(g=>g.id===state.selectedId) || dailyFeature(state.games,new Date(),state.settings.daily) || state.games[0] || null}
+function currentGame() {return state.games.find(g=>g.id===state.selectedId) || dailyFeature(DEMO_GAMES,new Date(),state.settings.daily) || state.games[0] || null}
 function el(name,cls,txt) {const node=document.createElement(name);if(cls)node.className=cls;if(txt!==undefined)node.textContent=txt;return node}
 function icon(name) {
   const paths={

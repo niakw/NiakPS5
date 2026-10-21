@@ -25,3 +25,11 @@ test("Steam IDs produce consistent card and hero assets",()=>{
   assert.ok(coverOf(DEMO_GAMES[0]).includes("library_600x900.jpg"));
   assert.ok(heroOf(DEMO_GAMES[0]).includes("library_hero.jpg"));
 });
+
+test("the daily game prefers releases within the last twelve months",()=>{
+  const date=new Date(2026,9,21);
+  for(let d=20;d<30;d++){
+    const selected=dailyFeature(DEMO_GAMES,new Date(2026,9,d),true);
+    assert.ok(selected.released>="2025-10-20");
+  }
+});
