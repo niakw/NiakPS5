@@ -45,6 +45,16 @@ out="$root/dist/$title"
 mkdir -p "$root/dist"
 rm -rf "$out"
 cp -a "$stage/dist/$title" "$out"
+# One-shot boot helper is part of the single FTP folder. It must be copied
+# separately into Payload Manager storage by the explicitly requested FTP installer.
+mkdir -p "$out/tools"
+sdk="$stage/.deps/native/ps5-payload-sdk"
+test -x "$sdk/bin/prospero-clang"
+"$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra \
+  -o "$out/tools/niakps5.elf" "$root/native/title/autostart.c" \
+  -lSceSystemService -lSceUserService -lkernel_sys
+cp "$root/native/title/ftp_install.py" "$out/tools/ftp_install.py"
+cp "$root/native/title/AUTOSTART.md" "$out/tools/AUTOSTART.md"
 # Only one FTP-ready package, exactly one install folder at the archive root.
 python3 "$root/native/title/pack_ftp.py" --folder "$out" --output "$root/dist/$title.zip"
 echo "Built native NiakPS5 app folder: $out"

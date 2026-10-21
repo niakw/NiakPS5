@@ -85,3 +85,15 @@ Le titre tente maintenant `POST http://127.0.0.1:10101/api/v1/games` en lecture 
 La compilation fournit **exactement** `dist/PPSA99386.zip`. À l'intérieur, une seule racine : `PPSA99386/`, suivie de `eboot.bin`, `sce_sys/`, `sce_module/` et `assets/`. Les fichiers intermédiaires, le programme `niakps5_autostart.elf` et les autres ZIP ne sont **jamais** inclus dans ce paquet. Droits UNIX explicites dans l'archive et le dossier de build : dossiers 0755, `eboot.bin` 0755, autres fichiers 0644. Le packager rejette les symlinks et les archives imbriquées.
 
 Dézipper le **seul dossier `PPSA99386`** puis le transférer vers `/data/homebrew/` par FTP. Ce format n'exécute pas à lui seul un chargeur automatique : l'autodémarrage après jailbreak, distinct du titre natif, nécessite une intégration externe vérifiée, non embarquée dans le ZIP FTP. Le fonctionnement du scanner ShadowMountPlus et la récupération du vrai avatar restent à valider sur console.
+
+## Livraison FTP : autoload inclus dans le seul dossier
+
+Le ZIP `PPSA99386.zip` possède **une unique racine `PPSA99386/`**. L'application native reste sous cette racine. Le fichier `PPSA99386/tools/niakps5.elf` est le déclencheur de démarrage (payload classique, pas d'interface SDL). Les fichiers de configuration existants du Payload Manager ne sont jamais inclus car ils sont propres à chaque console.
+
+Pour installer automatiquement à partir d'un PC ayant Python 3 :
+```sh
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --port 2121 --autoload
+```
+Le script dépose le dossier dans `/data/homebrew/PPSA99386/`, copie le payload dans `/data/pldmgr/payloads/niakps5/niakps5.elf`, ajoute **son chemin absolu en dernier** dans `/data/pldmgr/autoload.txt` et active AUTOLOAD_ENABLED dans la configuration existante. Les versions actuelles de Payload Manager acceptent les chemins absolus sous `/data/pldmgr`. Il sauvegarde les deux fichiers de configuration avant changement (`.niakps5.bak`) et ne modifie pas Kstuff ou ShadowMountPlus. **À lancer seulement si le titre graphique est déjà testé.**
+
+Le bouton PS reste géré par le shell Sony. Le déclencheur est one-shot : il ne rétablit pas le titre automatiquement après chaque jeu. Une implémentation sûre du retour à l'accueil et de l'avatar privé nécessite une validation distincte ; le ZIP ne prétend pas les inclure déjà.

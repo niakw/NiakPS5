@@ -34,8 +34,10 @@ def package(folder: Path, destination: Path) -> None:
     files = sorted(folder.rglob("*"))
     if any(p.is_symlink() for p in files):
         raise ValueError("No symlinks allowed in FTP title package")
-    if any(p.is_file() and p.suffix.lower() in (".zip", ".elf") for p in files):
-        raise ValueError("No nested ZIPs or separate ELF payloads in title package")
+    if any(p.is_file() and (p.suffix.lower() == ".zip" or
+             (p.suffix.lower() == ".elf" and
+              p.relative_to(folder).as_posix() != "tools/niakps5.elf")) for p in files):
+        raise ValueError("No nested archives or unapproved ELF payloads")
     # Path structure and permissions must survive a ZIP extractor.
     for p in [folder, *files]:
         if not (p.is_dir() or p.is_file()):

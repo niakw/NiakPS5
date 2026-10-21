@@ -28,6 +28,8 @@ class NativeTitleTests(unittest.TestCase):
                 target.write_text(json.dumps({"titleId":"PPSA99386"}) if
                                   path.endswith("param.json") else "nonempty")
             (base / "assets").mkdir()
+            (base / "tools").mkdir()
+            (base / "tools/niakps5.elf").write_bytes(b"\\x7fELF" if False else bytes([127,69,76,70]))
             package=Path(temp) / "PPSA99386.zip"
             subprocess.run([sys.executable, str(ROOT / "title" / "pack_ftp.py"),
                             "--folder", str(base), "--output", str(package)], check=True)
@@ -36,6 +38,7 @@ class NativeTitleTests(unittest.TestCase):
                 self.assertEqual([n.split("/")[0] for n in z.namelist()],
                                  ["PPSA99386"] * len(z.namelist()))
                 self.assertFalse(any(n.endswith(".zip") for n in z.namelist()))
+                self.assertIn("PPSA99386/tools/niakps5.elf", z.namelist())
                 self.assertEqual((z.getinfo("PPSA99386/eboot.bin").external_attr >> 16) & 0o777, 0o755)
                 self.assertEqual((z.getinfo("PPSA99386/sce_module/libc.prx").external_attr >> 16) & 0o777, 0o644)
             (base / "assets/inner.zip").write_text("forbidden")
