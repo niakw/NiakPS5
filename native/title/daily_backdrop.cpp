@@ -1,66 +1,214 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Daily PlayStation 5 backgrounds from locally packaged optimized PNGs.
+// Native PS5 wallpaper: a real PS5 feed queried once per calendar day.
+// The OpenGL UI never waits for HTTP; last packaged art remains available.
 #include "niak/daily_backdrop.hpp"
+#include "niak/daily_runtime.hpp"
 #include "niak/lodepng.h"
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
 #include <array>
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 namespace {
+constexpr std::size_t MAX_BYTES=7u*1024u*1024u;
 std::array<std::uint32_t,14> images{};
 int count=0;
-bool load_png(const char *path, int &width, int &height,
-              std::vector<unsigned char> &rgba) {
-    FILE *f=std::fopen(path,"rb");
-    if(!f)return false;
-    if(std::fseek(f,0,SEEK_END)!=0){std::fclose(f);return false;}
-    long bytes=std::ftell(f);
-    if(bytes<32||bytes>4*1024*1024||std::fseek(f,0,SEEK_SET)!=0)
-    {std::fclose(f);return false;}
-    std::vector<unsigned char> png(static_cast<std::size_t>(bytes));
-    bool ok=std::fread(png.data(),1,png.size(),f)==png.size();
-    std::fclose(f);
-    if(!ok)return false;
-    // Guard decompression bombs before asking the PNG decoder to allocate.
-    if(png.size()<24||png[0]!=137||png[1]!=80||png[2]!=78||png[3]!=71)
-        return false;
-    unsigned w=(unsigned(png[16])<<24)|(unsigned(png[17])<<16)|
-               (unsigned(png[18])<<8)|png[19];
-    unsigned h=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
-               (unsigned(png[22])<<8)|png[23];
-    if(w!=1280||h!=720)return false;
-    unsigned decoded_w=0,decoded_h=0;
-    if(lodepng::decode(rgba,decoded_w,decoded_h,png)!=0 ||
-       decoded_w!=w||decoded_h!=h||
+struct Runtime {
+    std::mutex mutex;
+    int started_day=-1, ready_day=-1, live_day=-1;
+    bool pending=false;
+    std::vector<std::uint8_t> bytes;
+    std::uint32_t texture=0;
+    hui::gfx::Renderer *renderer=nullptr;
+};
+Runtime &state() {
+    // Intentionally process-lifetime: detached HTTP reader cannot reference
+    // an object destroyed during title teardown. Memory stays bounded.
+    static Runtime *runtime=new Runtime;
+    return *runtime;
+}
+bool decode_png(const std::vector<std::uint8_t> &raw,
+                unsigned &w,unsigned &h,
+                std::vector<std::uint8_t> &rgba) {
+    static const std::uint8_t sig[]={137,80,78,71,13,10,26,10};
+    if(raw.size()<33||raw.size()>MAX_BYTES ||
+       std::memcmp(raw.data(),sig,8)!=0)return false;
+    w=(unsigned(raw[16])<<24)|(unsigned(raw[17])<<16)|
+      (unsigned(raw[18])<<8)|unsigned(raw[19]);
+    h=(unsigned(raw[20])<<24)|(unsigned(raw[21])<<16)|
+      (unsigned(raw[22])<<8)|unsigned(raw[23]);
+    if(w<320||h<320||w>4096||h>4096||
+       std::uint64_t(w)*h>10'000'000)return false;
+    unsigned dw=0,dh=0;
+    if(lodepng::decode(rgba,dw,dh,raw)!=0||dw!=w||dh!=h ||
        rgba.size()!=std::size_t(w)*h*4)return false;
-    width=int(w);height=int(h);return true;
+    return true;
+}
+bool load_packaged(const char *path,std::vector<std::uint8_t> &rgba) {
+    std::FILE *file=std::fopen(path,"rb");if(!file)return false;
+    if(std::fseek(file,0,SEEK_END)!=0){std::fclose(file);return false;}
+    const long len=std::ftell(file);
+    if(len<32||len>long(MAX_BYTES)||std::fseek(file,0,SEEK_SET)!=0) {
+        std::fclose(file);return false;
+    }
+    std::vector<std::uint8_t> buffer(std::size_t(len),0);
+    const bool ok=std::fread(buffer.data(),1,buffer.size(),file)==buffer.size();
+    std::fclose(file);if(!ok)return false;
+    unsigned w=0,h=0;
+    return decode_png(buffer,w,h,rgba) && w==1280 && h==720;
+}
+bool read_cache(const char *day,std::vector<std::uint8_t> &bytes) {
+    FILE *id=std::fopen("/download0/niak-wallpaper-date.txt","rb");
+    if(!id)return false;
+    char stored[16]{};
+    const bool valid=std::fgets(stored,sizeof(stored),id)!=nullptr;
+    std::fclose(id);
+    if(!valid || std::strncmp(stored,day,10)!=0)return false;
+    FILE *file=std::fopen("/download0/niak-wallpaper.png","rb");
+    if(!file)return false;
+    if(std::fseek(file,0,SEEK_END)!=0){std::fclose(file);return false;}
+    long size=std::ftell(file);
+    if(size<33||size>long(MAX_BYTES)||std::fseek(file,0,SEEK_SET)!=0){
+        std::fclose(file);return false;
+    }
+    bytes.resize(std::size_t(size));
+    const bool ok=std::fread(bytes.data(),1,bytes.size(),file)==bytes.size();
+    std::fclose(file);
+    return ok;
+}
+void save_cache(const char *day,const std::vector<std::uint8_t> &bytes) {
+    FILE *image=std::fopen("/download0/niak-wallpaper.png.tmp","wb");
+    if(!image)return;
+    const bool written=std::fwrite(bytes.data(),1,bytes.size(),image)==bytes.size();
+    const int flushed=std::fflush(image);
+    const int closed=std::fclose(image);
+    if(!written||flushed||closed||
+       std::rename("/download0/niak-wallpaper.png.tmp",
+                   "/download0/niak-wallpaper.png")!=0) {
+        std::remove("/download0/niak-wallpaper.png.tmp");return;
+    }
+    FILE *stamp=std::fopen("/download0/niak-wallpaper-date.txt.tmp","wb");
+    if(!stamp)return;
+    const bool stamped=std::fwrite(day,1,10,stamp)==10;
+    const int result=std::fclose(stamp);
+    if(!stamped||result||
+       std::rename("/download0/niak-wallpaper-date.txt.tmp",
+                   "/download0/niak-wallpaper-date.txt")!=0)
+        std::remove("/download0/niak-wallpaper-date.txt.tmp");
+}
+void worker(int day,std::string date) {
+    std::vector<std::uint8_t> png;
+    bool cached=read_cache(date.c_str(),png);
+    if(!cached) {
+        // No user account, game library, IP address or other console data
+        // is included in the public PlayStation HTTPS requests.
+        if(!niak_fetch_latest_ps5_wallpaper(date.c_str(),unsigned(day),png))
+            return;
+        save_cache(date.c_str(),png);
+    }
+    unsigned w=0,h=0;std::vector<std::uint8_t> rgba;
+    if(!decode_png(png,w,h,rgba))return;
+    Runtime &s=state();
+    std::lock_guard<std::mutex> lock(s.mutex);
+    s.bytes=std::move(png);
+    s.ready_day=day;
+    s.pending=true;
+}
+std::vector<std::uint8_t> fit_wallpaper(const std::vector<std::uint8_t> &input,
+                                        unsigned w,unsigned h) {
+    constexpr unsigned W=1280,H=720;
+    std::vector<std::uint8_t> dest(std::size_t(W)*H*4);
+    // A full-bleed crop for landscapes. For portrait cover art, preserve its
+    // aspect ratio over a dark tinted soft backdrop (no stretched jacket).
+    const bool portrait=float(w)/float(h)<1.42f;
+    const float scale=std::max(float(W)/w,float(H)/h);
+    const float scaled_w=w*scale,scaled_h=h*scale;
+    for(unsigned y=0;y<H;++y)for(unsigned x=0;x<W;++x) {
+        const auto xx=std::min(w-1,unsigned(std::max(0.f,
+               (float(x)+(scaled_w-W)*.5f)/scale)));
+        const auto yy=std::min(h-1,unsigned(std::max(0.f,
+               (float(y)+(scaled_h-H)*.5f)/scale)));
+        const auto src=(std::size_t(yy)*w+xx)*4,dst=(std::size_t(y)*W+x)*4;
+        for(int c=0;c<3;++c)dest[dst+c]=portrait?std::uint8_t(input[src+c]/3):input[src+c];
+        dest[dst+3]=255;
+    }
+    if(portrait) {
+        const float front_scale=std::min(540.f/w,660.f/h);
+        const unsigned fw=std::max(1u,unsigned(w*front_scale));
+        const unsigned fh=std::max(1u,unsigned(h*front_scale));
+        const unsigned ox=(W-fw)/2,oy=(H-fh)/2;
+        for(unsigned y=0;y<fh;++y)for(unsigned x=0;x<fw;++x) {
+            const unsigned xx=std::min(w-1,unsigned(float(x)/front_scale));
+            const unsigned yy=std::min(h-1,unsigned(float(y)/front_scale));
+            const auto a=(std::size_t(yy)*w+xx)*4;
+            const auto b=(std::size_t(oy+y)*W+ox+x)*4;
+            const unsigned alpha=input[a+3];
+            for(int c=0;c<3;++c)
+                dest[b+c]=std::uint8_t((unsigned(input[a+c])*alpha+
+                                       unsigned(dest[b+c])*(255-alpha))/255);
+        }
+    }
+    return dest;
+}
+int day_now(char (&date)[11]) {
+    const auto now=std::time(nullptr);const auto *tm=std::localtime(&now);
+    if(!tm)return -1;
+    std::strftime(date,sizeof(date),"%Y-%m-%d",tm);
+    return (tm->tm_year+1900)*372+tm->tm_mon*31+tm->tm_mday;
 }
 }
 void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *directory) {
-    if(!directory) return;
+    Runtime &runtime=state();runtime.renderer=&renderer;
+    count=0;
     for(int i=0;i<14;++i) {
-        char path[384];
-        const int length=std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
-        if(length<=0||length>=int(sizeof(path)))continue;
-        int w=0,h=0;
-        std::vector<unsigned char> rgba;
-        if(!load_png(path,w,h,rgba))continue; // tolerate missing corrupt members
-        auto texture=renderer.create_texture(w,h,rgba.data());
-        if(!texture)continue;
-        images[static_cast<std::size_t>(count++)]=texture;
+        char path[256];std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
+        std::vector<std::uint8_t> pixels;
+        if(!load_packaged(path,pixels))continue;
+        const auto texture=renderer.create_texture(1280,720,pixels.data());
+        if(texture)images[std::size_t(count++)]=texture;
     }
-    hui::sys::log("[NiakPS5] PS5 wallpaper pool: %d media textures",count);
+    hui::sys::log("[NiakPS5] packaged PS5 wallpapers=%d, online refresh is optional",count);
 }
 std::uint32_t niak_daily_backdrop() {
-    if(count==0)return 0;
-    const auto t=std::time(nullptr);
-    const std::tm *date=std::localtime(&t);
-    if(!date)return images[0];
-    // One image for the user's entire local calendar day.
-    const int serial=(date->tm_year+1900)*372+date->tm_mon*31+date->tm_mday;
-    return images[static_cast<std::size_t>((serial%count+count)%count)];
+    Runtime &s=state();char today[11]={};const int day=day_now(today);
+    if(day<0)return count?images[0]:0;
+#if defined(__PROSPERO__)
+    if(s.started_day!=day) {
+        s.started_day=day;
+        // Network and JSON parsing stay off the render thread.
+        std::thread([day,date=std::string(today)] {worker(day,date);}).detach();
+    }
+#endif
+    if(s.pending) {
+        std::vector<std::uint8_t> bytes;
+        {
+            std::lock_guard<std::mutex> lock(s.mutex);
+            if(s.pending&&s.ready_day==day) {
+                bytes=std::move(s.bytes);
+                s.pending=false;
+            }
+        }
+        if(!bytes.empty()&&s.renderer) {
+            unsigned w=0,h=0;std::vector<std::uint8_t> rgba;
+            if(decode_png(bytes,w,h,rgba)) {
+                auto image=fit_wallpaper(rgba,w,h);
+                auto handle=s.renderer->create_texture(1280,720,image.data());
+                if(handle) {
+                    if(s.texture)s.renderer->destroy_texture(s.texture);
+                    s.texture=handle;s.live_day=day;
+                }
+            }
+        }
+    }
+    if(s.texture&&s.live_day==day)return s.texture;
+    return count?images[std::size_t((day%count+count)%count)]:0;
 }
