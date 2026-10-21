@@ -137,7 +137,7 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
     replace_once(app_main, '"montserrat-medium.huifont"', '"niak-instrument-serif.huifont"')
 
     # Never report invented ratings, playtime, progress, or a fixed clock.
-    replace_once(aurora, '#include <cstdio>', '#include <cstdio>\\n#include <ctime>')
+    replace_once(aurora, '#include <cstdio>', '#include <cstdio>\n#include <ctime>')
     visual = aurora.read_text(encoding="utf-8")
     start = visual.find('        std::snprintf(text, sizeof(text), "%s  ')
     end = visual.find('        const Rect play{x, 540, 220, 64};', start)
