@@ -223,7 +223,8 @@ CATALOG_CPP = r'''// SPDX-License-Identifier: GPL-3.0-or-later
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "niak/catalog.h"\n#include "niak/shadowmount_api.h"
+#include "niak/catalog.h"
+#include "niak/shadowmount_api.h"
 #ifdef __cplusplus
 }
 #endif
