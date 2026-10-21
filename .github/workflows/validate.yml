@@ -39,11 +39,15 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog-test
           /tmp/niak-catalog-test
+      - name: Test navigation repeat and frame-independent motion
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I native native/ui_motion.c native/tests/motion_test.c -lm -o /tmp/niak-motion-test
+          /tmp/niak-motion-test
       - name: Compile native SDL frontend on host
         run: |
           cc -std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -I native \
             $(pkg-config --cflags sdl2 SDL2_image SDL2_ttf sqlite3) \
-            native/main.c native/catalog.c \
+            native/main.c native/catalog.c native/ui_motion.c native/ui_renderer.c native/ui_text_cache.c \
             $(pkg-config --libs sdl2 SDL2_image SDL2_ttf sqlite3) -o /tmp/niakps5-ui-host
       - name: Test safe WebKit autoloader config migration
         run: python3 -m unittest discover -s native/tests -p "test_*.py" -v

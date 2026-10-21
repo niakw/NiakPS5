@@ -21,8 +21,8 @@ $(SQLITE):
 	./fetch-sqlite.sh
 build:
 	mkdir -p build
-build/niakps5_ui.elf: main.c catalog.c catalog.h $(SQLITE) | build
-	$(CC) $(WARN) -o $@ main.c catalog.c $(SQLITE) $(GUI_LIBS)
+build/niakps5_ui.elf: main.c catalog.c catalog.h ui_motion.c ui_motion.h ui_renderer.c ui_renderer.h ui_text_cache.c ui_text_cache.h $(SQLITE) | build
+	$(CC) $(WARN) -o $@ main.c catalog.c ui_motion.c ui_renderer.c ui_text_cache.c $(SQLITE) $(GUI_LIBS)
 build/niakps5_bootstrap.elf: bootstrap.c $(LOADER) | build
 	$(CC) $(WARN) -o $@ bootstrap.c $(LOADER) -lSceSystemService -lSceUserService -lkernel_sys -lm -lz -lbz2 -liconv
 clean:

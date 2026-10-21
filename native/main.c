@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* NiakPS5 — native full-screen HOME UI. No ShellUI patches, no system writes. */
 #include "catalog.h"
+#include "ui_renderer.h"
+#include "ui_text_cache.h"
+#include "ui_motion.h"
+#include <math.h>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
@@ -11,6 +15,7 @@
 #define W 1920
 #define H 1080
 #define COVER_MAX 9
+#define COVER_CACHE_MAX 24
 #define DATABASE_PATH "/system_data/priv/mms/app.db"
 #define ASSETS_PATH "/data/niakps5/assets"
 #ifdef __PS5__
@@ -22,8 +27,14 @@ typedef struct {
  SDL_Renderer *renderer;
  SDL_GameController *pad;
  TTF_Font *body,*small,*title,*heading;
- SDL_Texture *covers[COVER_MAX];
- int cover_index[COVER_MAX];
+ SDL_Texture *covers[COVER_CACHE_MAX];
+ int cover_index[COVER_CACHE_MAX];
+ unsigned cover_used[COVER_CACHE_MAX];
+ unsigned cover_clock;
+ NiakTextCache text_cache;
+ NiakNavRepeat nav;
+ float focus_x;
+ char renderer_desc[64];
  SDL_Texture *backdrop;
  NiakGame games[NIAKPS5_MAX_GAMES];
  int game_count,selected,palette,settings,dirty,running;
@@ -48,15 +59,7 @@ static void outline(SDL_Renderer *r,int x,int y,int w,int h,SDL_Color c) {
  SDL_Rect rect={x,y,w,h};SDL_SetRenderDrawColor(r,c.r,c.g,c.b,c.a);SDL_RenderDrawRect(r,&rect);
 }
 static void text(App *app,TTF_Font *font,const char *str,int x,int y,SDL_Color col,int maxw){
- if(!font||!str||!*str)return;
- SDL_Surface *surface=TTF_RenderUTF8_Blended(font,str,col);
- if(!surface)return;
- SDL_Texture *tex=SDL_CreateTextureFromSurface(app->renderer,surface);
- int w=surface->w,h=surface->h;SDL_FreeSurface(surface);
- if(!tex)return;
- if(maxw>0 && w>maxw){h=h*maxw/w;w=maxw;}
- SDL_Rect rect={x,y,w,h};SDL_RenderCopy(app->renderer,tex,NULL,&rect);
- SDL_DestroyTexture(tex);
+ niak_text_draw(&app->text_cache,app->renderer,font,str,x,y,col,maxw);
 }
 static void set_status(App *app,const char *value){
  snprintf(app->message,sizeof(app->message),"%s",value);app->dirty=1;
@@ -66,7 +69,21 @@ static SDL_Texture *image(App *app,const char *path) {
  return IMG_LoadTexture(app->renderer,path);
 }
 static void clear_cover_cache(App *app){
- for(int i=0;i<COVER_MAX;i++){if(app->covers[i])SDL_DestroyTexture(app->covers[i]);app->covers[i]=NULL;app->cover_index[i]=-1;}
+ for(int i=0;i<COVER_CACHE_MAX;i++){if(app->covers[i])SDL_DestroyTexture(app->covers[i]);app->covers[i]=NULL;app->cover_index[i]=-1;app->cover_used[i]=0;}app->cover_clock=0;
+}
+/* Bounded LRU keyed by game index; keyboard/controller focus no longer reloads all covers. */
+static SDL_Texture *cover_for(App *app,int index){
+ int victim=0;
+ for(int i=0;i<COVER_CACHE_MAX;i++){
+   if(app->cover_index[i]==index){app->cover_used[i]=++app->cover_clock;return app->covers[i];}
+   if(app->cover_index[i]<0){victim=i;break;}
+   if(app->cover_used[i]<app->cover_used[victim])victim=i;
+ }
+ if(app->covers[victim])SDL_DestroyTexture(app->covers[victim]);
+ app->covers[victim]=image(app,app->games[index].icon);
+ app->cover_index[victim]=index;
+ app->cover_used[victim]=++app->cover_clock;
+ return app->covers[victim];
 }
 static void reload_background(App *app){
  if(app->backdrop){SDL_DestroyTexture(app->backdrop);app->backdrop=NULL;}
@@ -130,7 +147,7 @@ static void background_label(App *app,const Theme *theme){
  line(r,75,139,1835,139,(SDL_Color){140,175,180,44});
  char timebuf[64];time_t now=time(NULL);struct tm *tm=localtime(&now);
  if(tm){strftime(timebuf,sizeof(timebuf),"%H:%M",tm);text(app,app->body,timebuf,1700,76,theme->text,0);}
- text(app,app->small,"NI​AK / PLAY",1600,175,theme->accent,0);
+ text(app,app->small,"NIAK / PLAY",1600,175,theme->accent,0);
 }
 static void draw_cards(App *app,const Theme *theme) {
  SDL_Renderer *r=app->renderer;
@@ -144,24 +161,19 @@ static void draw_cards(App *app,const Theme *theme) {
    int index=start+k,x=75+k*194,y=773;
    SDL_Color card={22,38,44,255};
    fill(r,x,y,175,225,card);
-   if(app->cover_index[k]!=index){
-     if(app->covers[k])SDL_DestroyTexture(app->covers[k]);
-     app->covers[k]=image(app,app->games[index].icon);
-     app->cover_index[k]=index;
-   }
-   if(app->covers[k]){
-     SDL_Rect dst={x,y,175,160};SDL_RenderCopy(r,app->covers[k],NULL,&dst);
+   SDL_Texture *cover=cover_for(app,index);
+   if(cover){
+     SDL_Rect dst={x,y,175,160};SDL_RenderCopy(r,cover,NULL,&dst);
    }else{
      text(app,app->heading,"PS5",x+50,y+53,theme->accent,0);
    }
    fill(r,x,y+158,175,67,(SDL_Color){10,21,29,240});
    text(app,app->small,app->games[index].title,x+11,y+167,theme->text,154);
    text(app,app->small,app->games[index].id,x+11,y+192,theme->soft,0);
-   if(index==app->selected){
-     outline(r,x-3,y-3,181,231,theme->accent);
-     outline(r,x-6,y-6,187,237,(SDL_Color){theme->accent.r,theme->accent.g,theme->accent.b,130});
-   }
  }
+ int fx=(int)(app->focus_x+0.5f);
+ outline(r,fx-3,770,181,231,theme->accent);
+ outline(r,fx-6,767,187,237,(SDL_Color){theme->accent.r,theme->accent.g,theme->accent.b,130});
 }
 static void draw(App *app) {
  const Theme *theme=&THEMES[app->palette];SDL_Renderer *r=app->renderer;
@@ -183,14 +195,15 @@ static void draw(App *app) {
  draw_cards(app,theme);
  fill(r,0,1016,W,64,(SDL_Color){6,13,20,231});
  text(app,app->small,app->message,68,1038,theme->soft,920);
- text(app,app->small,"X  Selectionner     O  Accueil Sony     []  Actualiser     /\\  Palette",1120,1038,theme->text,0);
+ text(app,app->small,app->renderer_desc,750,1038,theme->soft,0);
+ text(app,app->small,"X  Jouer    O  Sony    []  Actualiser    /\\  Options",1210,1038,theme->text,0);
  if(app->settings){
    fill(r,0,0,W,H,(SDL_Color){3,8,16,183});
    fill(r,1220,0,700,H,(SDL_Color){16,25,36,255});
    fill(r,1220,0,2,H,theme->accent);
    text(app,app->title,"NiakPS5",1280,110,theme->text,0);
    text(app,app->heading,"Preferences",1280,245,theme->accent,0);
-   text(app,app->body,"Triangle : changer la palette",1280,338,theme->text,0);
+   text(app,app->body,"Gauche / Droite : changer de palette",1280,338,theme->text,0);
    text(app,app->body,"Carre : actualiser les jeux",1280,391,theme->text,0);
    text(app,app->body,"Rond : fermer le panneau",1280,444,theme->text,0);
    text(app,app->small,"Accueil Sony conserve, aucune modification systeme.",1280,585,theme->soft,570);
@@ -212,7 +225,7 @@ static void draw(App *app) {
 }
 static void select_game(App *app,int next) {
  if(next<0 || next>=app->game_count || next==app->selected)return;
- app->selected=next;clear_cover_cache(app);reload_background(app);
+ app->selected=next;reload_background(app);
 }
 static void launch_selected(App *app) {
  if(app->game_count==0)return;
@@ -229,8 +242,10 @@ static void launch_selected(App *app) {
 static void input(App *app,int action){
  /* 1 left, 2 right, 3 confirm, 4 back, 5 rescan, 6 settings */
  if(action==4){if(app->settings)app->settings=0;else app->running=0;}
- else if(action==6){app->palette=(app->palette+1)%4;app->settings=!app->settings;}
+ else if(action==6){app->settings=!app->settings;}
+ else if(action==7){app->palette=(app->palette+1)%4;}
  else if(action==5){scan_games(app);}
+ else if(app->settings && (action==1||action==2))app->palette=(app->palette+(action==1?3:1))%4;
  else if(!app->settings && action==1)select_game(app,app->selected-1);
  else if(!app->settings && action==2)select_game(app,app->selected+1);
  else if(!app->settings && action==3)launch_selected(app);
@@ -239,7 +254,8 @@ static void input(App *app,int action){
 int main(int argc,char **argv){
  (void)argc;(void)argv;
  App *app=(App*)calloc(1,sizeof(App));if(!app)return 1;
- for(int i=0;i<COVER_MAX;i++)app->cover_index[i]=-1;
+ for(int i=0;i<COVER_CACHE_MAX;i++)app->cover_index[i]=-1;
+ app->focus_x=75.0f;
  app->running=1;app->dirty=1;
  if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER)!=0){fprintf(stderr,"SDL_Init: %s\n",SDL_GetError());free(app);return 1;}
  IMG_Init(IMG_INIT_PNG|IMG_INIT_JPG);
@@ -251,7 +267,7 @@ int main(int argc,char **argv){
 #endif
  app->window=SDL_CreateWindow("NiakPS5",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,W,H,flags);
  if(!app->window)goto fail;
- app->renderer=SDL_CreateRenderer(app->window,-1,SDL_RENDERER_SOFTWARE);
+ app->renderer=niak_renderer_create(app->window,app->renderer_desc,sizeof(app->renderer_desc));
  if(!app->renderer)goto fail;
  SDL_RenderSetLogicalSize(app->renderer,W,H);
  SDL_SetRenderDrawBlendMode(app->renderer,SDL_BLENDMODE_BLEND);
@@ -275,16 +291,33 @@ int main(int argc,char **argv){
        }
        if(event.type==SDL_CONTROLLERBUTTONDOWN){
          switch(event.cbutton.button){
-           case SDL_CONTROLLER_BUTTON_DPAD_LEFT:input(app,1);break;
-           case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:input(app,2);break;
+           /* D-pad and analog stick are sampled by niak_nav_tick below, with repeat. */
            case SDL_CONTROLLER_BUTTON_A:input(app,3);break;
            case SDL_CONTROLLER_BUTTON_B:input(app,4);break;
            case SDL_CONTROLLER_BUTTON_X:input(app,5);break;
            case SDL_CONTROLLER_BUTTON_Y:input(app,6);break;
+           case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:select_game(app,app->selected-COVER_MAX);break;
+           case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:select_game(app,app->selected+COVER_MAX);break;
          }
        }
      }while(SDL_PollEvent(&event));
    }
+   if(app->pad && SDL_GameControllerGetAttached(app->pad)){
+     int dir=0;
+     Sint16 axis=SDL_GameControllerGetAxis(app->pad,SDL_CONTROLLER_AXIS_LEFTX);
+     if(SDL_GameControllerGetButton(app->pad,SDL_CONTROLLER_BUTTON_DPAD_LEFT))dir=-1;
+     else if(SDL_GameControllerGetButton(app->pad,SDL_CONTROLLER_BUTTON_DPAD_RIGHT))dir=1;
+     else if(axis < -19000)dir=-1;
+     else if(axis > 19000)dir=1;
+     int step=niak_nav_tick(&app->nav,dir,SDL_GetTicks());
+     if(step<0)input(app,1);else if(step>0)input(app,2);
+   }else niak_nav_tick(&app->nav,0,SDL_GetTicks());
+   int start=app->selected>=COVER_MAX?app->selected-(COVER_MAX-1):0;
+   float target=(float)(75+(app->selected-start)*194);
+   float before=app->focus_x;
+   app->focus_x=niak_ease(before,target,0.016f,14.0f);
+   if(fabsf(target-app->focus_x)<0.25f)app->focus_x=target;
+   if(app->focus_x!=before)app->dirty=1;
    time_t now=time(NULL);if(now!=app->clock_second){app->clock_second=now;app->dirty=1;}
    if(app->dirty)draw(app);
  }
@@ -292,6 +325,7 @@ fail:
  if(app->pad)SDL_GameControllerClose(app->pad);
  clear_cover_cache(app);
  if(app->backdrop)SDL_DestroyTexture(app->backdrop);
+ niak_text_clear(&app->text_cache);
  if(app->body)TTF_CloseFont(app->body);if(app->small)TTF_CloseFont(app->small);
  if(app->title)TTF_CloseFont(app->title);if(app->heading)TTF_CloseFont(app->heading);
  if(app->renderer)SDL_DestroyRenderer(app->renderer);if(app->window)SDL_DestroyWindow(app->window);
