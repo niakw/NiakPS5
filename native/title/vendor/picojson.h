@@ -252,7 +252,11 @@ inline value::value(double n) : type_(number_type), u_() {
       isnan(n) || isinf(n)
 #endif
           ) {
+#if defined(__EXCEPTIONS) || defined(_CPPUNWIND)
     throw std::overflow_error("");
+#else
+    n = 0.0; // PS5 runtime builds without C++ exceptions: discard overflow.
+#endif
   }
   u_.number_ = n;
 }

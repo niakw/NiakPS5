@@ -2,6 +2,11 @@
 // Fetches public released-PS5 media: GitHub JSON index + official PlayStation PNG.
 // Network failure is never fatal; packaged wallpapers remain available.
 #include "niak/daily_runtime.hpp"
+// The PS5 title toolchain disables exceptions. Every field is type-checked
+// before get<T>(); a failed internal assertion remains fail-closed.
+#if !defined(__EXCEPTIONS) && !defined(_CPPUNWIND)
+#define PICOJSON_ASSERT(x) do { if (!(x)) std::abort(); } while (0)
+#endif
 #include "niak/picojson.h"
 #include <algorithm>
 #include <cstdlib>
