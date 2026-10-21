@@ -19,6 +19,18 @@ git -C "$stage" reset --hard "$kit_revision"
 test "$(git -C "$stage" rev-parse HEAD)" = "$kit_revision"
 # This checkout is ephemeral and only prepared for our own GPU UI.
 python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root"
+# Upstream ps5-opengl release URL was withdrawn; use a mirrored archive
+# ONLY if it passes the *original upstream* pinned archive and manifest SHA-256.
+python3 - "$stage/tools/fetch-opengl-sdk.sh" <<'PY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])
+src=p.read_text()
+old='https://github.com/blackbearreloaded/ps5-opengl/releases/download/v$version/ps5-opengl-sdk-$version.tar.gz'
+new='https://github.com/MyLuxy/overdrive-deps/releases/download/ps5-opengl-v$version/ps5-opengl-sdk-$version.tar.gz'
+if src.count(old)!=1: raise SystemExit("Pinned OpenGL fetch URL changed; review required")
+p.write_text(src.replace(old,new))
+PY
 # Keep the reference kit's asset / runtime inputs and attribution.
 make -C "$stage" init TITLE_ID="$title" APP_NAME=NiakPS5 APP_CATEGORY=game
 # See PacBrew docs: SQLite is a read-only static link, no .db modification.
