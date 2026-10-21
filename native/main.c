@@ -120,6 +120,7 @@ static void background_label(App *app,const Theme *theme){
  text(app,app->heading,"PS5",210,70,theme->accent,0);
  text(app,app->body,"Jeux",395,76,theme->text,0);
  text(app,app->body,"Multimedia",510,76,muted,0);
+ line(r,75,139,1835,139,(SDL_Color){140,175,180,44});
  char timebuf[64];time_t now=time(NULL);struct tm *tm=localtime(&now);
  if(tm){strftime(timebuf,sizeof(timebuf),"%H:%M",tm);text(app,app->body,timebuf,1700,76,theme->text,0);}
  text(app,app->small,"NI​AK / PLAY",1600,175,theme->accent,0);
