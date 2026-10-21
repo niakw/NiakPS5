@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "redirect_gate.h"
 
 #define NIAK_TITLE "PPSA99386"
 #define NIAK_ENABLED "/data/niakps5-autostart.enabled"
@@ -109,43 +110,35 @@ static void monitor_return_after_game(void) {
         return;
     }
     report("Opt-in return monitor armed, NiakPS5 app id",home_app);
-    int game_running=0;
-    int idle_ticks=0;
-    for (int ticks=0;ticks<21600;++ticks) { /* at most 12 hours */
-        if (is_regular_file(NIAK_DISABLED)||!is_regular_file(NIAK_RESUME))break;
+    NiakRedirectGate gate;
+    niak_redirect_init(&gate,home_app);
+    for(int ticks=0;ticks<21600;++ticks) {
+        if(is_regular_file(NIAK_DISABLED)||!is_regular_file(NIAK_RESUME))break;
         sceKernelUsleep(2000000);
         const int running=sceSystemServiceGetAppIdOfRunningBigApp();
-        if (running>0 && running!=home_app) {
-            /* The PS button may open Sony controls while this game stays running.
-             * Never start NiakPS5 over a live title. */
-            game_running=1;
-            idle_ticks=0;
-        } else if (running==home_app) {
-            game_running=0;
-            idle_ticks=0;
-        } else if (running==0 && game_running) {
-            if (++idle_ticks>=5) {
-                int user=-1;
-                if (sceUserServiceGetForegroundUser(&user)==0 && user>=0) {
-                    const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
-                    report("Return after game exit (best effort)",rc);
-                    if (rc==0) {
-                        game_running=0;
-                        idle_ticks=0;
-                        home_app=-1;
-                        for(int i=0;i<8;++i) {
-                            sceKernelUsleep(1500000);
-                            const int app=sceSystemServiceGetAppIdOfRunningBigApp();
-                            if(app>0){home_app=app;break;}
-                        }
-                        if(home_app<=0)break;
-                    } else {
-                        /* Do not retry relentlessly while Sony is handling settings. */
-                        break;
-                    }
-                } else break;
+        if(!niak_redirect_tick(&gate,running))continue;
+        // A running game (including one behind the PS Control Center) cannot
+        // produce this event.  Exactly one attempt, no relaunch loop.
+        int user=-1;
+        if(sceUserServiceGetForegroundUser(&user)==0 && user>=0) {
+            const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
+            report("NiakTV-style game-exit redirect (one attempt)",rc);
+            if(rc==0) {
+                home_app=-1;
+                for(int i=0;i<8;++i) {
+                    sceKernelUsleep(1500000);
+                    const int app=sceSystemServiceGetAppIdOfRunningBigApp();
+                    if(app>0){home_app=app;break;}
+                }
+                if(home_app>0) {
+                    niak_redirect_init(&gate,home_app);
+                    continue;
+                }
             }
         }
+        // No retries if the user intentionally remains in Sony settings,
+        // or if the launch failed: always leave an escape hatch.
+        break;
     }
     report("Return monitor exit",0);
 }

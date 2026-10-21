@@ -15,6 +15,10 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog
           /tmp/niak-catalog
+      - name: Validate one-shot game-to-home redirect gate
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror native/title/tests/redirect_gate_test.c -o /tmp/niak-redirect-gate
+          /tmp/niak-redirect-gate
       - name: Validate native PS5 DDS avatar decoder on host
         run: |
           g++ -std=c++20 -Wall -Wextra -Werror -I native/title native/title/avatar_dds.cpp native/title/tests/avatar_dds_test.cpp -o /tmp/niak-dds-test
