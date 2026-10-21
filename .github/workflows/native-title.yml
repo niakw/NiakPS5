@@ -35,6 +35,7 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
           EGL_PLATFORM: surfaceless
           GALLIUM_DRIVER: llvmpipe
+          USE_CCACHE: '0'
         run: |
           python3 native/title/host_preview.py --kit .build/ps5-title-kit
           USE_CCACHE=0 bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
