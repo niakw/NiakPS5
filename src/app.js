@@ -30,13 +30,13 @@ function icon(name) {
 }
 function renderRail() {
   const rail=$("game-rail");rail.replaceChildren();
-  if(!state.games.length){const p=el("p","drawer-note","Aucun jeu détecté. Le catalogue d'exemple est remplacé dès qu'une bibliothèque réelle est fournie.");rail.append(p);return}
+  if(!state.games.length){const p=el("p","drawer-note","Aucun jeu détecté. Le catalogue d'exemple est remplacé dès qu'une bibliothèque réelle est fournie.");rail.append(p);$("library-label").textContent="Bibliothèque vide";$("session-summary").textContent="Aucun jeu transmis par l'hôte console.";return}
   state.games.forEach(game=>{
     const card=el("button","game-card");card.type="button";card.dataset.action="select-game";card.dataset.id=game.id;card.dataset.navigate="";card.dataset.installed=String(Boolean(game.installed));
     card.setAttribute("aria-label",game.title+(game.installed?" · installé":" · aperçu"));
     const fb=el("div","card-fallback");fb.append(icon("game"));card.append(fb);
     const src=coverOf(game);
-    if(src){const img=el("img","game-cover");img.src=src;img.alt="";img.loading="lazy";img.decoding="async";img.addEventListener("error",()=>img.classList.add("is-broken"));card.append(img)}
+    if(src&&!state.settings.performance){const img=el("img","game-cover");img.src=src;img.alt="";img.loading="lazy";img.decoding="async";img.addEventListener("error",()=>img.classList.add("is-broken"));card.append(img)}
     const shade=el("div","game-card-shade");card.append(shade);
     const content=el("div","game-card-content");content.append(el("span","game-card-title",game.title),el("span","game-card-meta",game.installed?"INSTALLÉ · PS5":"PS5 · "+(game.year||"JEU")));card.append(content);
     card.addEventListener("focus",()=>showGame(game.id));
@@ -49,7 +49,8 @@ function renderRail() {
 function showGame(id) {
   if(id && !state.games.some(g=>g.id===id))return;
   state.selectedId=id||null;
-  const game=currentGame();if(!game)return;
+  const game=currentGame();if(!game){$("feature-title").textContent="Votre bibliothèque vous attend.";$("feature-subtitle").textContent="Aucun jeu n'a encore été fourni par la console.";$("feature-tag").textContent="VOTRE ESPACE";$("feature-year").textContent="";$("feature-genre").textContent="Bibliothèque";$("feature-status").textContent="Aucun jeu";$("primary-label").textContent="Aucun jeu à lancer";$("feature-primary").disabled=true;return}
+  $("feature-primary").disabled=false;
   $("feature-title").textContent=game.title;
   $("feature-subtitle").textContent=game.description || "Votre prochain jeu commence ici.";
   $("feature-tag").textContent=game.installed?"DANS MA BIBLIOTHÈQUE":"JEU DU MOMENT";
@@ -93,7 +94,7 @@ function openPanel(kind,game) {
   state.panel=kind;
   $("panel-overlay").hidden=false;
   const content=$("drawer-content");content.replaceChildren();
-  $("drawer-title").textContent=kind==="settings"?"Réglages":"Le jeu";
+  $("drawer-title").textContent=kind==="settings"?"Réglages":kind==="library"?"Bibliothèque":"Le jeu";
   if(kind==="settings"){
     content.append(el("p","drawer-note","Retrouvez la direction artistique de NiakTV, adaptée à la navigation sur PS5."));
     content.append(el("h3","drawer-group","Palette"));
@@ -106,6 +107,10 @@ function openPanel(kind,game) {
     content.append(toggleButton("daily","Jeu différent chaque jour","Jeu du jour choisi parmi les sorties du catalogue."),toggleButton("performance","Mode performance","Désactiver les images et les transitions pour alléger l'interface."));
     content.append(el("h3","drawer-group","Console"));
     content.append(el("p","drawer-note","Cette version est un frontend web. Elle ne remplace pas l'accueil système PS5 et n'accède pas aux jeux, captures, amis ou notifications sans adaptateur natif."));
+  } else if(kind==="library") {
+    content.append(el("p","drawer-note",state.realLibrary?"Jeux transmis par la console.":"Sélection illustrative — aucun jeu installé n'est détecté."));
+    if(!state.games.length)content.append(el("p","drawer-note","Votre bibliothèque est vide."));
+    state.games.forEach(item=>{const entry=el("button","search-result",item.title);entry.type="button";entry.dataset.action="library-select";entry.dataset.id=item.id;entry.dataset.navigate="";entry.append(el("span","",item.installed?"INSTALLÉ":"APERÇU"));content.append(entry)});
   } else if(game) {
     const image=heroOf(game);if(image){const img=el("img","detail-art");img.alt="";img.src=image;img.addEventListener("error",()=>img.remove());content.append(img)}
     content.append(el("h3","detail-title",game.title),el("p","detail-meta",["PS5",game.genre,game.year||""].filter(Boolean).join(" · ")),el("p","drawer-note",game.description||""));
@@ -155,19 +160,22 @@ function navigate(direction) {
   }).filter(x=>x.primary>8).sort((a,b)=>a.score-b.score);
   if(matches.length)focusElement(matches[0].b);
 }
+function focusGame(id){const card=[...$("game-rail").querySelectorAll("[data-id]")].find(node=>node.dataset.id===id);if(card)focusElement(card)}
 function firstGame() {const card=$("game-rail").querySelector("[data-navigate]");if(card)focusElement(card);else toast("Bibliothèque vide.")}
 function activate(action,id,button) {
   if(action==="settings"){openPanel("settings");return}
   if(action==="close"){closePanel();return}
   if(action==="search"){openSearch();return}
   if(action==="search-close"){closeSearch();return}
-  if(action==="search-result"){closeSearch();showGame(id);firstGame();return}
+  if(action==="search-result"){closeSearch();showGame(id);focusGame(id);return}
+  if(action==="library-select"){closePanel();showGame(id);focusGame(id);return}
   if(action==="setting"&&button){state.settings[button.dataset.setting]=button.dataset.value;saveSettings();return}
-  if(action==="toggle"&&button){const key=button.dataset.setting;state.settings[key]=!state.settings[key];button.querySelector("small").textContent=state.settings[key]?"Activé":"Désactivé";saveSettings();if(key==="daily"){state.selectedId=null;showGame(null)}return}
+  if(action==="toggle"&&button){const key=button.dataset.setting;state.settings[key]=!state.settings[key];button.querySelector("small").textContent=state.settings[key]?"Activé":"Désactivé";saveSettings();if(key==="performance")renderRail();if(key==="daily"){state.selectedId=null;showGame(null)}return}
   if(action==="select-game"){showGame(id);selectedGameDetails();return}
   if(action==="details"){selectedGameDetails();return}
   if(action==="launch"){const game=currentGame();if(game?.installed)callBridge("launchGame",game.id);else selectedGameDetails();return}
-  if(action==="library"||action==="all-games"){firstGame();return}
+  if(action==="all-games"){openPanel("library");return}
+  if(action==="library"){firstGame();return}
   if(action==="games"){focusElement(document.querySelector(".nav-tab.active"));return}
   if(action==="media"){toast("Section Multimédia en préparation.");return}
   if(["captures","downloads","friends","notifications","profile"].includes(action)){callBridge(action);return}

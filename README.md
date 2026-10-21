@@ -11,7 +11,7 @@
 - Icônes SVG au trait de la même famille, focus 2 px menthe + halo, survol et sélection manette cohérents.
 - Barre haute à la PS5 (Jeux / Multimédia, recherche, notifications, réglages, profil), vedette immersive, rail des jaquettes, raccourcis console.
 - Fond de **jeu récent sorti** plutôt que fond de film TMDB : sélection éditoriale 2025–2026, rotation quotidienne locale, adaptation au jeu survolé/sélectionné, transition douce.
-- Palettes Menthe / Violet / Bleu / Graphite, fond Jeu / Dégradé / Uni, mode performance et animations réduites selon le système.
+- Palettes Menthe / Violet / Bleu / Graphite, fond Jeu / Dégradé / Uni, mode performance, navigation dans la bibliothèque complète et animations réduites selon le système.
 - Aucun framework, aucune télémétrie, aucune publicité. Les fonctions de base sont consultables hors ligne ; les visuels de jeux nécessitent une connexion tant qu'ils ne sont pas mis en cache par un hôte natif.
 
 ## Tester l'interface
