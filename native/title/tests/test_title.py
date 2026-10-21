@@ -76,6 +76,7 @@ class NativeTitleTests(unittest.TestCase):
         source=(ROOT/"title"/"polish.py").read_text()
         case=(ROOT/"title"/"case_renderer.cpp").read_text()
         self.assertIn("niak_draw_rotating_case(list, it, ring",source)
+        self.assertIn("niak_draw_rotating_case(list, it, art",source)
         self.assertIn("case_selected_at_",source)
         self.assertIn("shelf.column = next;",source)
         self.assertIn("row_ = next;",source)

@@ -40,8 +40,11 @@ def patch(kit):
                  '    bool top_focus_ = false;\n    float case_selected_at_ = 0.0f;')
     s=exactly(s,'            row_ = active_tab_ == 2 && shelves_.size() > 1 ? 1 : 0;',
                  '            row_ = active_tab_ == 2 && shelves_.size() > 1 ? 1 : 0;\n            case_selected_at_ = clock_;')
+    # The details sheet displays the same selected-game case in place of the
+    # square app icon. No loading page, timer, or launch handoff is introduced.
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 28);',
-                 'list.image(it.cover, art, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 28);')
+                 'niak_draw_rotating_case(list, it, art, '
+                 'context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_, fonts);')
     s=exactly(s,'#include "niak/profile.hpp"', '#include "niak/profile.hpp"\n#include "niak/case_renderer.hpp"')
     # Show the authentic clear logo when LaunchBox provided one, AND the title.
     # Keep the name readable even if the logo scan has transparent margins.
