@@ -230,20 +230,41 @@ namespace hui::demo
 Catalog::Catalog()
 {
     std::vector<NiakGame> games(NIAKPS5_MAX_GAMES);
-    const int count = niak_scan_games("/system_data/priv/mms/app.db", "",
-                                      games.data(), games.size());
-    sys::log("[NiakPS5] app.db read-only scanned: %d installed games", count);
+    const int db_count = niak_scan_games("/system_data/priv/mms/app.db", "",
+                                         games.data(), games.size());
+    std::size_t count = db_count > 0 ? static_cast<std::size_t>(db_count) : 0;
+    // PS5 user title sandbox may deny app.db. Discover valid /data/homebrew
+    // structures independently, even when app.db is missing or inaccessible.
+    std::vector<NiakGame> homebrews(NIAKPS5_MAX_GAMES);
+    const int home_count = niak_scan_homebrews("", homebrews.data(), homebrews.size());
+    if (home_count > 0)
+    {
+        for (int n = 0; n < home_count && count < games.size(); ++n)
+        {
+            const NiakGame &candidate = homebrews[static_cast<std::size_t>(n)];
+            bool already_seen = false;
+            for (std::size_t i = 0; i < count; ++i)
+                if (std::strcmp(games[i].id, candidate.id) == 0)
+                    already_seen = true;
+            if (!already_seen)
+                games[count++] = candidate;
+        }
+    }
+    sys::log("[NiakPS5] read-only catalog: app.db=%d, homebrew folders=%d, unique=%zu",
+             db_count, home_count, count);
     if (count > 0)
     {
-        for (int n = 0; n < count; ++n)
+        for (std::size_t n = 0; n < count; ++n)
         {
-            const NiakGame &game = games[static_cast<std::size_t>(n)];
+            const NiakGame &game = games[n];
             owned_titles_.emplace_back(game.title);
             Item item{};
             item.title = owned_titles_.back().c_str();
-            item.studio = "INSTALLE";
-            item.genre = "PS5";
-            item.blurb = "Jeu detecte sur cette console. Croix pour lancer.";
+            item.studio = game.discovered_from_homebrew ? "DECOUVERTE /DATA" : "INSTALLE";
+            item.genre = game.discovered_from_homebrew ? "HOMEBREW" : "PS5";
+            item.blurb = game.discovered_from_homebrew
+                ? "Dossier present dans /data/homebrew. Enregistrement du titre non confirme."
+                : "Jeu detecte dans la base PS5. Lancement a verifier.";
             item.year = 0;
             item.rating = 0;
             item.progress = 0;
@@ -264,8 +285,11 @@ Catalog::Catalog()
         item.title = owned_titles_.back().c_str();
         item.studio = "NIAKPS5";
         item.genre = "VERIFICATION";
-        item.blurb = count < 0 ? "Base app.db inaccessible dans le sandbox de ce titre." :
-                                "Aucun jeu CUSA ou PPSA accessible dans ce contexte.";
+        item.blurb = db_count < 0 && home_count < 0
+                ? "Acces refuse a app.db et /data/homebrew depuis cette application."
+                : db_count < 0
+                    ? "app.db inaccessible; aucun dossier homebrew valide et accessible."
+                    : "Aucun titre installe accessible dans ce contexte.";
         item.year = 0;
         item.rating = 0;
         item.progress = 0;

@@ -55,3 +55,13 @@ Ne pas supprimer ni remplacer `SceShellUI`, ne pas remonter `/system_ex` en écr
 - Retour et lancement PS4/PS5 : non prouvés ; une permission ou un service hôte peut être nécessaire.
 - Le moteur GPU doit être testé avec l'intégralité des bibliothèques embarquées sur cette console avant d'en faire un accueil par défaut.
 - La priorité suivante est une source réelle de jaquettes et une procédure d'autolancement facultative, seulement si sûre et réversible.
+
+## Constat à partir d'un inventaire FTP (21 octobre 2026)
+
+Les relevés fournis pour la console de test confirment l'existence de `/data/homebrew` et d'au moins un dossier de titre avec `eboot.bin`, `sce_sys/param.json` et `sce_module/libc.prx`. Ils montrent également un payload ShadowMountPlus dans `/data/pldmgr/payloads` et un cache d'icônes sous `/data/shadowmount`. Ils **ne prouvent pas** que le payload soit chargé, que NiakPS5 puisse lire ces chemins depuis son sandbox, ou que `/system_data/priv/mms/app.db` soit accessible ; ce dernier dossier n'a pas été parcouru dans l'inventaire.
+
+Chemins connus pour une future **galerie locale, sur autorisation expresse** : `/user/av_contents/photo`, `/user/av_contents/video`, `/user/av_contents/thumbnails/photo` et `/user/av_contents/thumbnails/video`. Ces médias sont privés : pas de scan, pas de miniature ouverte, pas de téléversement ni de suppression automatique à ce stade.
+
+NiakPS5 ne touche pas à `/system_tmp/shadowmount.sock`, aux bases de journalisation, caches système, profils, sauvegardes, clés, ni au marqueur `/data/.kstuff_noautomount`. L'inventaire FTP ne permet pas d'inférer leur fonction ou leur caractère supprimable. Ces constats valent pour une console testée, **pas** pour tous les firmwares.
+
+La découverte de titres sur supports externes (`/mnt/usb*/homebrew`, `/mnt/ext*/homebrew`) reste à qualifier sur console ; aucun montage externe de ce type n'a été vérifié dans l'inventaire.

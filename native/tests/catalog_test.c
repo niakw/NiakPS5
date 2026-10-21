@@ -41,6 +41,42 @@ int main(void){
   assert(strcmp(games[0].title,"Titre installé")==0);
   assert(strstr(games[0].icon,"icon0.png")!=NULL);
   assert(niak_scan_games("/file/that/does/not/exist",root,games,5)==-1);
+
+  /* Homebrew fixture mirrors the observed PS5 title folder format.
+   * Only the title ID is trusted without reading metadata contents. */
+  snprintf(path,sizeof(path),"%s/data",root);make_dir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew",root);make_dir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678",root);make_dir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys",root);make_dir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/eboot.bin",root);
+  FILE *eboot=fopen(path,"wb");assert(eboot);fputs("fixture eboot",eboot);fclose(eboot);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/param.json",root);
+  FILE *param=fopen(path,"wb");assert(param);fputs("{\\"titleName\\":\\"Exemple\\"}",param);fclose(param);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/icon0.png",root);
+  FILE *homeicon=fopen(path,"wb");assert(homeicon);fputs("png",homeicon);fclose(homeicon);
+  snprintf(path,sizeof(path),"%s/data/homebrew/CUSA99999",root);make_dir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/CUSA99999/eboot.bin",root);
+  FILE *incomplete=fopen(path,"wb");assert(incomplete);fputs("bin",incomplete);fclose(incomplete);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA88888",root);
+  assert(symlink("PPSA45678",path)==0);
+  NiakGame homebrews[5]={0};
+  int home_count=niak_scan_homebrews(root,homebrews,5);
+  assert(home_count==1);
+  assert(strcmp(homebrews[0].id,"PPSA45678")==0);
+  assert(strcmp(homebrews[0].title,"PPSA45678")==0);
+  assert(homebrews[0].discovered_from_homebrew==1);
+  assert(strstr(homebrews[0].icon,"/sce_sys/icon0.png")!=NULL);
+  assert(niak_scan_homebrews("/nonexistent/root",homebrews,5)==-1);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA88888",root);unlink(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/CUSA99999/eboot.bin",root);unlink(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/CUSA99999",root);rmdir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/icon0.png",root);unlink(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/param.json",root);unlink(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys",root);rmdir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/eboot.bin",root);unlink(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678",root);rmdir(path);
+  snprintf(path,sizeof(path),"%s/data/homebrew",root);rmdir(path);
+  snprintf(path,sizeof(path),"%s/data",root);rmdir(path);
   /* Verify that the read-only scanner did not modify the record. */
   assert(sqlite3_open_v2(database,&db,SQLITE_OPEN_READONLY,NULL)==SQLITE_OK);
   sqlite3_stmt *st=NULL;
