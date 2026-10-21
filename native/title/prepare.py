@@ -98,7 +98,13 @@ def prepare(kit: Path, project: Path):
 CATALOG_CPP = r'''// SPDX-License-Identifier: GPL-3.0-or-later
 // NiakPS5 read-only PS5 installed title catalogue (no invented installed games).
 #include "demo/catalog.hpp"
-#ifdef __cplusplus\nextern "C" {\n#endif\n#include "niak/catalog.h"\n#ifdef __cplusplus\n}\n#endif
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "niak/catalog.h"
+#ifdef __cplusplus
+}
+#endif
 #include "platform/ps5/system.hpp"
 #include <algorithm>
 #include <cstdio>
