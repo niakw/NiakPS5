@@ -28,7 +28,9 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
                       (unsigned(png[18])<<8)|png[19];
  const unsigned height=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
                        (unsigned(png[22])<<8)|png[23];
- if(width<64||height<100||width>1024||height>1536)return 0;
+ const bool logo=std::strcmp(side,"logo")==0;
+ if(width<(logo?32u:64u)||height<(logo?20u:100u)||
+    width>(logo?1400u:1024u)||height>1536u)return 0;
  std::vector<unsigned char> pixels;unsigned w=0,h=0;
  if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||
     pixels.size()!=std::size_t(w)*h*4)return 0;
