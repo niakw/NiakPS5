@@ -90,7 +90,7 @@ def prepare(kit: Path, project: Path):
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
-                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool cover_is_image = false;\n    std::uint32_t cover = 0;')
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::vector<Item> items_;')
 
@@ -106,20 +106,26 @@ def prepare(kit: Path, project: Path):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("game_icons.cpp", "game_icons.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
+    for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp"):
+        shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("lodepng.cpp", "lodepng.h"):
         shutil.copy2(project / "native" / "title" / "vendor" / filename, src_niak / filename)
     art_file = kit / "src/demo/catalog_art.cpp"
     replace_once(art_file, '#include "gfx/renderer.hpp"',
-                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"')
+                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"')
     replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',
                  """    for (Item &item : items_)
     {
         // Prefer the true installed app icon from the local system catalogue.
         // If absent/forbidden/corrupt, generate the existing neutral placeholder.
-        if (item.title_id[0])
+        if (item.title_id[0]) {
+            item.case_front = niak_load_case_art(renderer,item.title_id,"front");
+            item.case_back = niak_load_case_art(renderer,item.title_id,"back");
+            item.logo_art = niak_load_case_art(renderer,item.title_id,"logo");
             item.cover = niak_load_game_icon(renderer, item.title_id);
+        }
         if (item.cover)
         {
             item.cover_is_image = true;

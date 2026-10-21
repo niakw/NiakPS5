@@ -22,13 +22,14 @@ def patch(kit):
     # Procedural covers are FBO textures (bottom-left); actual PS5 PNG images
     # are uploaded top-row-first and REQUIRE kFullUv. kCanvasUv flips the PNG.
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 36);',
-                 'list.image(it.cover, art, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 36);')
+                 'niak_draw_rotating_case(list,it,art,clock_,fonts);')
     s=exactly(s,'list.image(it.cover, rect, gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);',
                  'list.image(it.cover, rect, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);')
     s=exactly(s,'list.image(it.cover, ring, gfx::kCanvasUv, kWhite, 26);',
                  'list.image(it.cover, ring, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 26);')
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 28);',
                  'list.image(it.cover, art, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 28);')
+    s=exactly(s,'#include "niak/profile.hpp"', '#include "niak/profile.hpp"\n#include "niak/case_renderer.hpp"')
     # The glyph sits on the left of the 220px-wide button; center the label
     # in the remaining area, not at the old left-aligned English text position.
     s=exactly(s,'''ui::text(list, fonts.semibold, it.title_id[0] ? "Jouer" : "Indisponible", play.x + 72,

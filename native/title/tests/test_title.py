@@ -72,6 +72,15 @@ class NativeTitleTests(unittest.TestCase):
                          "row_ == 0", "NiakPS5", "DÉTECTÉ", "play.x + 146"):
             self.assertIn(expected,source)
 
+    def test_retail_case_runtime(self):
+        source=(ROOT/"title"/"case_renderer.cpp").read_text()
+        for name in ("case_front","case_back","PS4","PS5","front_hold",
+                     "list.image","game.blurb","homebrew"):
+            self.assertIn(name,source)
+        stage=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn("niak_load_case_art",stage)
+        self.assertIn("case_renderer.cpp",stage)
+
     def test_real_top_navigation(self):
         from pathlib import Path
         code = (ROOT / "title" / "patch_home.py").read_text()
