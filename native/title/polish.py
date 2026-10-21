@@ -37,22 +37,18 @@ def patch(kit):
                  play.x + 146, play.cy() + 10, 28, Color::rgb(0x0b0d16),
                  gfx::Align::center);''')
     translations={
-       '"DETECTE SUR CETTE CONSOLE"':'"DÉTECTÉ SUR CETTE CONSOLE"',
-       '"ACCES AU CATALOGUE A VERIFIER"':'"ACCÈS AU CATALOGUE À VÉRIFIER"',
-       '"Reglages" : "Multimedia"':'"Réglages" : "Multimédia"',
-       '"Galerie de captures"':'"Galerie de captures"',
-       '"Acces aux captures PS5 non encore autorise depuis ce titre. "':'"Accès aux captures PS5 non encore autorisé depuis ce titre. "',
-       '"n\\'est ouverte automatiquement."':'"n\\'est ouverte automatiquement."',
-       '"Resolution d\\'affichage (redemarrage)"':'"Résolution d\\'affichage (redémarrage)"',
-       '"Animations reduites"':'"Animations réduites"',
-       '"Volume des effets sonores"':'"Volume des effets sonores"',
-       '"Retour a l\\'accueil Sony / parametres PS5"':'"Quitter vers l\\'accueil Sony"',
-       '"OUVRIR LE SYSTEME"':'"QUITTER NIAKPS5"',
-       '"Les reglages de la console restent geres par Sony. "':'"Les réglages de la console restent gérés par Sony. "',
-       '"Le dernier choix quitte NiakPS5 pour y acceder. "':'"Le dernier choix revient à Sony, sans ouvrir les paramètres. "',
-       '"Rond : revenir aux onglets."':'"Rond : revenir aux onglets."',
-       '"Croix : modifier  /  Haut : barre de navigation  /  Rond : retour"':'"Croix : modifier  /  Haut : navigation  /  Rond : retour"',
+        '"DETECTE SUR CETTE CONSOLE"':'"DÉTECTÉ SUR CETTE CONSOLE"',
+        '"ACCES AU CATALOGUE A VERIFIER"':'"ACCÈS AU CATALOGUE À VÉRIFIER"',
+        '"Reglages" : "Multimedia"':'"Réglages" : "Multimédia"',
+        '"Acces aux captures PS5 non encore autorise depuis ce titre. "':'"Accès aux captures PS5 non encore autorisé depuis ce titre. "',
+        '"Animations reduites"':'"Animations réduites"',
+        '"OUVRIR LE SYSTEME"':'"QUITTER NIAKPS5"',
+        '"Les reglages de la console restent geres par Sony. "':'"Les réglages de la console restent gérés par Sony. "',
+        '"Le dernier choix quitte NiakPS5 pour y acceder. "':'"Le dernier choix revient à Sony, sans ouvrir les paramètres. "',
+        '"Croix : modifier  /  Haut : barre de navigation  /  Rond : retour"':'"Croix : modifier  /  Haut : navigation  /  Rond : retour"',
     }
+    s=s.replace("Resolution d'affichage (redemarrage)","Résolution d'affichage (redémarrage)")
+    s=s.replace("Retour a l'accueil Sony / parametres PS5","Quitter vers l'accueil Sony")
     for a,b in translations.items():
         if a in s:s=s.replace(a,b)
     p.write_text(s,"utf-8")
