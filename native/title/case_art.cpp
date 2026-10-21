@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Optional pre-cached LaunchBox retail PS4/PS5 case print.
+#include "niak/case_art.hpp"
+#include "niak/lodepng.h"
+extern "C" {
+#include "niak/catalog.h"
+}
+#include "gfx/renderer.hpp"
+#include <cstdio>
+#include <cstring>
+#include <vector>
+std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side){
+ if(!niak_valid_title_id(id)||!side ||
+    (std::strcmp(side,"front") && std::strcmp(side,"back") &&
+     std::strcmp(side,"logo")))return 0;
+ char file[170];
+ std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
+ FILE *fp=std::fopen(file,"rb");if(!fp)return 0;
+ if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
+ const long bytes=std::ftell(fp);
+ if(bytes<33||bytes>3*1024*1024||std::fseek(fp,0,SEEK_SET)!=0)
+ {std::fclose(fp);return 0;}
+ std::vector<unsigned char> png(static_cast<std::size_t>(bytes));
+ const bool okay=std::fread(png.data(),1,png.size(),fp)==png.size();
+ std::fclose(fp);if(!okay)return 0;
+ if(png.size()<24||png[0]!=137||png[1]!=80||png[2]!=78||png[3]!=71)return 0;
+ const unsigned width=(unsigned(png[16])<<24)|(unsigned(png[17])<<16)|
+                      (unsigned(png[18])<<8)|png[19];
+ const unsigned height=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
+                       (unsigned(png[22])<<8)|png[23];
+ if(width<64||height<100||width>1024||height>1536)return 0;
+ std::vector<unsigned char> pixels;unsigned w=0,h=0;
+ if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||
+    pixels.size()!=std::size_t(w)*h*4)return 0;
+ return renderer.create_texture(int(w),int(h),pixels.data());
+}
