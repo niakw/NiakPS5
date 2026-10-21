@@ -1,92 +1,42 @@
-# NiakPS5 — lanceur natif PS5
+# NiakPS5 — un seul ELF PS5 (expérimental)
 
-## État réel
+## Installation : un fichier
 
-Cette branche ajoute un **lanceur SDL2 plein écran**, distinct de la maquette web et conçu pour devenir l'accueil quotidien d'une PS5 jailbreakée. Il scanne la base d'applications PS5 **en lecture seule** et permet, via la touche croix, d'appeler l'API native de lancement d'un jeu installé.
-
-Il **ne remplace pas encore le processus système** \`SceShellUI\`. La touche PS, les menus système protégés, les notifications et les réglages Sony restent gérés par le firmware. Aucun patch permanent, remplacement de fichier système, écriture dans \`app.db\`, injection de processus ou enregistrement forcé comme shell système.
-
-### Architecture
-
-\`\`\`text
-WebKit autoloader / elfldr (après jailbreak)
-                 |
-      niakps5_diagnostic.elf (prévalidation sans lancement)
-                 | présence fichiers / notification / log
-                 v
-           niakps5_ui.elf
-            /          \
-    SQLite READ-ONLY   SDL2 natif + DualSense
-    app.db + dossiers  palette NiakTV / focus
-            \          /
-           jeux installés
-                 |
-       sceSystemServiceLaunchApp
-                 |
-         jeu PS4/PS5 installé
-\`\`\`
-
-**Sortie de secours, uniquement si l'interface native peut démarrer :** touche rond ferme l'application et revient normalement à l'accueil Sony. Comportement encore non validé sur PS5 13.60. Il n'existe **aucun** mécanisme d'autodémarrage qui persiste au redémarrage du firmware sans l'environnement de jailbreak.
-
-## Choix du moteur
-
-L'audit des [trois kits d'interface OpenGL/Vulkan](ENGINE.md) a identifié la séparation moteur/UI/plateforme comme direction. Le code comporte désormais des modules de rendu SDL accéléré si disponible, de cache texture et de navigation animée. **Ce n'est pas encore le backend OpenGL/Vulkan des références** ; le port GPU dédié reste à réaliser.
-
-## Fonctionnalités natives intégrées
-
-- Affichage SDL2 plein écran 1920 × 1080, navigation DualSense (croix, rond, carré, triangle et flèches) et clavier en environnement de développement.
-- Palettes Menthe / Violet / Bleu / Graphite, typographie Manrope + Instrument Serif, lecture de l'heure, focus menthe et jaquettes des jeux installés.
-- Lecture SQLite seule à \`/system_data/priv/mms/app.db\`, interrogation de \`tbl_appbrowse\`, puis chemins de repli \`tbl_appinfo\` et \`tbl_contentinfo\`.
-- Filtrage CUSA/PPSA à 5 chiffres, exclusion des identifiants de shell NPXS, vérification des dossiers d'installation avant affichage, images depuis \`/user/appmeta/<TITLEID>/\` (si présentes).
-- Lancement via \`sceSystemServiceLaunchApp\` uniquement sur un identifiant validé et présent dans la bibliothèque détectée.
-- Pas de privilèges demandés pour le scanner SQLite lui-même ; l'élévation du bootstrap est celle requise par le mécanisme bigapp et est à valider sur le firmware cible.
-
-## Compiler
-
-**Prérequis PS5 :** SDK compatible PacBrew ayant SDL2, SDL2_image, SDL2_ttf, les bibliothèques SCE et les en-têtes FreeBSD. Le \`ps5-payload-sdk\` de base peut ne pas comprendre toutes les bibliothèques multimédias ; la construction native nécessite cette variante.
-
-\`\`\`sh
-export PS5_PAYLOAD_SDK=/chemin/vers/ps5-payload-sdk-pacbrew
-cd native
-./fetch-sqlite.sh
-make
-\`\`\`
-
-Les deux exécutables attendus, une fois la compilation croisée réussie, sont :
-- \`native/build/niakps5_bootstrap.elf\` : celui que charge le WebKit autoloader / elfldr.
-- \`native/build/niakps5_ui.elf\` : l'interface graphique à copier sur le stockage.
-
-Cette compilation **n'a pas encore été validée sur console**, et aucune compatibilité précise PS5 13.60 ne doit être présumée avant essais réels.
-
-## Installation de diagnostic (réversible)
-
-**Voir [DIAGNOSTIC.md](DIAGNOSTIC.md).** L'archive PS5 ne contient plus l'ancien bootstrap bigapp. Installer seulement ces éléments sous `/data` :
+La distribution PS5 contient **un seul** exécutable `NiakPS5.elf` à copier dans :
 
 ```text
-/data/pldmgr/niakps5_diagnostic.elf    <- lancer depuis Payload Manager
-/data/niakps5/niakps5_ui.elf          <- vérifier sa présence
-/data/niakps5/assets/manrope.ttf
-/data/niakps5/assets/instrument-serif.ttf
+/data/pldmgr/NiakPS5.elf
 ```
 
-Le diagnostic affiche une notification et écrit `/data/niakps5-diagnostic.log`, visible par FTP. Il ne crée pas de faux titre système, ne remonte pas `/system_ex` et ne lance pas de processus graphique.
+À lancer dans Payload Manager **après** l'environnement jailbreak habituel. **Aucun autre fichier NiakPS5 n'est à copier** : interface native, logique SQLite, navigation DualSense, palettes et fontes Manrope / Instrument Serif sont compilées dans cet ELF. Les illustrations de jeux sont lues dans les répertoires de la console, sans être intégrées comme des jeux factices.
 
-**Important :** l'ancien bootstrap dépendait d'un chargeur `hbldr` avec mécanisme de création d'une fausse application dans `/system_ex/app/FAKE00000`, d'attachement à `SceSysCore` et parfois d'un ancien fichier PS Now. Il pouvait échouer silencieusement, ou provoquer des changements de système. Ce mécanisme n'a pas été validé sur 13.60 : **ne le relancez pas**.
+### Attention : compatibilité matérielle
 
-## Validation
+La compilation croisée et les tests PC prouvent la validité du binaire, **pas** sa capacité à ouvrir une fenêtre graphique dans le processus créé par Payload Manager sur une PS5 firmware 13.60. Ce chemin exécute SDL2 **directement** ; il ne crée pas de processus "bigapp". Un processus de payload n'a pas nécessairement les droits ou les services vidéo d'une application installée.
 
+En cas d'échec ou d'écran inchangé, vérifiez la notification et le fichier `/data/niakps5.log` par FTP. Le binaire appelle `sceKernelSendNotificationRequest` au démarrage et en cas d'erreur SDL ; en fonction du loader et du firmware, les notifications peuvent aussi ne pas être visibles. Le log est uniquement écrit sous `/data`, jamais dans `/system_ex`.
 
-\`\`\`sh
-# Ubuntu / CI : logique de catalogue avec base SQLite factice
-sudo apt-get install libsqlite3-dev
-cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog-test
-/tmp/niak-catalog-test
-\`\`\`
+**L'ancienne méthode `niakps5_bootstrap.elf` + `niakps5_ui.elf` est abandonnée** pour la distribution par défaut. Le chemin expérimental `hbldr` et son risque de montage système sont isolés hors du build normal. Ne plus lancer l'ancien bootstrap.
 
-CI hôte : vérifie les filtres de titre, la lecture seule, les chemins de jeux, l'absence de faux installés et la compilation statique de l'interface. **Ne valide pas le lancement ni les hooks PS5.**
+Si l'exécution directe ne reçoit pas d'accès vidéo, il faudra ensuite porter le lanceur en application homebrew native correctement hébergée. Ne pas résoudre ce problème en remplaçant ou en remountant les fichiers système Sony.
 
-## Crédits
+## Build
 
-Le bootstrap utilise le backend \`hbldr\` GPL-3.0 de John Törnblom, récupéré du projet [Rufidj/Nativehbl](https://github.com/Rufidj/Nativehbl), issu de [ps5-payload-dev/websrv](https://github.com/ps5-payload-dev/websrv). Les fichiers tiers originaux sont conservés sous \`native/gpl/\` avec leur attribution. \`sqlite3.c\` est téléchargé depuis un commit verrouillé de \`itsPLK/ps5-pkg-manager\` (SQLite domaine public). L'interface et la logique de catalogue sont originales, sous GPL-3.0-or-later. Respectez les licences des polices et des illustrations.
+```sh
+export PS5_PAYLOAD_SDK=/chemin/vers/ps5-payload-sdk
+native/fetch-sqlite.sh
+make -C native
+ls -lh native/build/NiakPS5.elf
+```
 
-**Point à investiguer :** un accès à l'API native de la PS5 ne prouve pas le succès du lancement depuis un processus bigapp sur 13.60. La fonctionnalité doit encore être testée matériellement.
+Le script `native/tools/embed_assets.py` génère `native/build/embedded_assets.h` à partir des deux fonts sous `native/assets/`. C'est **une étape de compilation locale**, pas un fichier à installer sur la console. Les polices sont ensuite ouvertes depuis la mémoire via `SDL_RWFromConstMem`, sans extraction sur disque.
+
+Le moteur SDL2 initialise l'affichage en plein écran 1920×1080, tente l'accélération vidéo disponible et possède un repli logiciel. La base `/system_data/priv/mms/app.db` est consultée en lecture seule, avec vérification des installations détectées et appel `sceSystemServiceLaunchApp` pour les jeux sélectionnés. Ces appels devront être validés sur le firmware cible.
+
+## Délimitation
+
+- Pas de remplacement de `SceShellUI`, ni de capture du bouton PS.
+- Pas d'autoloader tant que l'exécution directe n'a pas été validée.
+- Pas d'injection de processus, `ptrace`, remontage `/system_ex` ou modification de base Sony.
+- Les fichiers `diagnostic.c` et `bootstrap.c` demeurent dans le dépôt pour l'historique et les études, **non présents dans le ELF livré**.
+- Sources et attribution GPL-3.0-or-later ; polices SIL OFL, notices conservées dans `fonts/`.

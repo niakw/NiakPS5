@@ -16,15 +16,15 @@ GUI_LIBS := \
   $(LIB)/libjpeg.a $(LIB)/libwebp.a $(LIB)/libwebpdemux.a $(LIB)/libsharpyuv.a \
   -lSceSystemService -lSceUserService -lSceVideoOut -lSceAudioOut \
   -lScePad -lSceKeyboard -lSceImeDialog -lkernel_sys -lm -lz -lbz2 -liconv
-all: build/niakps5_ui.elf build/niakps5_diagnostic.elf
+all: build/NiakPS5.elf
 $(SQLITE):
 	./fetch-sqlite.sh
 build:
 	mkdir -p build
-build/niakps5_ui.elf: main.c catalog.c catalog.h ui_motion.c ui_motion.h ui_renderer.c ui_renderer.h ui_text_cache.c ui_text_cache.h $(SQLITE) | build
+build/embedded_assets.h: assets/manrope.ttf assets/instrument-serif.ttf tools/embed_assets.py | build
+	python3 tools/embed_assets.py
+build/NiakPS5.elf: main.c catalog.c catalog.h ui_motion.c ui_motion.h ui_renderer.c ui_renderer.h ui_text_cache.c ui_text_cache.h build/embedded_assets.h $(SQLITE) | build
 	$(CC) $(WARN) -o $@ main.c catalog.c ui_motion.c ui_renderer.c ui_text_cache.c $(SQLITE) $(GUI_LIBS)
-build/niakps5_diagnostic.elf: diagnostic.c | build
-	$(CC) $(WARN) -o $@ diagnostic.c -lkernel_sys
 # Dangerous legacy path: never part of default builds or downloadable artifacts.
 # For a controlled compatibility investigation only, requiring explicit opt-in:
 .PHONY: legacy-hbldr

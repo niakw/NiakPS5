@@ -61,19 +61,18 @@ Les jeux d'exemple sont stockés dans \`src/catalog.js\`. Une date de sortie est
 
 Visuels d'illustration : CDN Steam via les identifiants des fiches de jeux, dont PRAGMATA (2026), Resident Evil Requiem (2026) et Clair Obscur: Expedition 33 (2025). Les visuels peuvent être indisponibles, auquel cas les dégradés et pictogrammes locaux restent visibles. Steam sert seulement d'illustration pour la démo, **pas** de source d'information sur les installations PS5. Les métadonnées devront être mises à jour (ou fournies par un futur service de catalogue) pour refléter automatiquement les prochaines sorties.
 
-## Lanceur PS5 natif (développement)
+## Lanceur natif PS5 — un seul fichier
 
-La version native SDL2 est désormais dans [`native/`](native/README.md) : lecteur de jeux installés en lecture seule, focus DualSense, jaquettes locales, intégration prévue de l’API système. **Le build normal produit désormais un ELF de diagnostic sans modification système et l'interface native (non validée matériellement)**. Les ELF ont été compilés avec succès par [GitHub Actions](https://github.com/niakw/NiakPS5/actions/workflows/native-ps5.yml), avec un [kit de diagnostic sans chargeur hbldr](native/DIAGNOSTIC.md) téléchargeable depuis les artefacts des nouvelles exécutions vertes. Le fonctionnement effectif sur PS5 13.60 **n’a pas encore été testé matériellement**. Le processus protégé `SceShellUI` n’est pas remplacé ; Sony reste disponible comme secours.
+Le paquet **`NiakPS5.elf`** est un exécutable unique : interface SDL2 plein écran, fontes intégrées, découverte locale des jeux PS5 et DualSense. Il se copie dans `/data/pldmgr/NiakPS5.elf` et se lance depuis Payload Manager, sans second ELF, archive d'assets à déployer, configuration autoloader ou bootstrap `hbldr`.
 
-L’[autodémarrage WebKit Autoloader 0.5.2](native/AUTOLOAD.md) est **désactivé pour NiakPS5** tant que la voie de lancement PS5 13.60 n'est pas vérifiée. L'ancien chargeur hbldr peut remonter `/system_ex` en écriture et ne doit plus être testé sans diagnostic et consentement explicite. Le démarrage à froid de la PS5 continue d’afficher le menu Sony jusqu’au lancement de l’exploit.
+**État de validation : compilable par CI, fonctionnement PS5 13.60 non démontré.** Le chargement ELF en tant que payload ne garantit pas l'accès à l'affichage vidéo Sony ; consulter `/data/niakps5.log` et les notifications pour diagnostiquer. `SceShellUI` n'est pas remplacé. Consulter [le guide technique](native/README.md).
 
-## Étapes natives restant à faire
+## Étapes natives à valider sur console
 
-1. Compiler les ELF à partir du SDK PS5/PacBrew et valider le bootstrap bigapp sur le firmware cible, sans modifier le shell système.
-2. Fournir une bibliothèque et des miniatures depuis une API native locale contrôlée ; l'interface ne scanne pas elle-même les partitions.
-3. Implémenter et valider les appels d'ouverture de jeu et les fonctions système une par une.
-4. Tester DualSense, mémoire, cache des images, mode hors ligne et performances **sur la console réelle**.
-5. Traiter séparément la question d'un accueil système par défaut ; cette possibilité n'est pas démontrée par ce prototype.
+1. Exécution du seul ELF dans le contexte de Payload Manager et disponibilité de SDL2 vidéo.
+2. Accès au catalogue PS5 en lecture seule et affichage des titres.
+3. Ouverture et retour des jeux via services systèmes, DualSense, mémoire et performances.
+4. Si Payload Manager ne fournit pas de fenêtre vidéo, hébergement en application native compatible sans modification de `/system_ex`.
 
 ## Licence et crédits
 

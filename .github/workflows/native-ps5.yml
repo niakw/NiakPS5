@@ -1,4 +1,4 @@
-name: Build NiakPS5 safe diagnostic kit
+name: Build NiakPS5 single ELF
 on:
   push:
     paths:
@@ -34,28 +34,19 @@ jobs:
           test -f /opt/ps5-payload-sdk/target/user/homebrew/lib/libSDL2.a
           test -f /opt/ps5-payload-sdk/target/user/homebrew/lib/libSDL2_ttf.a
           test -x /opt/ps5-payload-sdk/bin/prospero-clang
-      - name: Build ELF binaries
+      - name: Build standalone PS5 ELF
         env:
           PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
         run: |
           export PATH="/usr/lib/llvm-18/bin:$PATH"
           native/fetch-sqlite.sh
           make -C native -j2
-          file native/build/*.elf
-          test -s native/build/niakps5_ui.elf
-          test -s native/build/niakps5_diagnostic.elf
-      - name: Assemble safe diagnostic kit (legacy hbldr excluded)
-        run: |
-          set -euo pipefail
-          mkdir -p dist/data/niakps5/assets dist/data/pldmgr
-          cp native/build/niakps5_ui.elf dist/data/niakps5/
-          cp native/assets/manrope.ttf native/assets/instrument-serif.ttf dist/data/niakps5/assets/
-          cp native/build/niakps5_diagnostic.elf dist/data/pldmgr/
-          cp native/DIAGNOSTIC.md dist/README-DIAGNOSTIC.md
-          (cd dist && zip -qr ../niakps5-diagnostic-kit.zip data README-DIAGNOSTIC.md)
-          sha256sum niakps5-diagnostic-kit.zip
+          file native/build/NiakPS5.elf
+          test -s native/build/NiakPS5.elf
+          test "$(find native/build -maxdepth 1 -name '*.elf' | wc -l)" -eq 1
+          sha256sum native/build/NiakPS5.elf
       - uses: actions/upload-artifact@v4
         with:
-          name: niakps5-readonly-diagnostic-kit
-          path: niakps5-diagnostic-kit.zip
+          name: NiakPS5-single-ELF
+          path: native/build/NiakPS5.elf
           if-no-files-found: error

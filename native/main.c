@@ -4,6 +4,7 @@
 #include "ui_renderer.h"
 #include "ui_text_cache.h"
 #include "ui_motion.h"
+#include "build/embedded_assets.h"
 #include <math.h>
 #include <SDL.h>
 #include <SDL_image.h>
@@ -17,10 +18,27 @@
 #define COVER_MAX 9
 #define COVER_CACHE_MAX 24
 #define DATABASE_PATH "/system_data/priv/mms/app.db"
-#define ASSETS_PATH "/data/niakps5/assets"
+#define NIAK_LOG_PATH "/data/niakps5.log"
 #ifdef __PS5__
 extern int sceSystemServiceLaunchApp(const char *title_id,const char **argv,void *ctx);
 extern int sceSystemServiceHideSplashScreen(void);
+#endif
+#ifdef __PS5__
+typedef struct {char reserved[45];char message[3075];} NiakStartNotice;
+extern int sceKernelSendNotificationRequest(int,void*,size_t,int);
+static void niak_notify(const char *message){
+ NiakStartNotice request={0};
+ snprintf(request.message,sizeof(request.message),"%s",message);
+ sceKernelSendNotificationRequest(0,&request,sizeof(request),0);
+}
+static void niak_log(const char *message){
+ FILE *f=fopen(NIAK_LOG_PATH,"a");
+ if(f){fprintf(f,"%s\\n",message);fclose(f);}
+ fprintf(stderr,"%s\\n",message);
+}
+#else
+static void niak_notify(const char *message){fprintf(stderr,"NOTICE: %s\\n",message);}
+static void niak_log(const char *message){fprintf(stderr,"%s\\n",message);}
 #endif
 typedef struct {
  SDL_Window *window;
@@ -111,13 +129,17 @@ static void scan_games(App *app){
  else set_status(app,"Jeux installes sur cette console (lecture seule).");
  reload_background(app);
 }
+static TTF_Font *niak_embedded_font(const unsigned char *data,size_t count,int size){
+ SDL_RWops *rw=SDL_RWFromConstMem(data,(int)count);
+ if(!rw)return NULL;
+ return TTF_OpenFontRW(rw,1,size);
+}
 static int load_fonts(App *app){
- char path[512];const char *base=getenv("NIAKPS5_ASSETS");
- if(!base||!*base)base=ASSETS_PATH;
- snprintf(path,sizeof(path),"%s/manrope.ttf",base);
- app->body=TTF_OpenFont(path,23);app->small=TTF_OpenFont(path,17);app->heading=TTF_OpenFont(path,33);
- snprintf(path,sizeof(path),"%s/instrument-serif.ttf",base);
- app->title=TTF_OpenFont(path,92);
+ /* True single-ELF build: SDL_RWops reads fonts from immutable embedded arrays. */
+ app->body=niak_embedded_font(niak_manrope_font,sizeof(niak_manrope_font),23);
+ app->small=niak_embedded_font(niak_manrope_font,sizeof(niak_manrope_font),17);
+ app->heading=niak_embedded_font(niak_manrope_font,sizeof(niak_manrope_font),33);
+ app->title=niak_embedded_font(niak_serif_font,sizeof(niak_serif_font),92);
  return (app->body&&app->small&&app->heading&&app->title)?0:-1;
 }
 /* Create a low-resolution smooth mask once; scale linearly rather than drawing 200 alpha strips per frame. */
@@ -288,32 +310,37 @@ static void input(App *app,int action){
 }
 int main(int argc,char **argv){
  (void)argc;(void)argv;
+#ifdef __PS5__
+ niak_log("NiakPS5 single ELF startup (no hbldr; no system_ex writes)");
+ niak_notify("NiakPS5: initialisation de l'interface...");
+#endif
  App *app=(App*)calloc(1,sizeof(App));if(!app)return 1;
  for(int i=0;i<COVER_CACHE_MAX;i++)app->cover_index[i]=-1;
  app->focus_x=75.0f;
  app->running=1;app->dirty=1;
  SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"linear");
- if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER)!=0){fprintf(stderr,"SDL_Init: %s\n",SDL_GetError());free(app);return 1;}
+ if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER)!=0){char error[340];snprintf(error,sizeof(error),"NiakPS5: SDL_Init: %.260s",SDL_GetError());niak_log(error);niak_notify(error);free(app);return 1;}
  IMG_Init(IMG_INIT_PNG|IMG_INIT_JPG);
- if(TTF_Init()!=0){fprintf(stderr,"TTF_Init: %s\n",TTF_GetError());SDL_Quit();free(app);return 1;}
+ if(TTF_Init()!=0){char error[340];snprintf(error,sizeof(error),"NiakPS5: TTF_Init: %.260s",TTF_GetError());niak_log(error);niak_notify(error);SDL_Quit();free(app);return 1;}
 #ifdef __PS5__
  const Uint32 flags=SDL_WINDOW_FULLSCREEN;
 #else
  const Uint32 flags=SDL_WINDOW_SHOWN;
 #endif
  app->window=SDL_CreateWindow("NiakPS5",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,W,H,flags);
- if(!app->window)goto fail;
+ if(!app->window){niak_log(SDL_GetError());niak_notify("NiakPS5: SDL video/window indisponible dans ce contexte ELF.");goto fail;}
  app->renderer=niak_renderer_create(app->window,app->renderer_desc,sizeof(app->renderer_desc));
- if(!app->renderer)goto fail;
+ if(!app->renderer){niak_log(SDL_GetError());niak_notify("NiakPS5: rendu SDL indisponible dans Payload Manager.");goto fail;}
  SDL_RenderSetLogicalSize(app->renderer,W,H);
  app->shade_mask=make_shade(app->renderer);
  SDL_SetRenderDrawBlendMode(app->renderer,SDL_BLENDMODE_BLEND);
- if(load_fonts(app)!=0){fprintf(stderr,"Font asset missing under %s\n",ASSETS_PATH);goto fail;}
+ if(load_fonts(app)!=0){niak_log(TTF_GetError());niak_notify("NiakPS5: chargement des polices integrees impossible.");goto fail;}
 #ifdef __PS5__
  sceSystemServiceHideSplashScreen();
 #endif
  for(int i=0;i<SDL_NumJoysticks();i++)if(SDL_IsGameController(i)){app->pad=SDL_GameControllerOpen(i);break;}
  scan_games(app);
+ niak_log("NiakPS5: main UI event loop initialized");
  while(app->running) {
    SDL_Event event;
    if(SDL_WaitEventTimeout(&event,16)){

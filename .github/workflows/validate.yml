@@ -49,6 +49,8 @@ jobs:
           python3 native/tests/test_diagnostic.py /tmp/niakps5-diagnostic-host
       - name: Compile native SDL frontend on host
         run: |
+          python3 native/tools/embed_assets.py
+          test -s native/build/embedded_assets.h
           cc -std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -I native \
             $(pkg-config --cflags sdl2 SDL2_image SDL2_ttf sqlite3) \
             native/main.c native/catalog.c native/ui_motion.c native/ui_renderer.c native/ui_text_cache.c \
@@ -61,7 +63,7 @@ jobs:
           set +e
           NIAKPS5_DB="/tmp/niakps5-demo/app.db" NIAKPS5_ROOT="/tmp/niakps5-demo" \
           NIAKPS5_SCREENSHOT="$PWD/niakps5-native.bmp" \
-          NIAKPS5_ASSETS="$PWD/native/assets" SDL_VIDEODRIVER=dummy \
+          SDL_VIDEODRIVER=dummy \
             timeout 4 /tmp/niakps5-ui-host >/tmp/niakps5-native.log 2>&1
           CODE=$?
           cat /tmp/niakps5-native.log
