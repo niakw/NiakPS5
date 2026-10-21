@@ -99,7 +99,7 @@ def patch(kit):
         if (input.nav == Direction::up || input.nav == Direction::down)
         {
             settings_cursor_ = std::clamp(settings_cursor_ +
-                (input.nav == Direction::down ? 1 : -1), 0, 3);
+                (input.nav == Direction::down ? 1 : -1), 0, 8);
             feedback.play(audio::Cue::focus);
         }
         if (input.is_pressed(Action::confirm))
@@ -107,10 +107,16 @@ def patch(kit):
             auto &s = context_.settings;
             switch (settings_cursor_)
             {
-            case 0: s.reduced_motion = !s.reduced_motion; break;
-            case 1: s.show_fps = !s.show_fps; break;
-            case 2: s.haptics = !s.haptics; break;
-            case 3: s.light_bar = !s.light_bar; break;
+            case 0: s.resolution = (s.resolution + 1) % hui::Settings::kResolutionCount; break;
+            case 1: s.ui_volume = (s.ui_volume + 1) % 11; break;
+            case 2: s.music_volume = (s.music_volume + 1) % 11; break;
+            case 3: s.reduced_motion = !s.reduced_motion; break;
+            case 4: s.show_fps = !s.show_fps; break;
+            case 5: s.haptics = !s.haptics; break;
+            case 6: s.light_bar = !s.light_bar; break;
+            case 7: s.sfx_volume = (s.sfx_volume + 1) % 11; break;
+            case 8: sys::quit(); return; // Return to Sony Home to access native settings
+
             }
             context_.settings_changed = true;
             feedback.play(audio::Cue::complete);
@@ -135,28 +141,48 @@ def patch(kit):
                      kWhite.with_alpha(0.55f));
             return;
         }
-        const char *labels[] = {"Animations reduites", "Afficher FPS",
-                                "Vibrations DualSense", "Couleur lumineuse manette"};
-        const bool values[] = {context_.settings.reduced_motion, context_.settings.show_fps,
-                               context_.settings.haptics, context_.settings.light_bar};
-        for (int i = 0; i < 4; ++i)
+        const char *labels[] = {"Resolution d'affichage (redemarrage)",
+                                "Volume de l'interface", "Musique de fond",
+                                "Animations reduites", "Afficher FPS",
+                                "Vibrations DualSense", "Couleur lumineuse",
+                                "Volume des effets sonores",
+                                "Retour a l'accueil Sony / parametres PS5"};
+        const auto &s=context_.settings;
+        char value[40];
+        for (int i=0;i<9;++i)
         {
-            const float y = 288.0f + 108.0f * static_cast<float>(i);
+            const float y = 255.0f + 68.0f * static_cast<float>(i);
             const bool focused = !top_focus_ && settings_cursor_ == i;
-            const Rect tile{100, y, 1180, 82};
-            list.bordered_rect(tile, 22,
-                               kWhite.with_alpha(focused ? 0.13f : 0.05f),
-                               focused ? 2.8f : 1.0f,
-                               focused ? palette_[3].value() : kWhite.with_alpha(0.18f));
-            ui::text(list, fonts.semibold, labels[i], 132, y + 52, 28, kWhite);
-            ui::text(list, fonts.semibold, values[i] ? "ACTIVE" : "DESACTIVE",
-                     1242, y + 52, 22,
-                     values[i] ? palette_[3].value() : kWhite.with_alpha(0.54f),
+            const Rect tile{100, y, 1280, 59};
+            list.bordered_rect(tile, 17,
+                               kWhite.with_alpha(focused ? 0.12f : 0.04f),
+                               focused ? 2.4f : 0.8f,
+                               focused ? palette_[3].value() : kWhite.with_alpha(0.19f));
+            const char *display="";
+            if(i==0) display=hui::Settings::kResolutions[s.resolution].label;
+            else if(i==1 || i==2 || i==7)
+            {
+                std::snprintf(value,sizeof(value),"%d / 10",
+                              i==1 ? s.ui_volume : i==2 ? s.music_volume : s.sfx_volume);
+                display=value;
+            }
+            else if(i==8) display="OUVRIR LE SYSTEME";
+            else
+            {
+                const bool on=i==3 ? s.reduced_motion : i==4 ? s.show_fps :
+                              i==5 ? s.haptics : s.light_bar;
+                display=on ? "ACTIVE" : "DESACTIVE";
+            }
+            ui::text(list, fonts.semibold, labels[i], 130, y+39, 24, kWhite);
+            ui::text(list, fonts.semibold, display, 1350, y+39, 21,
+                     i==8 ? palette_[3].value() : kWhite.with_alpha(0.75f),
                      gfx::Align::right);
         }
-        ui::text(list, fonts.regular,
-                 "Croix : modifier  /  Haut : barre de navigation  /  Rond : retour",
-                 102, 804, 21, kWhite.with_alpha(0.6f));
+        ui::paragraph(list, fonts.regular,
+                      "Les reglages de la console restent geres par Sony. "
+                      "Le dernier choix quitte NiakPS5 pour y acceder. "
+                      "Rond : revenir aux onglets.",
+                      104, 935, 20, 1450, 30, kWhite.with_alpha(0.55f), 2);
     }
 
     void update_shelves(const InputFrame &input, app::Feedback &feedback)
