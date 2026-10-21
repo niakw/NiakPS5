@@ -65,6 +65,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_daily_backdrop", native)
         self.assertIn("std::localtime", native)
 
+    def test_final_rendering_contracts(self):
+        source=(ROOT / "title" / "polish.py").read_text()
+        compile(source,"polish.py","exec")
+        for expected in ("cover_is_image ? gfx::kFullUv : gfx::kCanvasUv",
+                         "row_ == 0", "NiakPS5", "DÉTECTÉ", "play.x + 146"):
+            self.assertIn(expected,source)
+
     def test_real_top_navigation(self):
         from pathlib import Path
         code = (ROOT / "title" / "patch_home.py").read_text()

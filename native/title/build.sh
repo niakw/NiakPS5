@@ -22,6 +22,7 @@ python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root"
 # Best-effort recent games from Steam; offline/error => original animated smoke.
 python3 "$root/native/title/fetch_daily_games.py" --output "$stage/assets/niak-daily"
 python3 "$root/native/title/patch_home.py" --kit "$stage"
+python3 "$root/native/title/polish.py" --kit "$stage"
 # Upstream ps5-opengl release URL was withdrawn; use a mirrored archive
 # ONLY if it passes the *original upstream* pinned archive and manifest SHA-256.
 python3 - "$stage/tools/fetch-opengl-sdk.sh" <<'PY'
