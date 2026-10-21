@@ -89,6 +89,23 @@ def prepare(kit: Path, project: Path):
     src_niak.mkdir(parents=True, exist_ok=True)
     for filename in ("catalog.c", "catalog.h"):
         shutil.copy2(project / "native" / filename, src_niak / filename)
+    # The PacBrew SQLite build references localtime_r, not exported by the
+    # title's clean-room runtime. Provide the POSIX API locally; SQLite date
+    # parsing is not used by our read-only catalogue queries.
+    (src_niak / "localtime_compat.c").write_text(
+        """/* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <time.h>
+#include <pthread.h>
+static pthread_mutex_t niak_time_lock = PTHREAD_MUTEX_INITIALIZER;
+struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
+    if (!stamp || !dest) return NULL;
+    if (pthread_mutex_lock(&niak_time_lock) != 0) return NULL;
+    struct tm *shared = localtime(stamp);
+    if (shared) *dest = *shared;
+    (void)pthread_mutex_unlock(&niak_time_lock);
+    return shared ? dest : NULL;
+}
+""", encoding="utf-8")
     # PacBrew sqlite static archive + header are selected at build time.
     (kit / "src/demo/catalog.cpp").write_text(CATALOG_CPP, encoding="utf-8")
 
