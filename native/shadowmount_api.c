@@ -27,7 +27,9 @@ static int match_key(const char **p,const char *key) {
  skip_ws(p);return 1;
 }
 static int read_json_string(const char **p,char *dst,size_t cap) {
- if(!cap || **p!='"')return 0;++*p;size_t used=0;
+ if(!cap || **p!='"')return 0;
+ ++*p;
+ size_t used=0;
  while(**p&&**p!='"'){
   unsigned char c=(unsigned char)*(*p)++;
   if(c=='\\'){
@@ -40,7 +42,10 @@ static int read_json_string(const char **p,char *dst,size_t cap) {
   if(c<32)return 0;
   if(used+1<cap)dst[used++]=(char)c;
  }
- if(**p!='"')return 0;++*p;dst[used]=0;return 1;
+ if(**p!='"')return 0;
+ ++*p;
+ dst[used]=0;
+ return 1;
 }
 static int member_string(const char *from,const char *end,const char *key,
                          char *dest,size_t cap) {
@@ -94,7 +99,10 @@ int niak_parse_shadowmount_games(const char *json,NiakGame *games,size_t capacit
  }
  /* Robust numeric status read even with arbitrary whitespace. */
  const char *st=strstr(status,"\"status\"");
- if(!st)return -1;st+=8;skip_ws(&st);if(*st++!=':')return -1;
+ if(!st)return -1;
+ st+=8;
+ skip_ws(&st);
+ if(*st++!=':')return -1;
  skip_ws(&st);if(*st++!='0'||(*st>='0'&&*st<='9'))return -1;
  const char *start=NULL,*finish=NULL;
  if(!array_bounds(json,&start,&finish))return -1;
