@@ -39,6 +39,7 @@ typedef struct {
  int backdrop_pending;
  char renderer_desc[64];
  SDL_Texture *backdrop;
+ SDL_Texture *shade_mask;
  NiakGame games[NIAKPS5_MAX_GAMES];
  int game_count,selected,palette,settings,dirty,running;
  time_t clock_second;
@@ -119,6 +120,36 @@ static int load_fonts(App *app){
  app->title=TTF_OpenFont(path,92);
  return (app->body&&app->small&&app->heading&&app->title)?0:-1;
 }
+/* Create a low-resolution smooth mask once; scale linearly rather than drawing 200 alpha strips per frame. */
+static SDL_Texture *make_shade(SDL_Renderer *renderer) {
+ const int w=512,h=288;
+ SDL_Surface *surface=SDL_CreateRGBSurfaceWithFormat(0,w,h,32,SDL_PIXELFORMAT_RGBA8888);
+ if(!surface)return NULL;
+ SDL_LockSurface(surface);
+ for(int y=0;y<h;y++)for(int x=0;x<w;x++){
+   float fx=(float)x/(float)(w-1),fy=(float)y/(float)(h-1);
+   float a=fx<0.22f?1.0f:(fx>0.86f?0.07f:1.0f-0.93f*((fx-0.22f)/0.64f));
+   float b=fy<0.63f?0.0f:(fy>0.96f?0.98f:0.98f*((fy-0.63f)/0.33f));
+   float total=1.0f-(1.0f-a)*(1.0f-b);
+   Uint8 alpha=(Uint8)(total*255.0f);
+   ((Uint32*)((Uint8*)surface->pixels+y*surface->pitch))[x]=SDL_MapRGBA(surface->format,6,14,23,alpha);
+ }
+ SDL_UnlockSurface(surface);
+ SDL_Texture *tex=SDL_CreateTextureFromSurface(renderer,surface);SDL_FreeSurface(surface);
+ if(tex)SDL_SetTextureBlendMode(tex,SDL_BLENDMODE_BLEND);
+ return tex;
+}
+static void cover_fit(SDL_Renderer *renderer,SDL_Texture *tex,SDL_Rect dest) {
+ int iw=0,ih=0;
+ if(!tex || SDL_QueryTexture(tex,NULL,NULL,&iw,&ih)!=0 || iw<1 || ih<1)return;
+ SDL_Rect src={0,0,iw,ih};
+ if((long long)iw*dest.h > (long long)ih*dest.w) {
+   src.w=(int)((long long)ih*dest.w/dest.h);src.x=(iw-src.w)/2;
+ } else {
+   src.h=(int)((long long)iw*dest.h/dest.w);src.y=(ih-src.h)/2;
+ }
+ SDL_RenderCopy(renderer,tex,&src,&dest);
+}
 static void background(App *app,const Theme *theme) {
  SDL_Renderer *r=app->renderer;
  SDL_SetRenderDrawColor(r,theme->background.r,theme->background.g,theme->background.b,255);
@@ -126,17 +157,14 @@ static void background(App *app,const Theme *theme) {
  if(app->backdrop){
    SDL_SetTextureAlphaMod(app->backdrop,150);
    SDL_Rect rect={550,0,1370,850};
-   SDL_RenderCopy(r,app->backdrop,NULL,&rect);
+   cover_fit(r,app->backdrop,rect);
  }
- /* Soft layered shades approximate the NiakTV cinematic darkening without shaders. */
- for(int x=0;x<1400;x+=18){
-   int a=(int)(245.0*(1.0-(float)x/1400.0));
-   SDL_Color shade={theme->background.r,theme->background.g,theme->background.b,(Uint8)a};
-   fill(r,x,0,19,H,shade);
- }
- for(int y=740;y<H;y+=10){
-   SDL_Color shade={6,11,19,(Uint8)(25+200*(y-740)/(H-740))};
-   fill(r,0,y,W,11,shade);
+ if(app->shade_mask){
+   SDL_Rect full={0,0,W,H};
+   SDL_RenderCopy(r,app->shade_mask,NULL,&full);
+ }else{
+   fill(r,0,0,650,H,(SDL_Color){6,14,23,208});
+   fill(r,0,840,W,240,(SDL_Color){6,14,23,205});
  }
 }
 static void background_label(App *app,const Theme *theme){
@@ -156,9 +184,12 @@ static void background_label(App *app,const Theme *theme){
 static void draw_cards(App *app,const Theme *theme) {
  SDL_Renderer *r=app->renderer;
  text(app,app->heading,"Ma bibliotheque",75,708,theme->text,0);
- fill(r,307,729,7,7,theme->accent);
+ int label_width=0,label_height=0;
+ if(app->heading)TTF_SizeUTF8(app->heading,"Ma bibliotheque",&label_width,&label_height);
+ int dot=75+label_width+18;
+ fill(r,dot,729,7,7,theme->accent);
  char count[80];snprintf(count,sizeof(count),"%d jeux installes",app->game_count);
- text(app,app->small,count,352,721,theme->soft,0);
+ text(app,app->small,count,dot+34,721,theme->soft,0);
  if(app->game_count<=0)return;
  int start=app->selected>=COVER_MAX?app->selected-(COVER_MAX-1):0;
  for(int k=0;k<COVER_MAX&&start+k<app->game_count;k++){
@@ -275,6 +306,7 @@ int main(int argc,char **argv){
  app->renderer=niak_renderer_create(app->window,app->renderer_desc,sizeof(app->renderer_desc));
  if(!app->renderer)goto fail;
  SDL_RenderSetLogicalSize(app->renderer,W,H);
+ app->shade_mask=make_shade(app->renderer);
  SDL_SetRenderDrawBlendMode(app->renderer,SDL_BLENDMODE_BLEND);
  if(load_fonts(app)!=0){fprintf(stderr,"Font asset missing under %s\n",ASSETS_PATH);goto fail;}
 #ifdef __PS5__
@@ -336,6 +368,7 @@ fail:
  if(app->pad)SDL_GameControllerClose(app->pad);
  clear_cover_cache(app);
  if(app->backdrop)SDL_DestroyTexture(app->backdrop);
+ if(app->shade_mask)SDL_DestroyTexture(app->shade_mask);
  niak_text_clear(&app->text_cache);
  if(app->body)TTF_CloseFont(app->body);if(app->small)TTF_CloseFont(app->small);
  if(app->title)TTF_CloseFont(app->title);if(app->heading)TTF_CloseFont(app->heading);
