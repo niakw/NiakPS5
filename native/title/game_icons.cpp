@@ -2,7 +2,9 @@
 // Real installed PS5 game icons, read over the local ShadowMountPlus API.
 // This client never requests mount/uninstall/write endpoints.
 #include "niak/game_icons.hpp"
+extern "C" {
 #include "niak/catalog.h"
+}
 #include "niak/lodepng.h"
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
