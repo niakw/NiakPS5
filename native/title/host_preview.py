@@ -45,6 +45,22 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
     return 0;
 }
 ''',"utf8")
+    # The same selected case is photographed at four real animation angles.
+    # Advance the actual Aurora UI's C++ clock; no synthetic image rotation.
+    one(main, '    if (const char *strip = std::getenv("HUI_STRIP"))', """    if (std::getenv("NIAK_CASE_TOUR")) {
+        hui::InputFrame idle;
+        idle.connected = true;
+        shell.show(0, false);
+        for(int frame=0;frame<580;++frame) {
+            shell.update(idle,kDt);
+            if(frame==90)render("case-00-front");
+            if(frame==224)render("case-01-turn");
+            if(frame==340)render("case-02-back");
+            if(frame==520)render("case-03-return");
+        }
+        return ok ? 0 : 1;
+    }
+    if (const char *strip = std::getenv("HUI_STRIP"))""")
     host=kit/"tools/host-snapshots.sh"
     contents=host.read_text("utf8")
     if "! -name main.cpp -print0" not in contents:

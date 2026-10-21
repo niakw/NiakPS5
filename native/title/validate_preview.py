@@ -13,5 +13,17 @@ for file in files:
         if sum(ImageStat.Stat(rgb.resize((64,36))).stddev)<10:
             raise SystemExit("Blank UI screenshot")
         digests.add(rgb.resize((48,27)).tobytes())
+# The case must actually rotate, rather than presenting the same rectangle.
+required=[Path(sys.argv[1]) / f"case-{i:02d}-{suffix}.png" for i,suffix in
+          enumerate(("front","turn","back","return"))]
+if not all(p.exists() for p in required):raise SystemExit("Missing rotating case C++ frames")
+from PIL import ImageChops
+frames=[Image.open(p).convert("RGB").crop((1160,90,1850,760)) for p in required]
+changes=[]
+for x,y in zip(frames,frames[1:]):
+    delta=sum(ImageStat.Stat(ImageChops.difference(x,y)).mean)
+    changes.append(delta)
+if any(d<5.5 for d in changes):
+    raise SystemExit(f"3D case does not visibly rotate in actual GPU capture: {changes}")
 if len(digests)<2:raise SystemExit("No distinct UI screenshots")
 print("NIAK_NATIVE_OPENGL_PREVIEW: PASS")
