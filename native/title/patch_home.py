@@ -167,6 +167,9 @@ def patch(kit):
                                    kWhite.with_alpha(0.06f), 2.6f, palette_[3].value());
             x += w + 44;
 """)
+    # Read the current local PS5 display name via SceUserService (not a fake logo).
+    text = once(text, '#include "niak/daily_backdrop.hpp"',
+                '#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"')
     # The demo never had a real profile service. Do not fabricate a user's avatar.
     text = once(text, """        list.circle(1800, 82, 22, palette_[3].value());
         ui::text(list, fonts.semibold, "N", 1800, 91, 22, Color::rgb(0x0b0d16), gfx::Align::center);""",
@@ -174,6 +177,8 @@ def patch(kit):
         // Show no invented account image.
         ui::text(list, fonts.regular, "Profil non lie", 1900, 135, 18,
                  kWhite.with_alpha(0.55f), gfx::Align::right);""")
+    text = once(text, 'ui::text(list, fonts.regular, "Profil non lie", 1900, 135, 18,',
+                'ui::text(list, fonts.regular, niak_ps5_user_label(), 1900, 135, 18,')
     text = once(text, "    int row_ = 0;\n", """    int row_ = 0;
     int active_tab_ = 0;
     int selected_tab_ = 0;
