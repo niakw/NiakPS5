@@ -13,6 +13,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sce_module/libc.prx", source)
         self.assertNotIn("niakps5_bootstrap.elf", source)
 
+    def test_real_top_navigation(self):
+        from pathlib import Path
+        code = (ROOT / "title" / "patch_home.py").read_text()
+        compile(code, "patch_home.py", "exec")
+        for token in ("update_tabs", "update_page", "draw_aux_page",
+                      "context_.settings_changed = true", "Profil non lie"):
+            self.assertIn(token, code)
+
     def test_real_catalog_only(self):
         source = (ROOT / "title" / "prepare.py").read_text()
         self.assertIn('niak_scan_games("/system_data/priv/mms/app.db"', source)
