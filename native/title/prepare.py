@@ -115,9 +115,9 @@ def prepare(kit: Path, project: Path):
         }
         gfx::BackdropSpec spec;""")
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
-                 '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"')
+                 '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"')
     replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',
-                 '    niak_load_daily_backdrops(renderer);\n    demo::Catalog catalog;')
+                 '    niak_load_daily_backdrops(renderer);\n    niak_profile_load_avatar(renderer);\n    demo::Catalog catalog;')
     replace_once(aurora, '#include "ui/glyphs.hpp"',
                  '#include "ui/glyphs.hpp"\n#include "niak/daily_backdrop.hpp"')
     # The PacBrew SQLite build references localtime_r, not exported by the

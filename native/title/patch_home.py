@@ -205,6 +205,10 @@ def patch(kit):
                  kWhite.with_alpha(0.55f), gfx::Align::right);""")
     text = once(text, 'ui::text(list, fonts.regular, "Profil non lie", 1900, 135, 18,',
                 'ui::text(list, fonts.regular, niak_ps5_user_label(), 1900, 135, 18,')
+    text = once(text, 'ui::text(list, fonts.regular, niak_ps5_user_label(), 1900, 135, 18,',
+                '''if (const auto avatar = niak_profile_avatar())
+            list.image(avatar, {1778, 60, 44, 44}, gfx::kFullUv, kWhite, 22);
+        ui::text(list, fonts.regular, niak_ps5_user_label(), 1900, 135, 18,''')
     text = once(text, "    int row_ = 0;\n", """    int row_ = 0;
     int active_tab_ = 0;
     int selected_tab_ = 0;

@@ -128,3 +128,19 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
         return decode_upload(renderer,png);
     return 0;
 }
+
+std::uint32_t niak_load_local_png(hui::gfx::Renderer &renderer, const char *path)
+{
+    if(!path || std::strcmp(path,"/app0/assets/niak-profile.png") != 0)
+        return 0;
+    std::FILE *f=std::fopen(path,"rb");
+    if(!f)return 0;
+    if(std::fseek(f,0,SEEK_END)!=0){std::fclose(f);return 0;}
+    const long size=std::ftell(f);
+    if(size<33 || size>2*1024*1024 || std::fseek(f,0,SEEK_SET)!=0)
+    {std::fclose(f);return 0;}
+    std::vector<unsigned char> data(static_cast<std::size_t>(size));
+    const bool okay=std::fread(data.data(),1,data.size(),f)==data.size();
+    std::fclose(f);
+    return okay ? decode_upload(renderer,data) : 0;
+}
