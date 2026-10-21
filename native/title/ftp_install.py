@@ -28,6 +28,18 @@ def mkdirs(ftp, dirname):
         except error_perm as exc:
             if not str(exc).startswith("550"):
                 raise
+        else:
+            # Only chmod newly created NiakPS5-owned directories. Never
+            # change /data, other homebrew apps, or Payload Manager's roots.
+            owned = (current.startswith("/data/homebrew/PPSA99386/") or
+                     current == "/data/homebrew/PPSA99386" or
+                     current.startswith("/data/pldmgr/payloads/niakps5/") or
+                     current == "/data/pldmgr/payloads/niakps5")
+            if owned:
+                try:
+                    ftp.sendcmd("SITE CHMOD 755 " + current)
+                except error_perm:
+                    pass
 
 def retrieve(ftp, path):
     output = BytesIO()
