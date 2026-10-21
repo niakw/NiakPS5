@@ -327,8 +327,9 @@ Catalog::Catalog()
             const bool has_real_name=game.title[0] && std::strcmp(game.title,game.id)!=0;
             owned_titles_.emplace_back(has_real_name ? game.title : known ? meta.name : game.id);
             const std::string summary=known ? niak_title_summary(meta) : "";
-            owned_blurbs_.emplace_back(summary.empty() ?
-               "Jeu ou application installée sur cette console." : summary);
+            const std::string description=niak_title_overview(game.id);
+            owned_blurbs_.emplace_back(!description.empty() ? description :
+               summary.empty() ? "Jeu ou application installé sur cette console." : summary);
             Item item{};
             item.title = owned_titles_.back().c_str();
             item.studio = game.is_homebrew ? "Application" : "Jeu installé";

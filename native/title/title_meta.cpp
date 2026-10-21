@@ -45,3 +45,31 @@ std::string niak_title_summary(const NiakTitleMetadata &v){
  if(!v.released.empty()){if(!text.empty())text+=" · ";text+="Sortie : "+v.released;}
  return text;
 }
+
+std::string niak_title_overview(const char *id) {
+ if(!id || std::strlen(id)!=9)return {};
+ static const auto index=[]() {
+   std::unordered_map<std::string,std::string> data;
+   FILE *f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
+   if(!f)return data;
+   char line[1800];
+   while(std::fgets(line,sizeof(line),f)) {
+     if(!std::strchr(line,'\n')&&!std::feof(f)) {
+       int ch;while((ch=std::fgetc(f))!=EOF&&ch!='\n'){}
+       continue;
+     }
+     char *tab=std::strchr(line,'\t');
+     if(!tab)continue;
+     *tab=0;
+     if(std::strlen(line)!=9||line[0]=='#')continue;
+     char *overview=tab+1;
+     tab=std::strchr(overview,'\t');
+     if(tab)*tab=0;
+     if(*overview && std::strcmp(overview,"-")!=0)
+       data.emplace(line,overview);
+   }
+   std::fclose(f);return data;
+ }();
+ const auto it=index.find(id);
+ return it==index.end()?std::string{}:it->second;
+}

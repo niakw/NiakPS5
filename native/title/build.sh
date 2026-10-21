@@ -21,6 +21,15 @@ test "$(git -C "$stage" rev-parse HEAD)" = "$kit_revision"
 python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root"
 # Best-effort recent games from Steam; offline/error => original animated smoke.
 python3 "$root/native/title/fetch_daily_games.py" --output "$stage/assets/niak-daily"
+# Exact LaunchBox PlayStation 4/5 regional metadata; no retail scans
+# redistributed in public CI artifacts. Fail over to system catalogue.
+if ! python3 "$root/native/title/launchbox_index.py" --download \
+    --titles "$root/native/title/ps_titles.tsv" \
+    --output "$stage/assets/niak-launchbox-cases.tsv"; then
+  echo "LaunchBox index unavailable; keeping public PlayStation title metadata" >&2
+  printf '# title\tOverview\tFront\tBack\tSpine\tLogo\tLaunchBoxID\n' \
+    > "$stage/assets/niak-launchbox-cases.tsv"
+fi
 python3 "$root/native/title/patch_home.py" --kit "$stage"
 python3 "$root/native/title/polish.py" --kit "$stage"
 # Upstream ps5-opengl release URL was withdrawn; use a mirrored archive
