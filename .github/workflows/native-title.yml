@@ -54,6 +54,7 @@ jobs:
               assert not any(p.endswith('.zip') or (p.endswith('.elf') and p != 'PPSA99386/tools/niakps5.elf') for p in z.namelist())
               assert (z.getinfo('PPSA99386/').external_attr >> 16) & 0o777 == 0o755
               assert (z.getinfo('PPSA99386/eboot.bin').external_attr >> 16) & 0o777 == 0o755
+              assert (z.getinfo('PPSA99386/tools/niakps5.elf').external_attr >> 16) & 0o777 == 0o755
               assert (z.getinfo('PPSA99386/sce_sys/param.json').external_attr >> 16) & 0o777 == 0o644
           print('FTP ZIP verified (one root folder, modes, no nested ZIP)')
           PY

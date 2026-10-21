@@ -39,6 +39,7 @@ class NativeTitleTests(unittest.TestCase):
                                  ["PPSA99386"] * len(z.namelist()))
                 self.assertFalse(any(n.endswith(".zip") for n in z.namelist()))
                 self.assertIn("PPSA99386/tools/niakps5.elf", z.namelist())
+                self.assertEqual((z.getinfo("PPSA99386/tools/niakps5.elf").external_attr >> 16) & 0o777, 0o755)
                 self.assertEqual((z.getinfo("PPSA99386/eboot.bin").external_attr >> 16) & 0o777, 0o755)
                 self.assertEqual((z.getinfo("PPSA99386/sce_module/libc.prx").external_attr >> 16) & 0o777, 0o644)
             (base / "assets/inner.zip").write_text("forbidden")

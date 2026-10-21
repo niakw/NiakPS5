@@ -42,7 +42,7 @@ def package(folder: Path, destination: Path) -> None:
     for p in [folder, *files]:
         if not (p.is_dir() or p.is_file()):
             raise ValueError(f"Unsupported path: {p}")
-        p.chmod(0o755 if p.is_dir() or p.name == "eboot.bin" else 0o644)
+        p.chmod(0o755 if p.is_dir() or p.name in ("eboot.bin", "niakps5.elf") else 0o644)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_suffix(".zip.tmp")
     try:
@@ -53,7 +53,7 @@ def package(folder: Path, destination: Path) -> None:
                 if is_dir and not name.endswith("/"):
                     name += "/"
                 mode = (stat.S_IFDIR | 0o755) if is_dir else (
-                    stat.S_IFREG | (0o755 if path.name == "eboot.bin" else 0o644))
+                    stat.S_IFREG | (0o755 if path.name in ("eboot.bin", "niakps5.elf") else 0o644))
                 meta = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
                 meta.create_system = 3
                 meta.external_attr = (mode << 16) | (0x10 if is_dir else 0)
