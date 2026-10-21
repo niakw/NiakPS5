@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Small, offline DXT5 (BC3) decoder for PS5 profile avatar DDS files.
-#include "niak/avatar_dds.hpp"
+#include "avatar_dds.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <vector>
