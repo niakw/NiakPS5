@@ -105,7 +105,7 @@ bool niak_fetch_latest_ps5_wallpaper(const char *today_yyyy_mm_dd,
   if(!get(FEED,MAX_FEED,body))return false;
   picojson::value parsed;
   const std::string json(body.begin(),body.end());
-  if(!picojson::parse(parsed,json.begin(),json.end()).empty() ||
+  if(!picojson::parse(parsed,json).empty() ||
      !parsed.is<picojson::array>())return false;
   const std::string today(today_yyyy_mm_dd);
   // Prefer genuinely released games within two calendar years, not preorders.
