@@ -33,12 +33,12 @@ static void niak_notify(const char *message){
 }
 static void niak_log(const char *message){
  FILE *f=fopen(NIAK_LOG_PATH,"a");
- if(f){fprintf(f,"%s\\n",message);fclose(f);}
- fprintf(stderr,"%s\\n",message);
+ if(f){fprintf(f,"%s\n",message);fclose(f);}
+ fprintf(stderr,"%s\n",message);
 }
 #else
-static void niak_notify(const char *message){fprintf(stderr,"NOTICE: %s\\n",message);}
-static void niak_log(const char *message){fprintf(stderr,"%s\\n",message);}
+static void niak_notify(const char *message){fprintf(stderr,"NOTICE: %s\n",message);}
+static void niak_log(const char *message){fprintf(stderr,"%s\n",message);}
 #endif
 typedef struct {
  SDL_Window *window;
