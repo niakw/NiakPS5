@@ -12,6 +12,8 @@ spec.loader.exec_module(ftpmod)
 class FakeFTP:
     def __init__(self,files=None):
         self.files=dict(files or {})
+    def nlst(self,path):
+        return [k for k in self.files if k.startswith(path+"/")]
     def mkd(self,path):pass
     def storbinary(self,command,buf):
         assert command.startswith("STOR ")
@@ -61,6 +63,24 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("/data/niakps5-return-after-game.enabled",f.files)
         ftpmod.install(f,self.root,True,False)
         self.assertEqual(f.files[ftpmod.AUTOLOAD].decode().count(ftpmod.PAYLOAD),1)
+
+    def test_single_profile_avatar_is_locally_staged(self):
+        user="0x12345678"
+        source="/system_data/priv/cache/profile/"+user+"/avatar.png"
+        sample=b"\\x89PNG\\r\\n\\x1a\\n"+bytes(200)
+        f=FakeFTP({source:sample})
+        ftpmod.install(f,self.root,False)
+        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
+
+    def test_multiple_profiles_are_not_guessed(self):
+        root="/system_data/priv/cache/profile/"
+        sample=b"\\x89PNG\\r\\n\\x1a\\n"+bytes(200)
+        f=FakeFTP({root+"0x11111111/avatar.png":sample,root+"0x22222222/avatar.png":sample})
+        ftpmod.install(f,self.root,False)
+        self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-profile.png",f.files)
+        ftpmod.install(f,self.root,False,avatar_user_id="0x22222222")
+        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
+
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
         (self.root/"tools/niakps5.elf").write_bytes(b"Not an ELF")

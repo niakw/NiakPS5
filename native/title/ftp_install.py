@@ -11,6 +11,7 @@ from getpass import getpass
 from io import BytesIO
 from pathlib import Path
 import posixpath
+import re
 
 TITLE = "PPSA99386"
 PAYLOAD = "/data/pldmgr/payloads/niakps5/niakps5.elf"
@@ -47,7 +48,59 @@ def upload(ftp, path, content):
         # Not every PS5 FTP server implements SITE CHMOD; archive encodes POSIX modes.
         pass
 
-def install(ftp, directory, autoload, return_after_game=False):
+PROFILE_ROOT="/system_data/priv/cache/profile"
+MAX_AVATAR=2*1024*1024
+
+def _bounded_retrieve(ftp,path):
+    out=BytesIO()
+    def feed(block):
+        if out.tell()+len(block)>MAX_AVATAR:
+            raise ValueError("Avatar exceeds safe size")
+        out.write(block)
+    try: ftp.retrbinary("RETR "+path,feed)
+    except error_perm as error:
+        if str(error).startswith("550"):return None
+        raise
+    return out.getvalue()
+
+def copy_avatar_for_ftp(ftp, user_id=None):
+    """Opt-in source: only read user's current profile cache over FTP.
+
+    Auto-select exactly one profile; never arbitrarily choose between accounts.
+    If more than one exists, caller can specify --avatar-user-id 0x12345678.
+    The private avatar is copied ONLY to the console's local title assets.
+    """
+    candidates=[]
+    if user_id:
+        if not re.fullmatch(r"0x[0-9A-Fa-f]{8}",user_id):
+            raise ValueError("Avatar user ID must be the 0xXXXXXXXX format")
+        candidates=[user_id]
+    else:
+        try: names=ftp.nlst(PROFILE_ROOT)
+        except (error_perm,AttributeError):return False
+        candidates=sorted({posixpath.basename(name.rstrip("/")) for name in names
+                           if re.fullmatch(r"0x[0-9A-Fa-f]{8}",
+                                           posixpath.basename(name.rstrip("/")))})
+        if len(candidates)!=1:
+            print("Avatar: 0 or several profiles; no automatic choice made.")
+            return False
+    user=candidates[0]
+    for name,signature in (("avatar.png",b"\x89PNG\r\n\x1a\n"),
+                           ("avatar128.dds",b"DDS "),
+                           ("avatar260.dds",b"DDS "),
+                           ("avatar64.dds",b"DDS ")):
+        try: blob=_bounded_retrieve(ftp,f"{PROFILE_ROOT}/{user}/{name}")
+        except (ValueError,OSError):continue
+        if not blob or len(blob)<144 or blob[:len(signature)]!=signature:
+            continue
+        suffix=".png" if name.endswith(".png") else ".dds"
+        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-profile{suffix}",blob)
+        print("Avatar: actual PS5 profile image staged locally.")
+        return True
+    print("Avatar: no readable profile image; Sony profile left untouched.")
+    return False
+
+def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None):
     if directory.name != TITLE or not (directory / "sce_sys/param.json").is_file():
         raise ValueError("Extract PPSA99386/ and run the installer inside that folder")
     for local in sorted(directory.rglob("*")):
@@ -58,6 +111,7 @@ def install(ftp, directory, autoload, return_after_game=False):
             if relative.startswith("tools/"):
                 continue
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
+    copy_avatar_for_ftp(ftp,avatar_user_id)
     if not autoload:
         print("Titre installe. L'autoload n'est pas active sans --autoload.")
         return
@@ -100,6 +154,8 @@ def main():
     cli.add_argument("--host", required=True, help="Adresse IP de la PS5, reseau local uniquement")
     cli.add_argument("--port", type=int, default=2121)
     cli.add_argument("--user", default="anonymous")
+    cli.add_argument("--avatar-user-id", default=None,
+                     help="Specific current PS5 profile ID if multiple users exist")
     cli.add_argument("--autoload", action="store_true", help="Activer le lancement apres jailbreak")
     cli.add_argument("--return-after-game", action="store_true",
                      help="Surveiller uniquement la fermeture d'un jeu, sans intercepter le bouton PS")
@@ -111,7 +167,7 @@ def main():
     with FTP() as ftp:
         ftp.connect(args.host, args.port, timeout=20)
         ftp.login(args.user, password)
-        install(ftp, directory, args.autoload, args.return_after_game)
+        install(ftp, directory, args.autoload, args.return_after_game, args.avatar_user_id)
 
 if __name__ == "__main__":
     main()
