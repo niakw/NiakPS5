@@ -5,6 +5,7 @@ Run ONLY on a fresh staging checkout; does not change system or console files.
 import argparse
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 
 TITLE_ID = "PPSA99386"
@@ -108,6 +109,69 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
 """, encoding="utf-8")
     # PacBrew sqlite static archive + header are selected at build time.
     (kit / "src/demo/catalog.cpp").write_text(CATALOG_CPP, encoding="utf-8")
+
+    # NiakTV typography: bake the original OFL Manrope and Instrument Serif
+    # into SDF GPU atlases. Font conversion happens at build time on the host.
+    # A PS5 title reads these through /app0/assets, not external /data assets.
+    baker = kit / "build/host/niak_font_baker"
+    baker.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["clang++", "-std=c++20", "-O2", "-w",
+                    str(kit / "tools/font-baker/bake_font.cpp"), "-o", str(baker)],
+                   check=True)
+    font_dest = kit / "assets/fonts"
+    for filename, out, pixels in (
+            ("manrope.ttf", "niak-manrope.huifont", "56"),
+            ("instrument-serif.ttf", "niak-instrument-serif.huifont", "56")):
+        source = project / "native/assets" / filename
+        if not source.is_file():
+            raise SystemExit(f"Missing required NiakTV font {source}")
+        subprocess.run([str(baker), str(source), str(font_dest / out),
+                        pixels, "8", "2048", "european"], check=True)
+    for filename in ("OFL-Manrope.txt", "OFL-InstrumentSerif.txt"):
+        shutil.copy2(project / "fonts" / filename, font_dest / filename)
+
+    # The production title is a NiakPS5 home app, not the original UI Lab demo.
+    app_main = kit / "src/main.cpp"
+    replace_once(app_main, '"inter-regular.huifont"', '"niak-manrope.huifont"')
+    replace_once(app_main, '"inter-semibold.huifont"', '"niak-manrope.huifont"')
+    replace_once(app_main, '"montserrat-medium.huifont"', '"niak-instrument-serif.huifont"')
+
+    # Never report invented ratings, playtime, progress, or a fixed clock.
+    replace_once(aurora, '#include <cstdio>', '#include <cstdio>\\n#include <ctime>')
+    visual = aurora.read_text(encoding="utf-8")
+    start = visual.find('        std::snprintf(text, sizeof(text), "%s  ')
+    end = visual.find('        const Rect play{x, 540, 220, 64};', start)
+    if start < 0 or end < 0:
+        raise SystemExit("Upstream hero metadata changed; review necessary")
+    visual = visual[:start] + """        // Only display information actually available from the installed-title scan.
+        const char *id = it.title_id[0] ? it.title_id : "INDISPONIBLE";
+        std::snprintf(text, sizeof(text), "%s  /  %s", it.genre, id);
+        ui::text(list, fonts.regular, text, x, 366, 25, kWhite.with_alpha(0.8f));
+        ui::paragraph(list, fonts.regular, it.blurb, x, 432, 27, 820, 40,
+                      kWhite.with_alpha(0.85f), 2);
+        ui::text(list, fonts.regular,
+                 it.title_id[0] ? "DETECTE SUR CETTE CONSOLE" : "ACCES AU CATALOGUE A VERIFIER",
+                 x, 505, 20, it.accent);
+
+""" + visual[end:]
+    visual = visual.replace('it.progress > 0.0f ? "Resume" : "Play"',
+                            'it.title_id[0] ? "Jouer" : "Indisponible"')
+    extra = visual.find('        const Rect more{x + 240, 540, 64, 64};')
+    extra_end = visual.find('        list.pop_opacity();', extra)
+    if extra < 0 or extra_end < 0:
+        raise SystemExit("Upstream hero actions changed; review required")
+    visual = visual[:extra] + visual[extra_end:]
+    visual = visual.replace('''        ui::text(list, fonts.regular, "21:47", 1824 - 64, 92, 26, kWhite.with_alpha(0.8f),
+                 gfx::Align::right);''', '''        // Never show an invented wall-clock time.
+        char clock_text[8] = "--:--";
+        const std::time_t wall = std::time(nullptr);
+        if (const std::tm *local = std::localtime(&wall))
+            std::strftime(clock_text, sizeof(clock_text), "%H:%M", local);
+        ui::text(list, fonts.regular, clock_text, 1760, 92, 26,
+                 kWhite.with_alpha(0.8f), gfx::Align::right);''')
+    if '"21:47"' in visual or 'std::snprintf(text, sizeof(text), "%.1f"' in visual:
+        raise SystemExit("Fake clock or rating remains in Aurora")
+    aurora.write_text(visual, encoding="utf-8")
 
     # Give the title a clear, stand-alone NiakPS5 identity instead of UI Lab.
     print(f"NiakPS5 title staged as {TITLE_ID}; one home design, real catalogue only")
