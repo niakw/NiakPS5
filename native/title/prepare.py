@@ -92,12 +92,16 @@ def prepare(kit: Path, project: Path):
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::vector<Item> items_;')
 
     src_niak = kit / "src/niak"
     src_niak.mkdir(parents=True, exist_ok=True)
     for filename in ("catalog.c", "catalog.h", "shadowmount_api.c", "shadowmount_api.h"):
         shutil.copy2(project / "native" / filename, src_niak / filename)
+    for filename in ("title_meta.cpp", "title_meta.hpp"):
+        shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
+    shutil.copy2(project / "native" / "title" / "ps_titles.tsv",
+                 kit / "assets" / "niak-ps-titles.tsv")
     for filename in ("daily_backdrop.cpp", "daily_backdrop.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("game_icons.cpp", "game_icons.hpp"):
@@ -259,6 +263,7 @@ extern "C" {
 }
 #endif
 #include "platform/ps5/system.hpp"
+#include "niak/title_meta.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -310,16 +315,18 @@ Catalog::Catalog()
         for (std::size_t n = 0; n < count; ++n)
         {
             const NiakGame &game = games[n];
-            owned_titles_.emplace_back(game.title);
+            NiakTitleMetadata meta;
+            const bool known=niak_title_metadata(game.id,meta);
+            const bool has_real_name=game.title[0] && std::strcmp(game.title,game.id)!=0;
+            owned_titles_.emplace_back(has_real_name ? game.title : known ? meta.name : game.id);
+            const std::string summary=known ? niak_title_summary(meta) : "";
+            owned_blurbs_.emplace_back(summary.empty() ?
+               "Jeu ou application installée sur cette console." : summary);
             Item item{};
             item.title = owned_titles_.back().c_str();
-            item.studio = game.discovered_from_homebrew == 2 ? "SHADOWMOUNT API" : game.discovered_from_homebrew ? "DECOUVERTE /DATA" : "INSTALLE";
-            item.genre = game.discovered_from_homebrew == 2 ? "PS5 / PS4" : game.discovered_from_homebrew ? "HOMEBREW" : "PS5";
-            item.blurb = game.discovered_from_homebrew == 2
-                ? "Titre renvoye par l'API locale ShadowMountPlus. Lancement a verifier."
-                : game.discovered_from_homebrew
-                    ? "Dossier present dans /data/homebrew. Enregistrement non confirme."
-                    : "Jeu detecte dans la base PS5. Lancement a verifier.";
+            item.studio = game.is_homebrew ? "Application" : "Jeu installé";
+            item.genre = game.is_homebrew ? "Application" : "PS5 / PS4";
+            item.blurb = owned_blurbs_.back().c_str();
             item.homebrew = game.is_homebrew != 0;
             item.year = 0;
             item.rating = 0;
