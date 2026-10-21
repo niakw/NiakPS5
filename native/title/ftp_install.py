@@ -136,6 +136,105 @@ def upload_local_homebrew_names(ftp):
     print(f"Titles: {len(records)} homebrew names resolved locally.")
     return len(records)
 
+
+def _installed_title_ids(ftp, limit=150):
+    """Discover PS4/PS5 folders on the owner's console, without touching app.db."""
+    found=set()
+    for base in ("/user/app","/system_ex/app","/data/homebrew",
+                 "/mnt/ext0/user/app","/mnt/ext1/user/app"):
+        try: entries=ftp.nlst(base)
+        except (error_perm,AttributeError,OSError):continue
+        for entry in entries[:300]:
+            ident=posixpath.basename(str(entry).rstrip("/"))
+            if re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident):found.add(ident)
+        if len(found)>=limit:break
+    return sorted(found)[:limit]
+
+def _decode_retail_image(raw,side):
+    """Personal-use PS5 optimized PNG; no unauthorized source is republished."""
+    try:
+        from PIL import Image
+    except ImportError:
+        Image=None
+    if Image:
+        with Image.open(BytesIO(raw)) as source:
+            source.load()
+            if source.width<64 or source.height<40 or source.width*source.height>14_000_000:
+                raise ValueError("Unexpected image geometry")
+            if side=="logo":
+                image=source.convert("RGBA")
+                image.thumbnail((850,300),Image.Resampling.LANCZOS)
+            else:
+                if source.height<200 or source.width/source.height>1.4:
+                    raise ValueError("Not a retail box scan")
+                image=source.convert("RGB")
+                image.thumbnail((600,900),Image.Resampling.LANCZOS)
+                image=image.quantize(colors=160,method=Image.Quantize.MEDIANCUT)
+            out=BytesIO()
+            image.save(out,"PNG",optimize=True)
+            return out.getvalue()
+    # macOS has sips preinstalled: use it to convert JPG to PNG locally
+    # without requiring Pillow. No image needs to leave this machine.
+    import shutil,subprocess,tempfile
+    if shutil.which("sips"):
+        with tempfile.TemporaryDirectory() as temp:
+            src=Path(temp)/"source.jpg";dst=Path(temp)/"case.png"
+            src.write_bytes(raw)
+            result=subprocess.run(["sips","-s","format","png","-Z","900",
+                                   str(src),"--out",str(dst)],
+                                  stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL,
+                                  timeout=25)
+            if result.returncode==0 and dst.exists():
+                return dst.read_bytes()
+    return None
+
+def fetch_retail_covers(ftp, folder, maximum_titles=60):
+    """Download LaunchBox regional scans directly to owner's PS5 via FTP.
+    Build ZIP ships text index only; third-party scans never enter repository.
+    """
+    index=folder/"assets/niak-launchbox-cases.tsv"
+    if not index.is_file():return 0
+    installed=set(_installed_title_ids(ftp))
+    if not installed:return 0
+    import urllib.request
+    shipped=0
+    for line in index.read_text("utf8").splitlines():
+        if not line or line.startswith("#"):continue
+        columns=line.split("\t")
+        if len(columns)<7 or columns[0] not in installed:continue
+        ident=columns[0]
+        if shipped>=maximum_titles*3:break
+        # Metadata fields: ID, description, front, back, spine, logo, sourceID.
+        for side,field in (("front",2),("back",3),("logo",5)):
+            choices=columns[field]
+            if choices=="-":continue
+            for candidate in choices.split(";")[:8]:
+                parts=candidate.split(":",1)
+                if len(parts)!=2:continue
+                name=parts[1]
+                if not re.fullmatch(r"(?:r2_)?[0-9A-Fa-f-]{36}\.(?:jpe?g|png)",name):
+                    continue
+                url="https://images.launchbox-app.com/"+name
+                try:
+                    req=urllib.request.Request(url,headers={
+                        "User-Agent":"NiakPS5-private-FTP-art/1.0"})
+                    with urllib.request.urlopen(req,timeout=10) as response:
+                        raw=response.read(5*1024*1024+1)
+                    if not raw or len(raw)>5*1024*1024:continue
+                    png=_decode_retail_image(raw,side)
+                    if not png or len(png)>3*1024*1024:continue
+                    upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png",png)
+                    shipped+=1
+                    break
+                except (OSError,ValueError,TimeoutError,Exception) as exc:
+                    # Keep icon/description fallbacks when LaunchBox is offline
+                    # or a specific regional scan is malformed.
+                    continue
+    print(f"LaunchBox: {shipped} jaquettes/logos copiés en privé via FTP.")
+    return shipped
+
+
 def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None):
     if directory.name != TITLE or not (directory / "sce_sys/param.json").is_file():
         raise ValueError("Extract PPSA99386/ and run the installer inside that folder")
@@ -149,6 +248,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
     copy_avatar_for_ftp(ftp,avatar_user_id)
     upload_local_homebrew_names(ftp)
+    fetch_retail_covers(ftp,directory)
     if not autoload:
         print("Titre installe. L'autoload n'est pas active sans --autoload.")
         return
@@ -193,7 +293,12 @@ def main():
     cli.add_argument("--user", default="anonymous")
     cli.add_argument("--avatar-user-id", default=None,
                      help="Specific current PS5 profile ID if multiple users exist")
-    cli.add_argument("--autoload", action="store_true", help="Activer le lancement apres jailbreak")
+    # One FTP installation command configures the one-shot autoload by default.
+    # A simple folder copy cannot configure Payload Manager by itself.
+    cli.add_argument("--autoload", dest="autoload", action="store_true", default=True,
+                     help="Installer et activer le démarrage automatique (défaut)")
+    cli.add_argument("--no-autoload", dest="autoload", action="store_false",
+                     help="Transférer seulement le titre sans modifier Payload Manager")
     cli.add_argument("--return-after-game", action="store_true",
                      help="Surveiller uniquement la fermeture d'un jeu, sans intercepter le bouton PS")
     args = cli.parse_args()
