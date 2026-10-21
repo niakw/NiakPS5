@@ -102,8 +102,9 @@ def prepare(kit: Path, project: Path):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     shutil.copy2(project / "native" / "title" / "ps_titles.tsv",
                  kit / "assets" / "niak-ps-titles.tsv")
-    for filename in ("daily_backdrop.cpp", "daily_backdrop.hpp"):
+    for filename in ("daily_backdrop.cpp", "daily_backdrop.hpp", "daily_runtime.cpp", "daily_runtime.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
+    shutil.copy2(project / "native" / "title" / "vendor" / "picojson.h", src_niak / "picojson.h")
     for filename in ("game_icons.cpp", "game_icons.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp"):
