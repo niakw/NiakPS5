@@ -39,3 +39,16 @@ Un vrai remplacement du design de \`SceShellUI\` avec ta propre disposition de m
 L'option `--return-after-game` de l'installeur crée le marqueur `/data/niakps5-return-after-game.enabled`. Le payload reste en veille, compare l'ID de l'application au premier plan et, **seulement après avoir vu un jeu remplacer NiakPS5 puis se fermer**, tente de revenir sur l'accueil après environ dix secondes sans grand titre actif.
 
 Ce mécanisme ne peut pas lire le bouton PS (intercepté par le système) et **ne peut pas remplacer le menu Sony**. Il ne se déclenche pas lorsque le jeu reste actif derrière le Control Center. Cela reste expérimental : la validation sur firmware 13.60 est indispensable avant activation. Désactivation sans désinstaller : créer `/data/niakps5-autostart.disable` ou supprimer `/data/niakps5-return-after-game.enabled`. Le moniteur s'arrête s'il ne parvient pas à identifier l'application ou si une tentative de retour échoue. Aucun hook ni accès mémoire système.
+
+
+## Comparaison avec NiakTV
+
+Sur Android TV, `HomeRedirectService` reçoit un évènement `TYPE_WINDOW_STATE_CHANGED` d'AccessibilityService et lance `MainActivity`. Le système PS5 ne fournit pas cette API au titre NiakPS5. Le mode `--return-after-game` observe seulement les transitions entre applications PS5 en avant-plan, par périodes de deux secondes. Il ne voit ni l'appui court/long sur PS ni le contexte des fenêtres du Centre de contrôle.
+
+Le verrou `redirect_gate.h` vérifie : un vrai autre bigapp a succédé à NiakPS5, puis aucun bigapp actif pendant cinq mesures consécutives. Il ignore une erreur d'observation, attend au moins ~10 s avant de lancer, ne lance qu'une fois, et ne tente pas de remplacer le shell Sony. Ce mode est désactivé sans le marqueur `/data/niakps5-return-after-game.enabled`.
+
+La redirection immédiate au bouton PS comme NiakTV nécessiterait une instrumentation spécifique de `SceShellUI`, plus invasive et non validée sur le firmware de test. Ne pas la confondre avec le mode de retour après fermeture d'un jeu.
+
+## Authentique avatar PS5
+
+Le payload ne lit que le profil utilisateur actuellement en avant-plan via `sceUserServiceGetForegroundUser`. Il copie, lorsqu'ils sont disponibles, `/system_data/priv/cache/profile/0x%08X/avatar.png` ou à défaut `avatar128.dds`, `avatar260.dds` ou `avatar64.dds` dans le dossier d'assets de NiakPS5. Le titre lit uniquement cette copie `/app0/assets/niak-profile.png` ou `niak-profile.dds` et décode localement le DDS DXT5. Aucun fichier de profil n'est ajouté au dépôt, expédié à Steam ou transféré sur Internet. **La compatibilité du chemin, des permissions et de l'affichage de l'avatar doit encore être validée sur console.**
