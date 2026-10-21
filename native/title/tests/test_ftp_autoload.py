@@ -100,8 +100,8 @@ class AutoloadTests(unittest.TestCase):
             def __enter__(self):return self
             def __exit__(self,*args):pass
             def read(self,size):return b"JPEG fixture"
-        with patch.object(urllib.request,"urlopen",return_value=Response()), \\
-             patch.object(ftpmod,"_decode_retail_image",return_value=b"compressed png"):
+        with (patch.object(urllib.request,"urlopen",return_value=Response()),
+              patch.object(ftpmod,"_decode_retail_image",return_value=b"compressed png")):
             count=ftpmod.fetch_retail_covers(f,self.root)
         self.assertEqual(count,2)
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-front.png",f.files)
