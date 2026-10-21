@@ -43,6 +43,12 @@ def patch(kit):
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 28);',
                  'list.image(it.cover, art, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 28);')
     s=exactly(s,'#include "niak/profile.hpp"', '#include "niak/profile.hpp"\n#include "niak/case_renderer.hpp"')
+    # Show the authentic clear logo when LaunchBox provided one, AND the title.
+    # Keep the name readable even if the logo scan has transparent margins.
+    s=exactly(s,'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',
+       '''if (it.logo_art)
+            list.image(it.logo_art, {x + 460, 220, 300, 85}, gfx::kFullUv, kWhite);
+        ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);''')
     # The glyph sits on the left of the 220px-wide button; center the label
     # in the remaining area, not at the old left-aligned English text position.
     s=exactly(s,'''ui::text(list, fonts.semibold, it.title_id[0] ? "Jouer" : "Indisponible", play.x + 72,
