@@ -41,6 +41,18 @@ make -C "$stage" USE_CCACHE=0 PACBREW_INCLUDE_PATHS=include PACBREW_STATIC_ARCHI
 test -f "$stage/dist/$title/eboot.bin"
 test -f "$stage/dist/$title/sce_module/libc.prx"
 test -f "$stage/dist/$title/sce_sys/param.json"
+# Autostart is a separate, opt-in, non-GUI one-shot payload.
+sdk="$stage/.deps/native/ps5-payload-sdk"
+if [[ -x "$sdk/bin/prospero-clang" ]]; then
+  mkdir -p "$root/dist/autostart"
+  "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra \
+    -o "$root/dist/autostart/niakps5_autostart.elf" \
+    "$root/native/title/autostart.c" \
+    -lSceSystemService -lSceUserService -lkernel_sys
+  test -s "$root/dist/autostart/niakps5_autostart.elf"
+else
+  echo "Autostart helper not built: pinned SDK compiler absent" >&2
+fi
 out="$root/dist/$title"
 mkdir -p "$root/dist"
 rm -rf "$out"

@@ -5,6 +5,15 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class NativeTitleTests(unittest.TestCase):
+    def test_autostart_is_explicit_and_reversible(self):
+        source = (ROOT / "title" / "autostart.c").read_text()
+        self.assertIn("niakps5-autostart.enabled", source)
+        self.assertIn("niakps5-autostart.disable", source)
+        self.assertIn("sceSystemServiceLaunchApp", source)
+        self.assertIn("GetAppIdOfRunningBigApp", source)
+        self.assertNotIn("ptrace(", source)
+        self.assertNotIn("mount(", source)
+
     def test_standalone_native_title(self):
         source = (ROOT / "title" / "build.sh").read_text()
         self.assertIn("PPSA99386", source)

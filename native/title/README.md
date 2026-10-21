@@ -65,3 +65,7 @@ Chemins connus pour une future **galerie locale, sur autorisation expresse** : `
 NiakPS5 ne touche pas à `/system_tmp/shadowmount.sock`, aux bases de journalisation, caches système, profils, sauvegardes, clés, ni au marqueur `/data/.kstuff_noautomount`. L'inventaire FTP ne permet pas d'inférer leur fonction ou leur caractère supprimable. Ces constats valent pour une console testée, **pas** pour tous les firmwares.
 
 La découverte de titres sur supports externes (`/mnt/usb*/homebrew`, `/mnt/ext*/homebrew`) reste à qualifier sur console ; aucun montage externe de ce type n'a été vérifié dans l'inventaire.
+
+## Démarrage automatique (au lieu de choisir la tuile)
+
+Consulter [AUTOSTART.md](AUTOSTART.md). Le payload auxiliaire demande l'ouverture du titre automatiquement **après la chaîne de jailbreak**, avec opt-in et désactivation. Ce n'est pas une modification ou substitution de `SceShellUI` et ce mécanisme n'est pas encore validé en 13.60. Ne pas l'activer tant que le lancement manuel du nouveau titre n'est pas validé.

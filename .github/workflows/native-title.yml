@@ -33,6 +33,7 @@ jobs:
           test -s dist/PPSA99386/eboot.bin
           test -s dist/PPSA99386/sce_sys/param.json
           test -s dist/PPSA99386/sce_module/libc.prx
+          test -s dist/autostart/niakps5_autostart.elf
           test -s dist/NiakPS5-title-PPSA99386.zip
           python3 - <<'PY'
           import json
@@ -46,5 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: NiakPS5-native-home-PPSA99386
-          path: dist/NiakPS5-title-PPSA99386.zip
+          path: |
+            dist/NiakPS5-title-PPSA99386.zip
+            dist/autostart/niakps5_autostart.elf
           if-no-files-found: error
