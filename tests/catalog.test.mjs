@@ -22,7 +22,7 @@ test("only allow explicit art hosts or same-origin assets",()=>{
   assert.equal(safeArtwork("/art/cover.webp"),"/art/cover.webp");
 });
 test("Steam IDs produce consistent card and hero assets",()=>{
-  assert.ok(coverOf(DEMO_GAMES[0]).includes("library_600x900.jpg"));
+  assert.ok(coverOf(DEMO_GAMES[0]).includes("library_capsule.jpg"));
   assert.ok(heroOf(DEMO_GAMES[0]).includes("library_hero.jpg"));
 });
 
@@ -32,4 +32,9 @@ test("the daily game prefers releases within the last twelve months",()=>{
     const selected=dailyFeature(DEMO_GAMES,new Date(2026,9,d),true);
     assert.ok(selected.released>="2025-10-20");
   }
+});
+
+test("hashed publisher artwork works without opening arbitrary domains",()=>{
+  assert.ok(DEMO_GAMES.every(g=>safeArtwork(g.cover)&&safeArtwork(g.hero)));
+  assert.equal(safeArtwork("https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1/../../secret.jpg"),"");
 });

@@ -13,16 +13,6 @@ jobs:
         with:
           node-version: '22'
       - run: npm run validate
-      - name: Artwork URL diagnostics
-        run: |
-          for URL in \
-            https://cdn.cloudflare.steamstatic.com/steam/apps/3764200/library_hero.jpg \
-            https://cdn.cloudflare.steamstatic.com/steam/apps/3764200/library_600x900.jpg \
-            https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3764200/library_hero.jpg \
-            https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3357650/library_600x900.jpg \
-            https://shared.fastly.steamstatic.com/steam/apps/3764200/library_hero.jpg; do
-            curl -L -m 15 -s -o /dev/null -w '%{http_code} %{url_effective}\\n' "$URL" || true
-          done
       - name: Browser rendering smoke test
         run: |
           python3 -m http.server 8787 >/tmp/niakps5-http.log 2>&1 &
