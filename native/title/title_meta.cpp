@@ -72,13 +72,21 @@ std::string trimmed(std::string v) {
 std::string translated_genre(std::string genre) {
  static const std::unordered_map<std::string,std::string> vocabulary={
   {"strategy","Stratégie"},{"real time strategy","Stratégie en temps réel"},
+  {"turn based strategy","Stratégie au tour par tour"},
+  {"turn based","Tour par tour"},{"grand strategy","Grande stratégie"},
+  {"tactical","Tactique"},{"tactical rpg","Jeu de rôle tactique"},
   {"rpg","Jeu de rôle"},{"role playing","Jeu de rôle"},
+  {"role playing game","Jeu de rôle"},{"action rpg","Action-RPG"},
+  {"jrpg","Jeu de rôle japonais"},
   {"action","Action"},{"action adventure","Action-aventure"},
   {"adventure","Aventure"},{"simulation","Simulation"},
   {"sports","Sport"},{"sport","Sport"},{"racing","Course"},
+  {"racing simulation","Simulation de course"},{"driving","Conduite"},
   {"puzzle","Réflexion"},{"platformer","Plateforme"},
   {"platform","Plateforme"},{"fighting","Combat"},
   {"shooter","Tir"},{"first person shooter","Tir à la première personne"},
+  {"third person shooter","Tir à la troisième personne"},
+  {"fps","Tir à la première personne"},{"tps","Tir à la troisième personne"},
   {"sandbox","Bac à sable"},{"survival","Survie"},
   {"horror","Horreur"},{"indie","Indépendant"},
   {"casual","Occasionnel"},{"arcade","Arcade"},
@@ -86,7 +94,13 @@ std::string translated_genre(std::string genre) {
   {"educational","Éducatif"},{"visual novel","Roman visuel"},
   {"music","Musique"},{"rhythm","Rythme"},
   {"city builder","Construction de villes"},{"management","Gestion"},
-  {"building","Construction"},{"other","Autre"}};
+  {"building","Construction"},{"other","Autre"},
+  {"open world","Monde ouvert"},{"survival horror","Survival horror"},
+  {"hack and slash","Action-combat"},{"platform","Plateforme"},
+  {"family","Famille"},{"board game","Jeu de société"},
+  {"party game","Jeu de groupe"},{"massively multiplayer","Jeu massivement multijoueur"},
+  {"online","En ligne"},{"co op","Coopération"},
+  {"roguelike","Roguelike"},{"roguelite","Roguelite"}};
  std::string result;
  std::size_t begin=0;
  while(begin<genre.size()) {
