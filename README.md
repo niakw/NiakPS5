@@ -11,7 +11,7 @@ Accueil graphique **expérimental** pour PS5 jailbreakée (titre `PPSA99386`), d
 | Véritables icônes de jeux | Intégrées avec `GET /api/v1/games/icon`, **validation console en attente** |
 | Noms des jeux | API ShadowMountPlus + `app.db` en lecture seule quand accessible, certains titres peuvent encore afficher l'ID |
 | Nom du profil local PS5 | Requête UserService, **validation console en attente** |
-| Avatar PS5 | Copie locale PNG/DDS liée au profil actif ; **validation sur console en attente** |
+| Avatar PS5 | Copie locale PNG/DDS liée au profil actif ; masqué si le profil change sans relance ; **validation sur console en attente** |
 | Réglages NiakPS5 | Fonctionnels, configurent seulement l'application |
 | Réglages système Sony | **Non intégrés** : accessibles via le Control Center/accueil d'origine |
 | Médias personnels/captures | **Non activés**, confidentialité par défaut |

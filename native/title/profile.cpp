@@ -8,35 +8,41 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 extern "C" {
 int sceUserServiceGetForegroundUser(int *user);
 int sceUserServiceGetUserName(int user, char *name, std::size_t capacity);
 }
 const char *niak_ps5_user_label()
 {
-    static bool initialized=false;
     static char label[72]="Profil PS5 indisponible";
-    if (!initialized)
-    {
-        initialized=true;
+    static std::time_t checked_at=0;
+    const std::time_t now=std::time(nullptr);
+    // A profile can change while the title remains alive. Refresh once
+    // per wall-clock second, not at every rendered frame.
+    if(!checked_at || now!=checked_at) {
+        checked_at=now;
         int user=-1;
         char name[64]{};
-        if (sceUserServiceGetForegroundUser(&user)==0 && user>=0 &&
-            sceUserServiceGetUserName(user,name,sizeof(name))==0 &&
-            name[0] && std::strlen(name)<sizeof(name))
-        {
+        if(sceUserServiceGetForegroundUser(&user)==0 && user>=0 &&
+           sceUserServiceGetUserName(user,name,sizeof(name))==0 &&
+           name[0] && std::strlen(name)<sizeof(name))
             std::snprintf(label,sizeof(label),"%s",name);
-        }
+        else
+            std::snprintf(label,sizeof(label),"%s","Profil PS5 indisponible");
     }
     return label;
 }
 
 static std::uint32_t niak_user_avatar=0;
+static int niak_avatar_owner=-1;
 void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
 {
     niak_user_avatar=0;
+    niak_avatar_owner=-1;
     int current=-1;
     if(sceUserServiceGetForegroundUser(&current)!=0 || current<0)return;
+    niak_avatar_owner=current;
     char identity[16]{};
     std::snprintf(identity,sizeof(identity),"0x%08X",
                   static_cast<unsigned>(current));
@@ -75,4 +81,12 @@ void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
     if(niak_decode_avatar_dds(encoded.data(),encoded.size(),width,height,rgba))
         niak_user_avatar=renderer.create_texture(width,height,rgba.data());
 }
-std::uint32_t niak_profile_avatar() {return niak_user_avatar;}
+std::uint32_t niak_profile_avatar() {
+    if(!niak_user_avatar || niak_avatar_owner<0)return 0;
+    // Never display the previous user's texture after an account switch.
+    // A new profile can stage/reload its own image on the next app start.
+    int current=-1;
+    if(sceUserServiceGetForegroundUser(&current)!=0 ||
+       current!=niak_avatar_owner)return 0;
+    return niak_user_avatar;
+}
