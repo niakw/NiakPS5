@@ -158,6 +158,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
         self.assertIn("item.application",source)
+        self.assertIn("niak_launch_registered_title",source)
+        self.assertIn("serve_launch_requests",(ROOT/"title"/"autostart.c").read_text())
         self.assertIn('std::strcmp(game.title,"Mes vidéos")==0',source)
         self.assertIn('if (input.is_pressed(Action::page_next))',
                       (ROOT/"title"/"patch_home.py").read_text())

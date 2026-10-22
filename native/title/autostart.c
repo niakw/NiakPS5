@@ -11,6 +11,11 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/time.h>
 #include "redirect_gate.h"
 
 #define NIAK_TITLE "PPSA99386"
@@ -93,54 +98,102 @@ static void copy_current_avatar_png(int user) {
     report("Current user avatar inaccessible: no image staged",0);
 }
 
-/* A voluntary, low-frequency monitor for the transition game -> Sony Home.
- * We never read PS-button state and never forcibly focus over a running game.
+/* The user-authorized PLDmgr one-shot stays resident as a narrow, LOCAL-ONLY
+ * launch broker. Native titles cannot reliably start other games from their
+ * sandbox. No remote bind, no files / commands / arbitrary title IDs accepted.
+ * This is not an exploit, ShellUI hook or remote control service.
  */
-static void monitor_return_after_game(void) {
-    if (!is_regular_file(NIAK_RESUME)) return;
-    int home_app=-1;
-    for (int i=0;i<10;++i) {
-        if (is_regular_file(NIAK_DISABLED)) return;
-        sceKernelUsleep(2000000);
-        const int running=sceSystemServiceGetAppIdOfRunningBigApp();
-        if (running>0) {home_app=running;break;}
+static int permitted_title(const char *id) {
+    if(!id||strlen(id)!=9||
+       (strncmp(id,"PPSA",4)!=0 && strncmp(id,"CUSA",4)!=0)||
+       strcmp(id,NIAK_TITLE)==0)return 0;
+    for(int i=4;i<9;++i)if(id[i]<'0'||id[i]>'9')return 0;
+    const char *roots[]={"/user/app/","/system_ex/app/","/data/homebrew/",
+                         "/mnt/ext0/user/app/","/mnt/ext1/user/app/"};
+    char path[192];struct stat st;
+    for(size_t i=0;i<sizeof(roots)/sizeof(roots[0]);++i) {
+        int n=snprintf(path,sizeof(path),"%s%s",roots[i],id);
+        if(n>0&&n<(int)sizeof(path) && stat(path,&st)==0 && S_ISDIR(st.st_mode))
+            return 1;
     }
-    if (home_app<=0) {
-        report("Cannot identify NiakPS5 big-app id; return monitoring disabled",home_app);
-        return;
+    return 0;
+}
+static void serve_launch_requests(void) {
+    const int fd=socket(AF_INET,SOCK_STREAM,0);
+    if(fd<0){report("Local launch broker socket unavailable",fd);return;}
+    int yes=1;(void)setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));
+    struct sockaddr_in addr={0};
+    addr.sin_family=AF_INET;
+    addr.sin_port=htons(19187);
+    addr.sin_addr.s_addr=htonl(0x7f000001u);
+    if(bind(fd,(struct sockaddr*)&addr,sizeof(addr))!=0 || listen(fd,3)!=0) {
+        report("Local launch broker bind refused",-1);close(fd);return;
     }
-    report("Opt-in return monitor armed, NiakPS5 app id",home_app);
+    report("Local launch broker ready (127.0.0.1 only)",0);
     NiakRedirectGate gate;
-    niak_redirect_init(&gate,home_app);
+    int current_niak=-1, gate_ready=0;
     for(int ticks=0;ticks<21600;++ticks) {
-        if(is_regular_file(NIAK_DISABLED)||!is_regular_file(NIAK_RESUME))break;
-        sceKernelUsleep(2000000);
+        if(is_regular_file(NIAK_DISABLED)||!is_regular_file(NIAK_ENABLED))break;
+        fd_set pending;FD_ZERO(&pending);FD_SET(fd,&pending);
+        struct timeval tv={2,0};
+        const int available=select(fd+1,&pending,NULL,NULL,&tv);
+        if(available>0 && FD_ISSET(fd,&pending)) {
+            int client=accept(fd,NULL,NULL);
+            if(client>=0) {
+                struct timeval client_timeout={2,0};
+                (void)setsockopt(client,SOL_SOCKET,SO_RCVTIMEO,
+                                 &client_timeout,sizeof(client_timeout));
+                (void)setsockopt(client,SOL_SOCKET,SO_SNDTIMEO,
+                                 &client_timeout,sizeof(client_timeout));
+                char request[24]={0};
+                size_t count=0;
+                while(count<sizeof(request)-1) {
+                    ssize_t n=recv(client,request+count,sizeof(request)-1-count,0);
+                    if(n<=0)break;
+                    count+=(size_t)n;
+                    if(memchr(request,'\n',count))break;
+                }
+                int result=-3;
+                if(count==17 && memcmp(request,"LAUNCH ",7)==0 &&
+                   request[16]=='\n') {
+                    char title[10]={0};
+                    memcpy(title,request+7,9);
+                    if(permitted_title(title)) {
+                        int user=-1;
+                        if(sceUserServiceGetForegroundUser(&user)==0&&user>=0) {
+                            result=sceSystemServiceLaunchApp(title,NULL,NULL);
+                            report("Local title launch request",result);
+                        }
+                    }
+                }
+                char response[32];
+                int n=snprintf(response,sizeof(response),
+                               "RC %08X\n",(unsigned)result);
+                if(n>0&&n<(int)sizeof(response))
+                    (void)send(client,response,(size_t)n,0);
+                close(client);
+            }
+        }
+        if(!is_regular_file(NIAK_RESUME))continue;
         const int running=sceSystemServiceGetAppIdOfRunningBigApp();
+        if(!gate_ready) {
+            if(running>0) {
+                current_niak=running;
+                niak_redirect_init(&gate,current_niak);
+                gate_ready=1;
+            }
+            continue;
+        }
         if(!niak_redirect_tick(&gate,running))continue;
-        // A running game (including one behind the PS Control Center) cannot
-        // produce this event.  Exactly one attempt, no relaunch loop.
         int user=-1;
         if(sceUserServiceGetForegroundUser(&user)==0 && user>=0) {
             const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
-            report("NiakTV-style game-exit redirect (one attempt)",rc);
-            if(rc==0) {
-                home_app=-1;
-                for(int i=0;i<8;++i) {
-                    sceKernelUsleep(1500000);
-                    const int app=sceSystemServiceGetAppIdOfRunningBigApp();
-                    if(app>0){home_app=app;break;}
-                }
-                if(home_app>0) {
-                    niak_redirect_init(&gate,home_app);
-                    continue;
-                }
-            }
+            report("Optional game-exit return",rc);
+            gate_ready=0;current_niak=-1;
         }
-        // No retries if the user intentionally remains in Sony settings,
-        // or if the launch failed: always leave an escape hatch.
-        break;
     }
-    report("Return monitor exit",0);
+    close(fd);
+    report("Local launch broker shutdown",0);
 }
 int main(void) {
     if(!is_regular_file(NIAK_ENABLED)||is_regular_file(NIAK_DISABLED))return 0;
@@ -161,7 +214,7 @@ int main(void) {
             const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
             report("sceSystemServiceLaunchApp",rc);
             if(rc==0) {
-                monitor_return_after_game();
+                serve_launch_requests();
                 return 0;
             }
         } else {

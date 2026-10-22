@@ -27,8 +27,8 @@ def prepare(kit: Path, project: Path, revision: str):
     registry.write_text(reg)
 
     aurora = kit / "src/concepts/aurora.cpp"
-    replace_once(aurora, '#include "ui/motion.hpp"', '#include "ui/motion.hpp"\n#include "platform/ps5/system.hpp"\n#include "niak/version.hpp"')
-    replace_once(aurora, 'namespace hui::concepts\n{', 'extern "C" int sceSystemServiceLaunchApp(const char *, const char **, void *);\n\nnamespace hui::concepts\n{')
+    replace_once(aurora, '#include "ui/motion.hpp"', '#include "ui/motion.hpp"\n#include "platform/ps5/system.hpp"\n#include "niak/version.hpp"\n#include "niak/launch_bridge.hpp"')
+    replace_once(aurora, 'namespace hui::concepts\n{', 'namespace hui::concepts\n{')
     old = '''        shelves_.resize(3);
         shelves_[0].title = "Continue playing";
         shelves_[1].title = "Your library";
@@ -98,7 +98,7 @@ def prepare(kit: Path, project: Path, revision: str):
                 }
                 else
                 {
-                    const int rc = sceSystemServiceLaunchApp(selected.title_id, nullptr, nullptr);
+                    const int rc = niak_launch_registered_title(selected.title_id);
                     sys::log("[NiakPS5] launch %.9s => 0x%08x", selected.title_id,
                              static_cast<unsigned>(rc));
                     if(rc == 0) {
@@ -107,7 +107,10 @@ def prepare(kit: Path, project: Path, revision: str):
                         sheet_open_ = false;
                     } else {
                         std::snprintf(launch_error_,sizeof(launch_error_),
-                            "Lancement refusé (code 0x%08X)",static_cast<unsigned>(rc));
+                            rc==-2 ? "Service de lancement PLDmgr indisponible (0x%08X)" :
+                            rc==-3 ? "Titre non autorisé ou non installé (0x%08X)" :
+                                     "Lancement refusé (code 0x%08X)",
+                            static_cast<unsigned>(rc));
                         feedback.play(audio::Cue::error);
                     }
                 }
@@ -211,7 +214,8 @@ def prepare(kit: Path, project: Path, revision: str):
     shutil.copy2(project / "native" / "title" / "vendor" / "picojson.h", src_niak / "picojson.h")
     for filename in ("game_icons.cpp", "game_icons.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
-    for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp"):
+    for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp",
+                     "launch_bridge.cpp","launch_bridge.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
