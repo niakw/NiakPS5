@@ -35,10 +35,15 @@ static std::uint32_t niak_user_avatar=0;
 void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
 {
     niak_user_avatar=niak_load_local_png(renderer, "/app0/assets/niak-profile.png");
+    if(!niak_user_avatar)
+        niak_user_avatar=niak_load_local_png(renderer,
+            "/data/homebrew/PPSA99386/assets/niak-profile.png");
     if(niak_user_avatar) return;
     // Fallback: the PS5 avatar cache commonly stores 128x128 DDS (DXT5).
     // Read only our own staged copy inside /app0, never a system path.
     std::FILE *file=std::fopen("/app0/assets/niak-profile.dds","rb");
+    if(!file)
+        file=std::fopen("/data/homebrew/PPSA99386/assets/niak-profile.dds","rb");
     if(!file)return;
     if(std::fseek(file,0,SEEK_END)!=0){std::fclose(file);return;}
     const long size=std::ftell(file);

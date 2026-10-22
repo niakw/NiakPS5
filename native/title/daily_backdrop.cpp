@@ -22,6 +22,8 @@ namespace {
 constexpr std::size_t MAX_BYTES=7u*1024u*1024u;
 std::array<std::uint32_t,14> images{};
 int count=0;
+int override_offset=0;
+int override_day=-1;
 struct Runtime {
     std::mutex mutex;
     int started_day=-1, ready_day=-1, live_day=-1;
@@ -181,6 +183,10 @@ void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *director
 std::uint32_t niak_daily_backdrop() {
     Runtime &s=state();char today[11]={};const int day=day_now(today);
     if(day<0)return count?images[0]:0;
+    if(override_day!=day) {
+        override_offset=0;
+        override_day=day;
+    }
 #if defined(__PROSPERO__)
     if(s.started_day!=day) {
         s.started_day=day;
@@ -211,6 +217,14 @@ std::uint32_t niak_daily_backdrop() {
             }
         }
     }
-    if(s.texture&&s.live_day==day)return s.texture;
-    return count?images[std::size_t((day%count+count)%count)]:0;
+    if(override_offset==0 && s.texture&&s.live_day==day)return s.texture;
+    return count?images[std::size_t(((day+override_offset)%count+count)%count)]:0;
+}
+
+void niak_next_daily_backdrop() {
+    char date[11]{};
+    const int day=day_now(date);
+    if(count<2 || day<0)return;
+    if(override_day!=day){override_day=day;override_offset=0;}
+    override_offset=(override_offset+1)%count;
 }

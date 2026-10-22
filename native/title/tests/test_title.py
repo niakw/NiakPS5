@@ -100,6 +100,8 @@ class NativeTitleTests(unittest.TestCase):
             self.assertIn(name,source)
         stage=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("niak_load_case_art",stage)
+        self.assertIn("niak_next_daily_backdrop",(ROOT/"title"/"daily_backdrop.cpp").read_text())
+        self.assertIn("/data/homebrew/%s/sce_sys/icon0.png",(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("case_renderer.cpp",stage)
         self.assertIn('item.case_spine = niak_load_case_art(renderer,item.title_id,"spine")',stage)
         self.assertIn("printed(",source)

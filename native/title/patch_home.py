@@ -15,7 +15,15 @@ def patch(kit):
     file = kit / "src/concepts/aurora.cpp"
     text = file.read_text()
     text = once(text, "        if (sheet_open_)\n            update_sheet(input, feedback);\n        else\n            update_shelves(input, feedback);",
-    """        if (sheet_open_)
+    """        // R1 deliberately cycles available packaged wallpapers.
+        // Calendar-day selection remains automatic until R1 is pressed.
+        if (!sheet_open_ && active_tab_ == 0 &&
+            input.is_pressed(Action::page_next))
+        {
+            niak_next_daily_backdrop();
+            feedback.play(audio::Cue::tab);
+        }
+        if (sheet_open_)
             update_sheet(input, feedback);
         else if (top_focus_)
             update_tabs(input, feedback);
@@ -179,6 +187,24 @@ def patch(kit):
                      i==8 ? palette_[3].value() : kWhite.with_alpha(0.75f),
                      gfx::Align::right);
         }
+        // Detect the local marker only; the title sandbox cannot certify that
+        // Payload Manager actually executed its one-shot payload.
+        const bool enabled=[] {
+            std::FILE *file=std::fopen("/data/niakps5-autostart.enabled","rb");
+            if(!file)return false;
+            std::fclose(file);return true;
+        }();
+        const bool disabled=[] {
+            std::FILE *file=std::fopen("/data/niakps5-autostart.disable","rb");
+            if(!file)return false;
+            std::fclose(file);return true;
+        }();
+        ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
+        ui::text(list, fonts.regular,
+                 disabled ? "Désactivé" :
+                 enabled ? "Configuration détectée (PLDmgr à vérifier)" :
+                           "Non détecté / accès limité",
+                 500, 882, 20, kWhite.with_alpha(0.78f));
         ui::paragraph(list, fonts.regular,
                       "Les reglages de la console restent geres par Sony. "
                       "Le dernier choix quitte NiakPS5 pour y acceder. "

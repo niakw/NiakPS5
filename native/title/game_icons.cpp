@@ -83,6 +83,18 @@ unsigned size32(const unsigned char *bytes)
            (static_cast<unsigned>(bytes[2])<<8) |
            static_cast<unsigned>(bytes[3]);
 }
+bool read_local_png(const char *path,std::vector<unsigned char> &png) {
+    std::FILE *fp=std::fopen(path,"rb");
+    if(!fp)return false;
+    if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return false;}
+    const long length=std::ftell(fp);
+    if(length<33||length>long(kMaximumPng)||std::fseek(fp,0,SEEK_SET)!=0) {
+        std::fclose(fp);return false;
+    }
+    png.resize(static_cast<std::size_t>(length));
+    const bool ok=std::fread(png.data(),1,png.size(),fp)==png.size();
+    std::fclose(fp);return ok;
+}
 std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
                              const std::vector<unsigned char> &png)
 {
@@ -118,6 +130,19 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
 {
     if (!niak_valid_title_id(id)) return 0;
     std::vector<unsigned char> png;
+    // Try the actual installed icon first. This also works for homebrews
+    // when ShadowMountPlus does not expose their icon endpoint.
+    for(const char *format : {
+        "/data/homebrew/%s/sce_sys/icon0.png",
+        "/user/app/%s/sce_sys/icon0.png",
+        "/system_ex/app/%s/sce_sys/icon0.png"}) {
+        char path[160]{};
+        std::snprintf(path,sizeof(path),format,id);
+        png.clear();
+        if(read_local_png(path,png))
+            if(const auto handle=decode_upload(renderer,png)) return handle;
+    }
+    png.clear();
     const std::string url=std::string("/api/v1/games/icon?title_id=")+id;
     if (download(url,png))
     {
@@ -131,7 +156,8 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
 
 std::uint32_t niak_load_local_png(hui::gfx::Renderer &renderer, const char *path)
 {
-    if(!path || std::strcmp(path,"/app0/assets/niak-profile.png") != 0)
+    if(!path || (std::strcmp(path,"/app0/assets/niak-profile.png") != 0 &&
+        std::strcmp(path,"/data/homebrew/PPSA99386/assets/niak-profile.png") != 0))
         return 0;
     std::FILE *f=std::fopen(path,"rb");
     if(!f)return 0;
