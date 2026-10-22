@@ -4,6 +4,7 @@
 // A sandboxed title must not claim sceSystemServiceLaunchApp works here.
 #include "niak/launch_bridge.hpp"
 #include "niak/socket_guard.h"
+#include "niak/loopback_connect.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <cerrno>
@@ -38,7 +39,8 @@ int niak_launch_registered_title(const char *title_id) {
     peer.sin_family=AF_INET;
     peer.sin_port=htons(kPort);
     peer.sin_addr.s_addr=htonl(0x7f000001u);
-    if(::connect(fd,reinterpret_cast<sockaddr*>(&peer),sizeof(peer))<0) {
+    // The user pressing Jouer must not wait for a missing broker to time out.
+    if(niak_connect_bounded(fd,reinterpret_cast<sockaddr*>(&peer),sizeof(peer),100)<0) {
         ::close(fd);return -2;
     }
     char request[24]{};

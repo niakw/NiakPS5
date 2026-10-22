@@ -28,6 +28,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('niak_socket_guard(client)',source)
         self.assertIn('niak_socket_send(client,"PONG\\n",5)',source)
         self.assertIn('niak_socket_send(fd,"PING\\n",5)',(ROOT/"title"/"launch_bridge.cpp").read_text())
+        self.assertIn("niak_connect_bounded(fd,", (ROOT/"title"/"launch_bridge.cpp").read_text())
         self.assertNotIn("current_niak=running",source)
         self.assertNotIn("ptrace(", source)
         self.assertNotIn("mount(", source)

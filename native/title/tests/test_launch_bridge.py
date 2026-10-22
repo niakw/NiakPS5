@@ -64,6 +64,11 @@ int main() {
     assert(milliseconds<220);
     worker.join();
     ::close(server);
+    const auto offline=std::chrono::steady_clock::now();
+    assert(niak_launch_registered_title("PPSA12345")==-2);
+    const auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now()-offline).count();
+    assert(elapsed<300);
     return 0;
 }
 '''
@@ -78,6 +83,7 @@ class LaunchBridgeTests(unittest.TestCase):
             (work/"niak").mkdir()
             shutil.copyfile(ROOT/"launch_bridge.hpp",work/"niak"/"launch_bridge.hpp")
             shutil.copyfile(ROOT/"socket_guard.h",work/"niak"/"socket_guard.h")
+            shutil.copyfile(ROOT/"loopback_connect.h",work/"niak"/"loopback_connect.h")
             (work/"server.cpp").write_text(SERVER,encoding="utf8")
             binary=work/"launch-bridge-test"
             subprocess.run([
