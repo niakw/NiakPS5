@@ -160,17 +160,21 @@ void outer_face(DrawList &list,const Camera &camera,
                 };
                 printed(list,item.cover,art,26,12,!item.cover_is_image);
             }
-            block(0,0.48f,1,0.68f,Color::rgb(0xf2f6fa));
+            // Exact proportions of the user-provided strips:
+            // PS4: 647x362 (~1.79), PS5: 1000x411 (~2.43).
+            // Do not squeeze both into the same lower 32% of the case.
+            const float footer_start=ps4?0.57f:0.69f;
+            block(0,0.47f,1,footer_start,Color::rgb(0xf2f6fa));
             if(item.case_template_back) {
                 // The supplied physical box footer is fixed; keep it as a
                 // single raster sheet rather than inventing tiny label icons.
                 // It comes from the PRIVATE install, never from public code.
                 auto footer=[&](float u,float v){
-                    return paper(u,0.68f+0.32f*v);
+                    return paper(u,footer_start+(1.0f-footer_start)*v);
                 };
                 printed(list,item.case_template_back,footer,28,8);
             } else {
-                block(0,0.68f,1,1,Color::rgb(0xd4e1ed));
+                block(0,footer_start,1,1,Color::rgb(0xd4e1ed));
                 block(0.035f,0.705f,0.965f,0.84f,Color::rgb(0x254a77));
                 block(0.035f,0.858f,0.965f,0.874f,Color::rgb(0xffffff));
                 block(0.035f,0.898f,0.965f,0.907f,Color::rgb(0x5a7493));
@@ -211,7 +215,8 @@ void outer_face(DrawList &list,const Camera &camera,
                         item.blurb:item.title;
                     hui::ui::paragraph(list,fonts.regular,description,
                         area.first,pos.y,std::clamp(area.second*0.045f,9.f,13.f),
-                        area.second,15.f,Color::rgb(0x16263c),4);
+                        area.second,15.f,Color::rgb(0x16263c),
+                        item.case_template_back && ps4 ? 2 : 4);
                     if(!item.case_template_back) {
                         const auto lower=text_bounds(0.08f,0.92f,0.735f);
                         const auto lower_y=paper(0.08f,0.735f).y;
