@@ -47,7 +47,7 @@ void polygon4(DrawList &list,Pt a,Pt b,Pt c,Pt d,Color color) {
 }
 template<class Project>
 void printed(DrawList &list,std::uint32_t texture,Project project,
-             int columns,int rows) {
+             int columns,int rows,bool flip_v=false) {
     if(!texture)return;
     // DrawList only supports rectangular texture instances. Tessellate BOTH
     // directions to approximate a projected plane, never stretch a full image
@@ -66,7 +66,8 @@ void printed(DrawList &list,std::uint32_t texture,Project project,
         // UVs are 0..1 from real portrait covers and real narrow spine scans.
         // Very small overlap covers subpixel seams without widening the sleeve.
         list.image(texture,{x0-0.12f,y0-0.10f,x1-x0+0.24f,y1-y0+0.20f},
-                   {reverse?u1:u0,v0,reverse?u0-u1:u1-u0,v1-v0},
+                   {reverse?u1:u0,flip_v?1.0f-v0:v0,
+                    reverse?u0-u1:u1-u0,flip_v?v0-v1:v1-v0},
                    Color::rgb(0xffffff));
     }
 }
@@ -112,11 +113,11 @@ void outer_face(DrawList &list,const Camera &camera,
         // No retail scan? Keep a physical box, never stretch a square homebrew
         // icon into a portrait jacket. Print the actual installed app icon in
         // a centered square on the generic paper insert.
-        if(!back && item.cover && item.cover_is_image) {
+        if(!back && item.cover) {
             auto icon=[&](float u,float v){
                 return paper(0.13f+u*0.74f,0.23f+v*0.55f);
             };
-            printed(list,item.cover,icon,14,10);
+            printed(list,item.cover,icon,14,10,!item.cover_is_image);
         }
         const float start=std::min(a.x,b0.x),span=std::fabs(a.x-b0.x);
         if(span>74.f) {
