@@ -44,6 +44,42 @@ int main(void){
   assert(strstr(games[0].icon,"icon0.png")!=NULL);
   assert(niak_scan_games("/file/that/does/not/exist",root,games,5)==-1);
 
+  /* A verified media-category NPXS app belongs in Applications, not Games.
+   * app.db's refreshed AppInfoJson overrides stale install timestamps. */
+  snprintf(path,sizeof(path),"%s/user/app/NPXS50001",root);make_dir(path);
+  snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys",root);make_dir(path);
+  snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys/param.json",root);
+  FILE *media=fopen(path,"wb");assert(media);
+  fputs("{\\\"applicationCategoryType\\\":65536,\\\"titleName\\\":\\\"Media App\\\"}",media);
+  fclose(media);
+  assert(sqlite3_open(database,&db)==SQLITE_OK);
+  assert(sqlite3_exec(db,
+      "CREATE TABLE tbl_contentinfo("
+      "titleId TEXT,titleName TEXT,lastAccessTime TEXT,"
+      "installTime TEXT,AppInfoJson TEXT);"
+      "INSERT INTO tbl_contentinfo VALUES("
+      "'PPSA12345','Titre installé','2023-01-01','2022-01-01',"
+      "'{\\\"#_last_access_time\\\":\\\"2026-10-20\\\"}');"
+      "INSERT INTO tbl_contentinfo VALUES("
+      "'NPXS50001','Media App','2026-10-21','2026-10-01','{}');",
+      NULL,NULL,NULL)==SQLITE_OK);
+  sqlite3_close(db);
+  NiakGame mixed[5]={0};
+  assert(niak_scan_games(database,root,mixed,5)==2);
+  int seen_game=0,seen_media=0;
+  for(int n=0;n<2;++n) {
+    if(strcmp(mixed[n].id,"NPXS50001")==0) {
+      assert(mixed[n].application_category==2);
+      assert(strcmp(mixed[n].last_access,"2026-10-21")==0);
+      seen_media=1;
+    }
+    if(strcmp(mixed[n].id,"PPSA12345")==0) {
+      assert(strcmp(mixed[n].last_access,"2026-10-20")==0);
+      seen_game=1;
+    }
+  }
+  assert(seen_game&&seen_media);
+
   /* Homebrew fixture mirrors the observed PS5 title folder format.
    * Only the title ID is trusted without reading metadata contents. */
   snprintf(path,sizeof(path),"%s/data",root);make_dir(path);
@@ -88,6 +124,9 @@ int main(void){
   snprintf(path,sizeof(path),"%s/user/appmeta/PPSA12345/icon0.png",root);unlink(path);
   snprintf(path,sizeof(path),"%s/user/appmeta/PPSA12345",root);rmdir(path);
   snprintf(path,sizeof(path),"%s/user/appmeta",root);rmdir(path);
+  snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys/param.json",root);unlink(path);
+  snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys",root);rmdir(path);
+  snprintf(path,sizeof(path),"%s/user/app/NPXS50001",root);rmdir(path);
   snprintf(path,sizeof(path),"%s/user/app/PPSA12345",root);rmdir(path);
   snprintf(path,sizeof(path),"%s/user/app",root);rmdir(path);
   snprintf(path,sizeof(path),"%s/user",root);rmdir(path);
