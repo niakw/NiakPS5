@@ -153,7 +153,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('niak_scan_games("/system_data/priv/mms/app.db"', source)
         self.assertIn("Bibliothèque indisponible", source)
         self.assertIn("shelves_.resize(2)", source)
-        self.assertIn("sceSystemServiceLaunchApp", source)
+        self.assertIn("niak_launch_registered_title", source)
         self.assertIn("niak-manrope.huifont", source)
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
