@@ -79,11 +79,38 @@ def prepare(kit: Path, project: Path):
                     const int rc = sceSystemServiceLaunchApp(selected.title_id, nullptr, nullptr);
                     sys::log("[NiakPS5] launch %.9s => 0x%08x", selected.title_id,
                              static_cast<unsigned>(rc));
-                    feedback.play(rc == 0 ? audio::Cue::launch : audio::Cue::error);
+                    if(rc == 0) {
+                        launch_error_[0] = '\\0';
+                        feedback.play(audio::Cue::launch);
+                        sheet_open_ = false;
+                    } else {
+                        std::snprintf(launch_error_,sizeof(launch_error_),
+                            "Lancement refusé (code 0x%08X)",static_cast<unsigned>(rc));
+                        feedback.play(audio::Cue::error);
+                    }
                 }
-                sheet_open_ = false;
             }'''
     replace_once(aurora, old_launch, new_launch)
+    # Failed launch must remain visible in the detail panel rather than
+    # closing as if it had succeeded; the PS5 return code is diagnostic.
+    replace_once(aurora, '    int action_ = 0;', 
+                 "    char launch_error_[96] = {};\\n    int action_ = 0;")
+    # Favorites affect actual positions, not merely the star decoration.
+    replace_once(aurora, '        favorite_[index] = !favorite_[index];',
+                 """        favorite_[index] = !favorite_[index];
+        for (Shelf &shelf : shelves_)
+        {
+            if (shelf.items.empty()) continue;
+            const int selected=shelf.items[static_cast<std::size_t>(
+                std::clamp(shelf.column,0,int(shelf.items.size())-1))];
+            std::stable_partition(shelf.items.begin(),shelf.items.end(),
+                [this](int id) {return favorite_[static_cast<std::size_t>(id)];});
+            for (std::size_t pos=0;pos<shelf.items.size();++pos)
+                if (shelf.items[pos]==selected) {
+                    shelf.column=static_cast<int>(pos);
+                    break;
+                }
+        }""")
     # The single-design title does not display the UI Lab tour banner.
     shell = kit / "src/app/shell.cpp"
     replace_once(shell, '    banner_ = kBannerSeconds;\n}\n', '    banner_ = 0.0f;\n}\n')
@@ -204,6 +231,13 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
         // An installed title needs no redundant detection banner.
 
 """ + visual[end:]
+    # The sheet stays open with a diagnostic instead of silently doing nothing.
+    visual = visual.replace(
+        '        // Actions: one highlight that springs between the rows.',
+        '''        if (launch_error_[0])
+            ui::text(list, fonts.semibold, launch_error_, sheet.x + 60,
+                     sheet.y + sheet.h - 31, 20, Color::rgb(0xffb8a8));
+        // Actions: one highlight that springs between the rows.''')
     # The upstream detail sheet has three invented rating/playtime/player tiles.
     # NiakPS5 has none of these facts; show a verified title ID instead.
     sheet_start = visual.find('        // Three stat tiles; the first is a gauge drawn with arcs.')
@@ -224,12 +258,12 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
     visual = visual.replace('const char *actions[kActions] = {it.progress > 0.0f ? "Resume" : "Play",',
                             'const char *actions[kActions] = {it.title_id[0] ? "Jouer" : "Indisponible",')
     visual = visual.replace('"Remove from favorites" : "Add to favorites"', 
-                            '"Retirer favori (session)" : "Ajouter favori (session)"')
+                            '"Retirer des favoris" : "Ajouter aux favoris"')
     visual = visual.replace('                                         "Close"};', '                                         "Fermer"};')
     visual = visual.replace('"Choose"}, {ui::Button::circle, "Back"', 
                             '"Choisir"}, {ui::Button::circle, "Retour"')
     visual = visual.replace('"Details"},\n                                      {ui::Button::triangle, "Favorite"', 
-                            '"Details"},\n                                      {ui::Button::triangle, "Favori (session)"')
+                            '"Details"},\n                                      {ui::Button::triangle, "Favori"')
     visual = visual.replace('ui::text(list, fonts.semibold, "B", 1800, 91, 22,',
                             'ui::text(list, fonts.semibold, "N", 1800, 91, 22,')
     # Draw long titles inside the LEFT text column, never over the right-hand jacket.
