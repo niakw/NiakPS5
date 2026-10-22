@@ -15,10 +15,14 @@ Accueil graphique **expérimental** pour PS5 jailbreakée (titre `PPSA99386`), d
 | Réglages NiakPS5 | Fonctionnels, configurent seulement l'application |
 | Réglages système Sony | **Non intégrés** : accessibles via le Control Center/accueil d'origine |
 | Médias personnels/captures | **Non activés**, confidentialité par défaut |
-| Bouton PS et retour après jeu | Gestion par `SceShellUI` ; pas de remplacement vérifié |
+| Bouton PS | Toujours géré par `SceShellUI` ; aucune interception ni remplacement du shell |
+| Service « Jouer » | Courtier local PLDmgr sur `127.0.0.1:19187`, protocole et autorisations testés sur hôte ; **lancement sur console non validé** |
+| Démarrage automatique | Installation du payload compagnon et de PLDmgr via le script FTP ; **validation matérielle 13.60 en attente** |
+| Retour optionnel après jeu | Déclenché seulement après une demande « Jouer » acceptée ; attente monotone de 10 s, même si NiakPS5 a été ouvert manuellement ; **validation console en attente** |
+| Boîtiers PS4/PS5 3D | Recto/tranche/verso et reconstitution lorsque les scans privés sont absents ; rendu contrôlé par captures OpenGL, **validation console en attente** |
 | Fonds jeux récents | Sélection quotidienne dans un lot Steam préparé à la compilation ; pas de téléchargement live PS5 |
 
-Les tests CI prouvent la compilation et les contrats logiciels, **pas** la compatibilité matérielle de chaque fonctionnalité.
+Les validations GitHub prouvent les tests hôte, la compilation native et les captures OpenGL sur Mesa, **pas** le lancement des jeux ni la compatibilité matérielle sur une console PS5 13.60. Une demande de lancement acceptée n'est pas une preuve que le jeu a réellement démarré.
 
 ## Un seul ZIP FTP
 
@@ -37,13 +41,13 @@ PPSA99386.zip
 
 Aucune archive imbriquée. Le dossier `PPSA99386` s'installe sous `/data/homebrew/PPSA99386`.
 
-Le payload `tools/niakps5.elf` est **distinct** de l'application graphique : il peut demander l'ouverture du titre **une fois après le jailbreak**. Il n'est pas exécuté automatiquement du seul fait d'avoir extrait le ZIP. Après avoir vérifié le fonctionnement manuel du titre, l'installation FTP peut être réalisée sur PC avec :
+Le payload `tools/niakps5.elf` est **distinct** de l'application graphique : il peut demander l'ouverture du titre **une fois après le jailbreak**. Il n'est pas exécuté automatiquement du seul fait d'avoir extrait le ZIP. L'installation FTP complète se fait depuis un ordinateur connecté au réseau local de la PS5 avec :
 
 ```bash
 python3 PPSA99386/tools/ftp_install.py --host IP_PS5 --port 2121 --autoload
 ```
 
-Le script copie également `tools/niakps5.elf` dans `/data/pldmgr/payloads/niakps5/niakps5.elf` et préserve/sauvegarde `/data/pldmgr/autoload.txt`. Sans `--autoload`, seule l'application est copiée. Voir [documentation détaillée](native/title/README.md).
+Le script copie également `tools/niakps5.elf` dans `/data/pldmgr/payloads/niakps5/niakps5.elf` et préserve/sauvegarde `/data/pldmgr/autoload.txt`. Par défaut, l'installateur configure aussi l'autoload. Avec `--no-autoload`, seule l'application est copiée. Voir [documentation détaillée](native/title/README.md).
 
 L'autoload **ne remplace pas** `SceShellUI`. Le bouton PS et les fonctions système Sony continuent d'être contrôlés par la console. Un redémarrage ou une désactivation de l'autoload restaure le comportement d'origine.
 
