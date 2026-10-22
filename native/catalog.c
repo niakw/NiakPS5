@@ -32,8 +32,11 @@ static int category_of(const char *text) {
  if(!text)return 0;
  const char *p=strstr(text,"applicationCategoryType");
  if(!p || !(p=strchr(p,':')))return 0;
- char *end=NULL;long v=strtol(p+1,&end,10);
- if(end==p+1)return 0;
+ const char *value=p+1;
+ while(*value==' ' || *value=='\t' || *value=='\r')++value;
+ if(*value=='"')++value;
+ char *end=NULL;long v=strtol(value,&end,10);
+ if(end==value)return 0;
  if(v==0)return 1;
  return v==65536||v==65792||v==66048 ? 2 : 0;
 }

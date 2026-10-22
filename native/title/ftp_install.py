@@ -128,7 +128,7 @@ def upload_local_homebrew_names(ftp):
       except (error_perm,AttributeError,OSError):continue
       for dirname in entries[:300]:
         ident=posixpath.basename(dirname.rstrip("/"))
-        if not re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident):continue
+        if not re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE)[0-9]{5}",ident):continue
         try: body=_bounded_retrieve(ftp,f"{root}/{ident}/sce_sys/param.json")
         except (OSError,ValueError):continue
         if not body or len(body)>65536:continue
@@ -150,6 +150,8 @@ def upload_local_homebrew_names(ftp):
             title=" ".join(title.split())[:120]
             category=meta.get("applicationCategoryType")
             genre=""
+            if isinstance(category,str) and category.isdecimal():
+                category=int(category)
             if type(category) is int:
                 if category==0:genre="Jeu"
                 elif category in (65536,65792,66048):genre="Application"
@@ -173,7 +175,7 @@ def _installed_title_ids(ftp, limit=150):
         except (error_perm,AttributeError,OSError):continue
         for entry in entries[:300]:
             ident=posixpath.basename(str(entry).rstrip("/"))
-            if re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident):found.add(ident)
+            if re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE)[0-9]{5}",ident):found.add(ident)
         if len(found)>=limit:break
     return sorted(found)[:limit]
 
@@ -296,7 +298,7 @@ def _name_index(ftp,folder):
             parts=line.split("\t")
             if len(parts)<2:continue
             ident,name=parts[:2]
-            if re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident) and 2<len(name)<=120:
+            if re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE)[0-9]{5}",ident) and 2<len(name)<=120:
                 result.setdefault(ident,name)
     return result
 
