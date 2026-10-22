@@ -141,7 +141,11 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
         "/data/homebrew/%s/sce_sys/icon0.png",
         "/user/app/%s/sce_sys/icon0.png",
         "/user/appmeta/%s/icon0.png",
-        "/system_ex/app/%s/sce_sys/icon0.png"}) {
+        "/system_ex/app/%s/sce_sys/icon0.png",
+        "/mnt/ext0/user/app/%s/sce_sys/icon0.png",
+        "/mnt/ext1/user/app/%s/sce_sys/icon0.png",
+        "/mnt/ext0/user/appmeta/%s/icon0.png",
+        "/mnt/ext1/user/appmeta/%s/icon0.png"}) {
         char path[160]{};
         std::snprintf(path,sizeof(path),format,id);
         png.clear();
