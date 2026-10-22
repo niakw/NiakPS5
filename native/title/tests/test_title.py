@@ -109,6 +109,16 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("left_spine(",source)
         self.assertIn("if(item.case_spine)",source)
         self.assertIn("printed(list,item.cover,icon",source)
+        # Fallback design is runtime geometry; no generated image or new
+        # commercial artwork is embedded in the application package.
+        self.assertIn("APERÇU RECONSTITUÉ — NON OFFICIEL",source)
+        self.assertIn("const bool ps4=item.title_id[0]=='C'",source)
+        self.assertIn("0.885f*v",source)
+        self.assertIn("0.68f",source)
+        self.assertIn("fonts.regular,description",source)
+        self.assertIn("if(std::fabs(camera.cs)>0.90f)",source)
+        self.assertNotIn("case_wrap",source)
+
         self.assertIn("item.cover_is_image",source)
         self.assertIn("box-front.png",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("PS4\":\"PS5",source)
