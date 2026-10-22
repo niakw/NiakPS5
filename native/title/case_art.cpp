@@ -3,6 +3,7 @@
 #include "niak/case_art.hpp"
 #include "niak/lodepng.h"
 #include "niak/case_texture_scale.hpp"
+#include "niak/asset_stats.hpp"
 extern "C" {
 #include "niak/catalog.h"
 }
@@ -70,7 +71,9 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  const unsigned max_w=logo?768u:spine?96u:512u;
  const unsigned max_h=logo?768u:768u;
  if(!niak_scale_case_rgba(pixels,w,h,max_w,max_h))return 0;
- return renderer.create_texture(int(w),int(h),pixels.data());
+ const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
+ if(handle)niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
+ return handle;
 }
 
 namespace {
@@ -144,5 +147,7 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  if(!niak_scale_case_rgba(pixels,w,h,side==2?96u:1024u,
                           side==2?768u:512u))return 0;
  template_textures[index]=renderer.create_texture(int(w),int(h),pixels.data());
+ if(template_textures[index])
+     niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
  return template_textures[index];
 }

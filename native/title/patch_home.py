@@ -173,9 +173,13 @@ def patch(kit):
         std::snprintf(media_label,sizeof(media_label),
                       "Gabarits complets : %u",media.templates);
         ui::text(list,fonts.regular,media_label,1430,445,18,kWhite);
+        std::snprintf(media_label,sizeof(media_label),
+                      "Mémoire scans 3D : %.1f Mio (RGBA8)",
+                      double(media.case_texture_bytes)/1048576.0);
+        ui::text(list,fonts.regular,media_label,1430,477,18,kWhite);
         ui::paragraph(list,fonts.regular,
                       "0 signifie non chargé ou accès refusé, pas forcément absent du FTP.",
-                      1430,480,17,410,23,kWhite.with_alpha(0.65f),3);
+                      1430,520,17,410,23,kWhite.with_alpha(0.65f),3);
         const char *labels[] = {"Resolution d'affichage (redemarrage)",
                                 "Volume de l'interface", "Musique de fond",
                                 "Animations reduites", "Afficher FPS",
