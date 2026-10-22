@@ -496,6 +496,9 @@ Catalog::Catalog()
             else if(game.application_category==2)item.application=true;
             else if (known && meta.category=="Jeu")item.application=false;
             else if (known && meta.category=="Application")item.application=true;
+            else if (std::strcmp(game.title,"Mes vidéos")==0 ||
+                     std::strcmp(game.title,"My Videos")==0)
+                item.application=true;
             else item.application=game.is_homebrew!=0;
             const char *last=game.last_access;
             const char *installed=game.installed_at;

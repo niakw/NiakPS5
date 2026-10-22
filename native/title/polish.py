@@ -80,7 +80,17 @@ def patch(kit):
     s=s.replace('"Bibliotheque PS5"','"Bibliothèque PS5"')
     s=s.replace('"Aucune photo ou video personnelle"','"Aucune photo ou vidéo personnelle"')
     s=s.replace('"Rond : revenir aux onglets"','"Rond : revenir aux onglets"')
-    s=s.replace('"Choisir"','"Choisir"')
+    # Upstream UI fallback hints must never leak through if staging changes.
+    s=s.replace('ui::Button::cross, "Choose"', 'ui::Button::cross, "Choisir"')
+    s=s.replace('ui::Button::circle, "Back"', 'ui::Button::circle, "Retour"')
+    s=s.replace('"Remove from favorites"', '"Retirer des favoris"')
+    s=s.replace('"Add to favorites"', '"Ajouter aux favoris"')
+    s=s.replace('"Resume"', '"Reprendre"')
+    s=s.replace('"Play"', '"Jouer"')
+    s=s.replace('"Close"', '"Fermer"')
+    if ('ui::Button::cross, "Choose"' in s or
+            'ui::Button::circle, "Back"' in s):
+        raise RuntimeError("English DualSense hint remains in generated UI")
     s=s.replace('"Details"','"Détails"')
     s=s.replace('"Profil non lie"','"Profil non lié"')
     p.write_text(s,"utf-8")

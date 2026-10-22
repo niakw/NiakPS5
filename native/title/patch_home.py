@@ -17,8 +17,9 @@ def patch(kit):
     text = once(text, "        if (sheet_open_)\n            update_sheet(input, feedback);\n        else\n            update_shelves(input, feedback);",
     """        // R1 deliberately cycles available packaged wallpapers.
         // Calendar-day selection remains automatic until R1 is pressed.
-        if (!sheet_open_ && active_tab_ == 0 &&
-            input.is_pressed(Action::page_next))
+        // R1 also works while a details panel is visible or another
+        // top-level tab has focus. It must not silently do nothing there.
+        if (input.is_pressed(Action::page_next))
         {
             niak_next_daily_backdrop();
             feedback.play(audio::Cue::tab);
