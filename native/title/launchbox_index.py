@@ -66,6 +66,10 @@ def face_options(entries):
 
 def parse(xml,installed):
     games,aliases,media={}, {}, {}
+    # Metadata.zip can group GameImage/GameAlternateName independently of
+    # Game entries. Never assume an image's game was already encountered.
+    # Pass one collects names/aliases; pass two reads images ONLY for game
+    # IDs that could match a title installed on this console.
     iterator=ET.iterparse(xml,events=("start","end"))
     _,root=next(iterator)
     for event,el in iterator:
@@ -79,14 +83,8 @@ def parse(xml,installed):
                             clean_overview(el.findtext("Notes","")))
         elif tag=="GameAlternateName":
             gid=el.findtext("DatabaseID","")
-            if gid in games:aliases.setdefault(gid,[]).append(el.findtext("AlternateName",""))
-        elif tag=="GameImage":
-            gid=el.findtext("DatabaseID","")
-            kind=KINDS.get(el.findtext("Type",""))
-            filename=el.findtext("FileName","")
-            if gid in games and kind and IMAGE.fullmatch(filename):
-                media.setdefault(gid,{}).setdefault(kind,[]).append(
-                    (region(el.findtext("Region","")),filename))
+            if gid.isdecimal():
+                aliases.setdefault(gid,[]).append(el.findtext("AlternateName",""))
         if tag in ("Game","GameAlternateName","GameImage"):
             el.clear();root.clear()
 
@@ -99,6 +97,31 @@ def parse(xml,installed):
             exact_matches.setdefault((platform,variants[0]),set()).add(gid)
             for key in variants[1:]:
                 edition_matches.setdefault((platform,key),set()).add(gid)
+    # Only collect cover metadata for plausible exact/platform/edition
+    # matches, not the millions of unrelated images in the global archive.
+    wanted=set()
+    for key in installed:
+        wanted.update(exact_matches.get(key,()))
+        wanted.update(edition_matches.get(key,()))
+        for base in safe_titles(key[1])[1:]:
+            wanted.update(exact_matches.get((key[0],base),()))
+    if wanted:
+        xml.seek(0)  # ZipExtFile and BytesIO support rewinding.
+        iterator=ET.iterparse(xml,events=("start","end"))
+        _,root=next(iterator)
+        for event,el in iterator:
+            if event!="end":continue
+            tag=el.tag.rsplit("}",1)[-1]
+            if tag=="GameImage":
+                gid=el.findtext("DatabaseID","")
+                if gid in wanted:
+                    kind=KINDS.get(el.findtext("Type",""))
+                    filename=el.findtext("FileName","")
+                    if kind and IMAGE.fullmatch(filename):
+                        media.setdefault(gid,{}).setdefault(kind,[]).append(
+                            (region(el.findtext("Region","")),filename))
+            if tag in ("Game","GameAlternateName","GameImage"):
+                el.clear();root.clear()
     rows=[]
     for key,ids in sorted(installed.items()):
         matched=exact_matches.get(key,set())

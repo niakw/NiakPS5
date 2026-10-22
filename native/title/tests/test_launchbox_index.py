@@ -59,6 +59,32 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(result[0][0],"PPSA04716")
   self.assertTrue(result[0][2].startswith("eu:"))
 
+ def test_images_and_alternate_names_can_precede_game_records(self):
+  target={("ps5","le titre local"):["PPSA34567"]}
+  xml=b'''<LaunchBox>
+    <GameImage><DatabaseID>51</DatabaseID><Type>Box - Back</Type>
+      <Region>Europe</Region><FileName>00000000-0000-0000-0000-000000000051.jpg</FileName>
+    </GameImage>
+    <GameAlternateName><DatabaseID>51</DatabaseID>
+      <AlternateName>Le Titre Local</AlternateName></GameAlternateName>
+    <GameImage><DatabaseID>51</DatabaseID><Type>Box - Front</Type>
+      <Region>France</Region><FileName>00000000-0000-0000-0000-000000000052.png</FileName>
+    </GameImage>
+    <Game><DatabaseID>51</DatabaseID><Platform>Sony Playstation 5</Platform>
+      <Name>Original International Title</Name></Game>
+    <Game><DatabaseID>52</DatabaseID><Platform>Sony Playstation 4</Platform>
+      <Name>Le Titre Local</Name></Game>
+    <GameImage><DatabaseID>52</DatabaseID><Type>Box - Front</Type>
+      <FileName>00000000-0000-0000-0000-000000000053.png</FileName></GameImage>
+  </LaunchBox>'''
+  rows=mod.parse(io.BytesIO(xml),target)
+  self.assertEqual(len(rows),1)
+  self.assertEqual(rows[0][0],"PPSA34567")
+  self.assertTrue(rows[0][2].startswith("fr:00000000"))
+  self.assertTrue(rows[0][3].startswith("eu:00000000"))
+  self.assertEqual(rows[0][4],"-")
+  self.assertEqual(rows[0][-1],"51")
+
  def test_ambiguous_edition_is_never_assigned_at_random(self):
   source={("ps5","my game"):["PPSA00003"]}
   xml=b'''<LaunchBox>
