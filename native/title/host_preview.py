@@ -171,7 +171,7 @@ def patch(kit):
     # Host renderer must load the same downloaded PS5 wallpapers as the
     # deployed title. Preview absolute paths differ from /app0.
     one(main,'#include "demo/catalog.hpp"',
-        '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"')
+        '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/asset_stats.hpp"')
     # Host QA takes snapshots of several titles after their graphics have
     # reached the GPU. The real PS5 stream remains incremental; only the
     # OFFLINE preview fixture is drained before starting screenshot tours.
@@ -180,6 +180,17 @@ def patch(kit):
     // textures before snapshot assertions. The native PS5 main remains idle-
     // streamed and is never patched by this test helper.
     (void)catalog.stream_next_covers(renderer,fonts,catalog.size());
+    // Assert the host QA fixtures were actually decoded and uploaded.
+    // A screenshot of a generic blue sleeve is not evidence that its
+    // private scan front/back/spine code works on a real renderer.
+    const auto &media=niak::case_media_stats;
+    if(media.titles!=5 || media.fronts<3 ||
+       media.backs<3 || media.spines<3) {
+        std::fprintf(stderr,
+            "case art fixtures incomplete: titles=%u front=%u back=%u spine=%u\\n",
+            media.titles,media.fronts,media.backs,media.spines);
+        return 1;
+    }
     // HUI_ICON=<file.png>: draw the 512x512 launcher icon with the kit and stop.''')
     one(main,'    hui::demo::Catalog catalog;',
         '    niak_load_daily_backdrops(renderer,(assets+"/niak-daily").c_str());\n    hui::demo::Catalog catalog;')
