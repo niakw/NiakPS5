@@ -41,6 +41,16 @@ PPSA99386.zip
 
 Aucune archive imbriquée. Le dossier `PPSA99386` s'installe sous `/data/homebrew/PPSA99386`.
 
+**Téléchargement GitHub Actions :** prends l'artefact **`NiakPS5-PPSA99386`**.
+GitHub le télécharge directement comme **une seule archive ZIP** contenant
+`PPSA99386/eboot.bin`, `PPSA99386/sce_sys/`, etc. Il n'y a plus de
+`PPSA99386.zip` à l'intérieur : une seule extraction suffit.
+
+**Compilation locale :** `bash native/title/build.sh` produit également
+`dist/PPSA99386.zip`, déjà au même format. Le workflow vérifie cette archive
+et ses permissions, puis retire le fichier ZIP interne avant de laisser GitHub
+compresser le dossier d'installation dans son unique artefact.
+
 Le payload `tools/niakps5.elf` est **distinct** de l'application graphique : il peut demander l'ouverture du titre **une fois après le jailbreak**. Il n'est pas exécuté automatiquement du seul fait d'avoir extrait le ZIP. L'installation FTP complète se fait depuis un ordinateur connecté au réseau local de la PS5 avec :
 
 ```bash

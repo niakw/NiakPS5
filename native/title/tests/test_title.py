@@ -36,7 +36,7 @@ class NativeTitleTests(unittest.TestCase):
     def test_github_artifact_is_single_zip_with_install_folder(self):
         workflow=(ROOT.parent/".github/workflows/native-title.yml").read_text()
         self.assertIn("name: NiakPS5-PPSA99386",workflow)
-        self.assertIn("path: dist/\\n",workflow)
+        self.assertIn("path: dist/\n",workflow)
         self.assertIn("rm -f dist/PPSA99386.zip",workflow)
         self.assertIn("assert [p.name for p in root.iterdir()] == ['PPSA99386']",workflow)
         self.assertIn("assert not any(p.suffix.lower()=='.zip'",workflow)
