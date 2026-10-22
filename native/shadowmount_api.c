@@ -100,38 +100,60 @@ static int read_json_string(const char **p,char *dst,size_t cap) {
  dst[used]=0;
  return 1;
 }
+/* Access only direct children of one JSON object; keys inside localized
+ * metadata, nested arrays or strings never become a game's identity. */
 static int member_string(const char *from,const char *end,const char *key,
                          char *dest,size_t cap) {
  const char *p=from;
+ int object_depth=0,array_depth=0;
  while(p<end&&*p) {
-  if(*p=='"'){
+  if(*p=='"') {
    const char *candidate=p;
-   if(match_key(&candidate,key) && candidate<end)
+   if(object_depth==1 && array_depth==0 &&
+      match_key(&candidate,key) && candidate<end)
     return read_json_string(&candidate,dest,cap);
    ++p;
-   /* Skip quoted strings to avoid seeing key names inside string values. */
    while(p<end&&*p) {
     if(*p=='\\'&&p+1<end){p+=2;continue;}
     if(*p++=='"')break;
    }
    continue;
   }
+  if(*p=='{')++object_depth;
+  else if(*p=='}')--object_depth;
+  else if(*p=='[')++array_depth;
+  else if(*p==']')--array_depth;
+  if(object_depth<0||array_depth<0)return 0;
   ++p;
  }
  return 0;
 }
+/* Find games only at the response object's top level, not inside a
+ * nested "data" object which may report a different list of titles. */
 static int array_bounds(const char *json,const char **begin,const char **end) {
  const char *p=json;
+ int object_depth=0,array_depth=0;
  while(*p) {
-  if(*p=='"'){
+  if(*p=='"') {
    const char *probe=p;
-   if(match_key(&probe,"games")&&*probe=='['){*begin=probe+1;break;}
+   if(object_depth==1 && array_depth==0 &&
+      match_key(&probe,"games")&&*probe=='[') {
+    *begin=probe+1;
+    break;
+   }
    ++p;
-   while(*p){
+   while(*p) {
     if(*p=='\\'&&p[1]){p+=2;continue;}
     if(*p++=='"')break;
    }
-  }else ++p;
+  } else {
+   if(*p=='{')++object_depth;
+   else if(*p=='}')--object_depth;
+   else if(*p=='[')++array_depth;
+   else if(*p==']')--array_depth;
+   if(object_depth<0||array_depth<0)return 0;
+   ++p;
+  }
  }
  if(!*begin)return 0;
  int depth=1;int quoted=0,esc=0;

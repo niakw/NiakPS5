@@ -24,6 +24,27 @@ int main(void){
  assert(strcmp(g[1].id,"CUSA00222")==0);
  assert(niak_parse_shadowmount_games("{\"status\": 13,\"games\":[]}",g,5)==-1);
  assert(niak_parse_shadowmount_games("{\"status\":0,\"games\":[]}",g,5)==0);
+ // Do not mistake nested localized metadata or a diagnostic subarray for
+ // the actual game identity and collection.
+ const char *metadata_decoy="{\"status\":0,\"games\":["
+  "{\"extra\":{\"title_id\":\"CUSA99999\",\"name\":\"Wrong\"},"
+  "\"title_id\":\"PPSA00077\",\"name\":\"Correct\","
+  "\"localized\":{\"name\":\"Wrong language\"}}]}";
+ assert(niak_parse_shadowmount_games(metadata_decoy,g,5)==1);
+ assert(strcmp(g[0].id,"PPSA00077")==0);
+ assert(strcmp(g[0].title,"Correct")==0);
+ const char *false_game="{\"status\":0,\"games\":["
+  "{\"metadata\":{\"title_id\":\"CUSA00001\",\"name\":\"Spoofed\"}}]}";
+ assert(niak_parse_shadowmount_games(false_game,g,5)==0);
+ const char *nested_games="{\"status\":0,\"details\":{\"games\":["
+  "{\"title_id\":\"CUSA00001\"}]},"
+  "\"games\":[{\"title_id\":\"PPSA00077\",\"name\":\"Top-level\"}]}";
+ assert(niak_parse_shadowmount_games(nested_games,g,5)==1);
+ assert(strcmp(g[0].id,"PPSA00077")==0);
+ const char *only_nested="{\"status\":0,\"details\":{\"games\":["
+  "{\"title_id\":\"PPSA00077\"}]}}";
+ assert(niak_parse_shadowmount_games(only_nested,g,5)==-1);
+
  assert(niak_parse_shadowmount_games(
     "{\"details\":{\"status\":0},\"status\":13,\"games\":[]}",g,5)==-1);
  assert(niak_parse_shadowmount_games(
