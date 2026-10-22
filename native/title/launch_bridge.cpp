@@ -55,3 +55,25 @@ int niak_launch_registered_title(const char *title_id) {
     if(std::sscanf(response,"RC %8x",&code)!=1)return -3;
     return static_cast<int>(code);
 }
+
+bool niak_launch_broker_ready() {
+    int fd=::socket(AF_INET,SOCK_STREAM,0);
+    if(fd<0)return false;
+    timeval tv{1,0};
+    (void)::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
+    (void)::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+    sockaddr_in peer{};
+    peer.sin_family=AF_INET;
+    peer.sin_port=htons(19187);
+    peer.sin_addr.s_addr=htonl(0x7f000001u);
+    const bool connected=::connect(fd,reinterpret_cast<sockaddr*>(&peer),
+                                   sizeof(peer))==0;
+    bool ready=false;
+    if(connected && ::send(fd,"PING\n",5,0)==5) {
+        char answer[12]{};
+        const ssize_t n=::recv(fd,answer,sizeof(answer),0);
+        ready=n==5 && std::memcmp(answer,"PONG\n",5)==0;
+    }
+    ::close(fd);
+    return ready;
+}

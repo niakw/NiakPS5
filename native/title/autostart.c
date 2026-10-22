@@ -170,6 +170,13 @@ static void serve_launch_requests(void) {
                     count+=(size_t)n;
                     if(memchr(request,'\n',count))break;
                 }
+                // A read-only PING makes actual PLDmgr residency testable
+                // without launching anything or depending on historical logs.
+                if(count==5 && memcmp(request,"PING\n",5)==0) {
+                    (void)send(client,"PONG\n",5,0);
+                    close(client);
+                    continue;
+                }
                 int result=-3;
                 if(count==17 && memcmp(request,"LAUNCH ",7)==0 &&
                    request[16]=='\n') {

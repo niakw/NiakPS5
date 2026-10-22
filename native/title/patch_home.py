@@ -243,13 +243,18 @@ def patch(kit):
                  500, 882, 20, kWhite.with_alpha(0.78f));
         ui::text(list, fonts.regular, journal_status, 500, 910, 18,
                  kWhite.with_alpha(0.66f));
+        static const bool live_broker=niak_launch_broker_ready();
+        ui::text(list, fonts.regular,
+                 live_broker ? "Service Jouer : actif (PLDmgr)" :
+                               "Service Jouer : absent ou inaccessible",
+                 500, 939, 18,kWhite.with_alpha(0.75f));
         ui::text(list, fonts.regular, niak::revision, 110, 950, 20,
                  kWhite.with_alpha(0.72f));
         ui::paragraph(list, fonts.regular,
                       "Les reglages de la console restent geres par Sony. "
                       "Le dernier choix quitte NiakPS5 pour y acceder. "
                       "Rond : revenir aux onglets.",
-                      104, 935, 20, 1450, 30, kWhite.with_alpha(0.55f), 2);
+                      104, 990, 20, 1450, 30, kWhite.with_alpha(0.55f), 2);
     }
 
     void update_shelves(const InputFrame &input, app::Feedback &feedback)

@@ -3,3 +3,6 @@
 // Return 0 only after PLDmgr's privileged local service accepted the launch.
 // -2: no local service, -3: rejected title/protocol, negative OS code otherwise.
 int niak_launch_registered_title(const char *title_id);
+
+// Read-only actual broker liveness check, not just an autoload config marker.
+bool niak_launch_broker_ready();
