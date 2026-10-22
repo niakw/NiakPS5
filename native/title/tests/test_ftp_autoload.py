@@ -54,8 +54,8 @@ class AutoloadTests(unittest.TestCase):
         for name,(width,height) in examples.items():
             # Enough PNG header bytes for the bounded transfer validator.
             (folder/(name+".png")).write_bytes(
-                b"\\x89PNG\\r\\n\\x1a\\n"+b"\\x00"*8+
-                struct.pack(">II",width,height)+b"\\x00"*16)
+                b"\x89PNG\r\n\x1a\n"+b"\x00"*8+
+                struct.pack(">II",width,height)+b"\x00"*16)
         console=FakeFTP()
         with redirect_stdout(io.StringIO()):
             self.assertEqual(ftpmod.upload_case_templates(console,self.root),6)
