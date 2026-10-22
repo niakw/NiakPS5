@@ -108,6 +108,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("printed(",source)
         self.assertIn("left_spine(",source)
         self.assertIn("if(item.case_spine)",source)
+        self.assertIn("!item.case_front",source)
+        self.assertIn("box-front.png",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("PS4\":\"PS5",source)
         self.assertIn("outer_face(",source)
         self.assertIn("right_seal(",source)

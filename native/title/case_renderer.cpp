@@ -176,7 +176,7 @@ void niak_draw_rotating_case(hui::gfx::DrawList &list,const hui::demo::Item &ite
                              const hui::ui::Fonts &fonts) {
     // Homebrew games can have genuine privately supplied front/back scans.
     // If none exists, use the installed app icon rather than invent box art.
-    if(!item.title_id[0] || (item.homebrew && !item.case_front)) {
+    if(!item.title_id[0] || !item.case_front) {
         list.image(item.cover,bounds,
                    item.cover_is_image?hui::gfx::kFullUv:hui::gfx::kCanvasUv,
                    Color::rgb(0xffffff),26);

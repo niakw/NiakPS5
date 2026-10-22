@@ -32,6 +32,13 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
         "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",id,side);
     fp=std::fopen(file,"rb");
  }
+ if(!fp && std::strcmp(side,"front")==0) {
+    // Homebrew game authors sometimes package their own portrait cover.
+    // Use it only if it later passes the strict PNG geometry checks below.
+    std::snprintf(file,sizeof(file),
+        "/data/homebrew/%s/assets/box-front.png",id);
+    fp=std::fopen(file,"rb");
+ }
  if(!fp)return 0;
  if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
  const long bytes=std::ftell(fp);
@@ -49,6 +56,11 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  const bool spine=std::strcmp(side,"spine")==0;
  if(width<(logo?32u:spine?16u:64u)||height<(logo?20u:100u)||
     width>(logo?1400u:1024u)||height>1536u)return 0;
+ if(!logo) {
+    const float aspect=float(width)/float(height);
+    if(spine ? aspect>0.25f : (aspect<0.55f || aspect>0.90f))
+        return 0;  // Never stretch square app icons or landscape backdrops.
+ }
  std::vector<unsigned char> pixels;unsigned w=0,h=0;
  if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||
     pixels.size()!=std::size_t(w)*h*4)return 0;
