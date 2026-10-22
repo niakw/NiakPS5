@@ -8,7 +8,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <cerrno>
-#include <chrono>
+#include <cstdint>
+#include <time.h>
 #include <fcntl.h>
 #include <sys/select.h>
 #include <cstdio>
@@ -78,14 +79,18 @@ bool niak_launch_broker_ready() {
     // Called during Settings rendering. One PING each frame would spend up
     // to 70ms/frame waiting for a hung local broker. Cache briefly, with a
     // monotonic clock so wall-clock adjustments cannot prolong that delay.
-    using Clock=std::chrono::steady_clock;
-    static Clock::time_point checked_at{};
+    static std::uint64_t checked_at_ms=0;
     static bool previous=false,checked=false;
-    const auto now=Clock::now();
-    if(checked && now>=checked_at &&
-       now-checked_at<std::chrono::seconds(1))return previous;
-    checked_at=now;
-    checked=true;
+    struct timespec stamp{};
+    // A failed clock query must not use a stale cached health result.
+    const bool timed=clock_gettime(CLOCK_MONOTONIC,&stamp)==0;
+    const std::uint64_t now_ms=timed?
+        static_cast<std::uint64_t>(stamp.tv_sec)*1000u+
+        static_cast<std::uint64_t>(stamp.tv_nsec)/1000000u:0u;
+    if(timed && checked && now_ms>=checked_at_ms &&
+       now_ms-checked_at_ms<1000u)return previous;
+    checked_at_ms=now_ms;
+    checked=timed;
     previous=false; // Fail closed when the broker stops responding.
     int fd=::socket(AF_INET,SOCK_STREAM,0);
     if(fd<0)return false;
