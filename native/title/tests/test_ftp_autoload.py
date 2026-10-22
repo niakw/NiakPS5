@@ -189,6 +189,21 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("PLDmgr AUTOLOAD_ENABLED : True",out.getvalue())
         self.assertIn("installed_binary_matches",SCRIPT.read_text())
 
+    def test_status_reports_missing_art_per_installed_title_read_only(self):
+        import io
+        from contextlib import redirect_stdout
+        game="/user/app/PPSA34015/eboot.bin"
+        art=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/PPSA34015-front.png"
+        files={game:b"game",art:b"cached"}
+        ftp=FakeFTP(files)
+        output=io.StringIO()
+        with redirect_stdout(output):
+            ftpmod.diagnose(ftp)
+        self.assertEqual(ftp.files,files)
+        report=output.getvalue()
+        self.assertIn("Couverture des 1 titres visibles : 1 rectos, 0 versos, 0 tranches.",report)
+        self.assertNotIn("Sans recto privé",report)
+
     def test_art_cache_handles_absolute_and_basename_ftp_listings(self):
         from unittest.mock import patch
         import urllib.request

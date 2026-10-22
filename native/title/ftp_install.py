@@ -463,10 +463,31 @@ def diagnose(ftp,local_directory=None):
         print("Gabarits 3D privés :",len(files&TEMPLATE_NAMES),"/6")
     if covers is None: print("Jaquettes privées : accès refusé / inconnu")
     else:
-        art={x.rsplit("/",1)[-1] for x in covers}
+        art={posixpath.basename(str(x).rstrip("/")) for x in covers}
         print("Jaquettes privées :",sum(name.endswith("-front.png") for name in art),
               "rectos,",sum(name.endswith("-back.png") for name in art),"versos,",
               sum(name.endswith("-spine.png") for name in art),"tranches")
+        # Read-only, bounded per-title diagnostic: one global count is not
+        # enough to explain blank PS4/PS5 cases on a real installation.
+        scanned=_installed_title_ids(ftp,300)
+        if scanned:
+            empty_front=[ident for ident in scanned
+                         if f"{ident}-front.png" not in art]
+            empty_back=[ident for ident in scanned
+                        if f"{ident}-back.png" not in art]
+            empty_spine=[ident for ident in scanned
+                         if f"{ident}-spine.png" not in art]
+            print(f"Couverture des {len(scanned)} titres visibles : "
+                  f"{len(scanned)-len(empty_front)} rectos, "
+                  f"{len(scanned)-len(empty_back)} versos, "
+                  f"{len(scanned)-len(empty_spine)} tranches.")
+            if empty_front:
+                print("Sans recto privé (30 premiers) :",", ".join(empty_front[:30]))
+                print("Ces titres peuvent néanmoins afficher un boîtier reconstruit "
+                      "depuis icon0/pic1 si ces fichiers sont accessibles.")
+        else:
+            print("Titres installés visibles : non vérifiables par FTP. "
+                  "Ne pas déduire que la bibliothèque PS5 est vide.")
     print("Payload ELF :",known(None if payloads is None else PAYLOAD in payloads))
     if local_directory is not None:
         elf_match=installed_binary_matches(
