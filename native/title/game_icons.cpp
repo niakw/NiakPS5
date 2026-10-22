@@ -8,6 +8,7 @@ extern "C" {
 #include "niak/lodepng.h"
 #include "niak/socket_guard.h"
 #include "niak/http_icon_response.hpp"
+#include "niak/icon_endpoint_policy.hpp"
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
 
@@ -17,6 +18,7 @@ extern "C" {
 #include <sys/time.h>
 #include <unistd.h>
 #include <algorithm>
+#include <chrono>
 #include <array>
 #include <cstdio>
 #include <cstring>
@@ -26,10 +28,20 @@ extern "C" {
 namespace {
 constexpr std::size_t kMaximumPng = 4U * 1024U * 1024U;
 constexpr int kTarget = 512;
+NiakIconEndpointPolicy icon_endpoint;
+std::uint64_t endpoint_now_ms() {
+    using namespace std::chrono;
+    return static_cast<std::uint64_t>(
+        duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
+}
 bool download(const std::string &uri, std::vector<unsigned char> &out)
 {
+    if(!icon_endpoint.allowed(endpoint_now_ms()))return false;
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) return false;
+    if (sock < 0) {
+        icon_endpoint.transport_failed(endpoint_now_ms());
+        return false;
+    }
     // ShadowMountPlus may close its HTTP socket while assets are loading;
     // do not let SIGPIPE kill the entire native title.
     niak_socket_guard(sock);
@@ -43,6 +55,7 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     if (connect(sock, reinterpret_cast<sockaddr *>(&address), sizeof(address)) < 0)
     {
         close(sock);
+        icon_endpoint.transport_failed(endpoint_now_ms());
         return false;
     }
     const std::string request =
@@ -51,7 +64,7 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     while (sent < request.size())
     {
         const ssize_t n = niak_socket_send(sock, request.data() + sent, request.size() - sent);
-        if (n <= 0) { close(sock); return false; }
+        if (n <= 0) { close(sock); icon_endpoint.transport_failed(endpoint_now_ms()); return false; }
         sent += static_cast<std::size_t>(n);
     }
     std::vector<unsigned char> response;
@@ -66,6 +79,12 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
         const ssize_t count=recv(sock,buffer.data(),buffer.size(),0);
         if(count>0) {
             response.insert(response.end(),buffer.begin(),buffer.begin()+count);
+            // Any genuine HTTP response (including 404 for missing art)
+            // proves the API is alive. Never disable all other game art.
+            if(response.size()>=13 &&
+               (std::memcmp(response.data(),"HTTP/1.1 ",9)==0 ||
+                std::memcmp(response.data(),"HTTP/1.0 ",9)==0))
+                icon_endpoint.responded();
             const auto state=niak_http_icon_body(response,false,kMaximumPng,out);
             if(state==NiakHttpState::Complete) {
                 close(sock);
@@ -75,11 +94,13 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
             continue;
         }
         if(count==0) {
+            if(response.empty())icon_endpoint.transport_failed(endpoint_now_ms());
             const auto state=niak_http_icon_body(response,true,kMaximumPng,out);
             close(sock);
             return state==NiakHttpState::Complete &&
                    out.size()>=24 && out.size()<=kMaximumPng;
         }
+        if(count<0)icon_endpoint.transport_failed(endpoint_now_ms());
         break;
     }
     close(sock);
