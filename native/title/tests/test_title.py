@@ -223,6 +223,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("if(show_seal)",source)
         host=(ROOT/"title"/"host_preview.py").read_text()
         self.assertIn("make_case_art_fixtures",host)
+        self.assertIn("catalog.stream_next_covers(renderer,fonts,catalog.size())",host)
+        self.assertIn("Host preview only",host)
         self.assertIn("case-04-homebrew-fallback",host)
         self.assertIn("case-05-wallpaper-r1",host)
         self.assertIn("case-06-touchpad-details",host)

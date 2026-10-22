@@ -172,6 +172,15 @@ def patch(kit):
     # deployed title. Preview absolute paths differ from /app0.
     one(main,'#include "demo/catalog.hpp"',
         '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"')
+    # Host QA takes snapshots of several titles after their graphics have
+    # reached the GPU. The real PS5 stream remains incremental; only the
+    # OFFLINE preview fixture is drained before starting screenshot tours.
+    one(main, '    // HUI_ICON=<file.png>: draw the 512x512 launcher icon with the kit and stop.',
+        '''    // Host preview only: fully populate real front/back/spine fixture
+    // textures before snapshot assertions. The native PS5 main remains idle-
+    // streamed and is never patched by this test helper.
+    (void)catalog.stream_next_covers(renderer,fonts,catalog.size());
+    // HUI_ICON=<file.png>: draw the 512x512 launcher icon with the kit and stop.''')
     one(main,'    hui::demo::Catalog catalog;',
         '    niak_load_daily_backdrops(renderer,(assets+"/niak-daily").c_str());\n    hui::demo::Catalog catalog;')
     platform=kit/"host/platform_host.cpp"
