@@ -230,7 +230,7 @@ def prepare(kit: Path, project: Path, revision: str):
     for filename in ("game_icons.cpp", "game_icons.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp",
-                     "launch_bridge.cpp","launch_bridge.hpp"):
+                     "launch_bridge.cpp","launch_bridge.hpp","asset_stats.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
@@ -257,7 +257,9 @@ def prepare(kit: Path, project: Path, revision: str):
         item.case_template_back=0;
         item.case_template_spine=0;''')
     replace_once(art_file, '#include "gfx/renderer.hpp"',
-                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"')
+                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/asset_stats.hpp"')
+    replace_once(art_file, 'void Catalog::load_covers(gfx::Renderer &renderer)\n{',
+                 'void Catalog::load_covers(gfx::Renderer &renderer)\n{\n    niak::case_media_stats={};')
     replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',
                  """    for (Item &item : items_)
     {
@@ -276,6 +278,16 @@ def prepare(kit: Path, project: Path, revision: str):
             item.case_template_spine = niak_load_case_template(renderer,platform,"spine");
             item.logo_art = niak_load_case_art(renderer,item.title_id,"logo");
             item.cover = niak_load_game_icon(renderer, item.title_id);
+            auto &stats=niak::case_media_stats;
+            ++stats.titles;
+            stats.fronts+=item.case_front!=0;
+            stats.backs+=item.case_back!=0;
+            stats.spines+=item.case_spine!=0;
+            stats.scenes+=item.case_scene!=0;
+            stats.icons+=item.cover!=0;
+            stats.templates+=item.case_template_front!=0 &&
+                             item.case_template_back!=0 &&
+                             item.case_template_spine!=0;
         }
         if (item.cover)
         {

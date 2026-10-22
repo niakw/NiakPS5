@@ -155,6 +155,27 @@ def patch(kit):
                      kWhite.with_alpha(0.55f));
             return;
         }
+        // These are actual GPU textures loaded by this application, not
+        // files merely visible through the separate FTP server.
+        const auto &media=niak::case_media_stats;
+        char media_label[128];
+        ui::text(list,fonts.semibold,"Médias lus par NiakPS5",
+                 1430,305,21,kWhite);
+        std::snprintf(media_label,sizeof(media_label),
+                      "%u titres | %u icônes",media.titles,media.icons);
+        ui::text(list,fonts.regular,media_label,1430,346,18,kWhite);
+        std::snprintf(media_label,sizeof(media_label),
+                      "Rectos : %u  Versos : %u",media.fronts,media.backs);
+        ui::text(list,fonts.regular,media_label,1430,379,18,kWhite);
+        std::snprintf(media_label,sizeof(media_label),
+                      "Tranches : %u  Panoramas : %u",media.spines,media.scenes);
+        ui::text(list,fonts.regular,media_label,1430,412,18,kWhite);
+        std::snprintf(media_label,sizeof(media_label),
+                      "Gabarits complets : %u",media.templates);
+        ui::text(list,fonts.regular,media_label,1430,445,18,kWhite);
+        ui::paragraph(list,fonts.regular,
+                      "0 signifie non chargé ou accès refusé, pas forcément absent du FTP.",
+                      1430,480,17,410,23,kWhite.with_alpha(0.65f),3);
         const char *labels[] = {"Resolution d'affichage (redemarrage)",
                                 "Volume de l'interface", "Musique de fond",
                                 "Animations reduites", "Afficher FPS",
@@ -272,7 +293,7 @@ def patch(kit):
 """)
     # Read the current local PS5 display name via SceUserService (not a fake logo).
     text = once(text, '#include "niak/daily_backdrop.hpp"',
-                '#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"')
+                '#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"\n#include "niak/asset_stats.hpp"')
     # The demo never had a real profile service. Do not fabricate a user's avatar.
     text = once(text, """        list.circle(1800, 82, 22, palette_[3].value());
         ui::text(list, fonts.semibold, "N", 1800, 91, 22, Color::rgb(0x0b0d16), gfx::Align::center);""",

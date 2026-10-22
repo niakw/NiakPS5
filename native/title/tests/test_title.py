@@ -169,6 +169,10 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("NIAK_CASE_PREVIEW_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("NIAK_CASE_TEMPLATE_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("niak_load_case_template",(ROOT/"title"/"case_art.hpp").read_text())
+        self.assertIn("stats.fronts+=item.case_front!=0",stage)
+        self.assertIn("stats.templates+=item.case_template_front!=0",stage)
+        self.assertIn("Médias lus par NiakPS5",
+                      (ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("niak_release_case_templates",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("niak_release_case_templates(renderer)",stage)
         self.assertIn("renderer.destroy_texture(*texture)",stage)
