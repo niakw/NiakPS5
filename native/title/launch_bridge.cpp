@@ -46,13 +46,24 @@ int niak_launch_registered_title(const char *title_id) {
         if(n<=0){::close(fd);return -2;}
         sent+=int(n);
     }
-    char response[32]{};
-    const ssize_t n=::recv(fd,response,sizeof(response)-1,0);
+    // TCP is a byte stream. Reject partial or malformed RC messages.
+    char response[12]{};
+    std::size_t received=0;
+    while(received<sizeof(response)) {
+        const ssize_t n=::recv(fd,response+received,
+                               sizeof(response)-received,0);
+        if(n<=0){::close(fd);return -2;}
+        received+=static_cast<std::size_t>(n);
+    }
     ::close(fd);
-    if(n<=0)return -2;
-    response[n]=0;
+    if(std::memcmp(response,"RC ",3)!=0 || response[11]!='\n')return -3;
+    for(std::size_t i=3;i<11;++i) {
+        const char c=response[i];
+        if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')||
+             (c>='A'&&c<='F')))return -3;
+    }
     unsigned code=0;
-    if(std::sscanf(response,"RC %8x",&code)!=1)return -3;
+    if(std::sscanf(response+3,"%8x",&code)!=1)return -3;
     return static_cast<int>(code);
 }
 
@@ -70,9 +81,15 @@ bool niak_launch_broker_ready() {
                                    sizeof(peer))==0;
     bool ready=false;
     if(connected && ::send(fd,"PING\n",5,0)==5) {
-        char answer[12]{};
-        const ssize_t n=::recv(fd,answer,sizeof(answer),0);
-        ready=n==5 && std::memcmp(answer,"PONG\n",5)==0;
+        char answer[5]{};
+        std::size_t received=0;
+        while(received<sizeof(answer)) {
+            const ssize_t n=::recv(fd,answer+received,
+                                   sizeof(answer)-received,0);
+            if(n<=0)break;
+            received+=static_cast<std::size_t>(n);
+        }
+        ready=received==5 && std::memcmp(answer,"PONG\n",5)==0;
     }
     ::close(fd);
     return ready;
