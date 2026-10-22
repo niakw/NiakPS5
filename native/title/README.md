@@ -98,12 +98,30 @@ Le script dépose le dossier dans `/data/homebrew/PPSA99386/`, copie le payload 
 
 Le bouton PS reste géré par le shell Sony. Le déclencheur est one-shot : il ne rétablit pas le titre automatiquement après chaque jeu. Une implémentation sûre du retour à l'accueil et de l'avatar privé nécessite une validation distincte ; le ZIP ne prétend pas les inclure déjà.
 
+## Diagnostic local et récupération des jaquettes
+
+La simple copie du ZIP par FTP ne télécharge **pas** les images privées LaunchBox et ne configure **pas** l'autoload. Utiliser le script embarqué dans le dossier extrait pour obtenir ces fonctions sans publier les jaquettes :
+
+```sh
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --status
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --refresh-art
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --refresh-art --force-art
+```
+
+- `--status` est en lecture seule. Il contrôle la présence du titre, des images, du payload, de la configuration PLDmgr et d'un dernier lancement inscrit au journal. **Un succès historique n'est pas une preuve de l'autoload au démarrage actuel.**
+- `--refresh-art` conserve les images déjà transférées, puis essaie de télécharger les rectos, versos et tranches LaunchBox des titres accessibles par FTP, jusqu'à 150 jeux (réglable avec `--art-limit`).
+- `--force-art` n'est accepté qu'avec `--refresh-art`. Il retélécharge les images même si une ancienne version existe. Rien n'est écrit dans `app.db` ou les fichiers des autres homebrews.
+- Un titre sans jaquette compatible affiche une boîte 3D neutre avec son icône locale (si accessible), sans étirer cette icône en illustration commerciale. Les rangées de bibliothèque et la fiche de détails conservent les icônes 2D.
+- La catégorie Jeu/Application est lue depuis les `sce_sys/param.json` accessibles. Sans cette source, le titre conserve une catégorie de repli et n'invente pas de données.
+
+La récupération LaunchBox nécessite une connexion sur l'ordinateur qui exécute le script, et des permissions FTP suffisantes pour accéder aux dossiers PS5. Ni la présence d'un index ni une compilation verte ne prouvent que les scans sont effectivement présents sur la console.
+
 ## Titres réels, fonds PS5 et limites des descriptions
 
 Le paquet inclut désormais une base textuelle hors ligne de titres PS4 et PS5 (andshrew/PlayStation-Titles, MIT), enrichie pour certains jeux avec genres, éditeur et sortie depuis sharpemu/sharpemu-site. Elle est utilisée lorsque ShadowMountPlus fournit seulement un identifiant PPSA/CUSA. L'installeur FTP peut en outre créer un fichier privé `niak-local-titles.tsv` à partir des `sce_sys/param.json` des applications homebrew.
 
 La description affichée provient des **métadonnées factuelles disponibles**, et non d'un résumé éditorial inventé. Les œuvres sans résumé disponible ne reçoivent pas une intrigue fictive. Les noms et images publiés par les ayants droit restent leurs marques et créations.
 
-Les 14 visuels embarqués dans `assets/niak-daily` proviennent d'un relevé GitHub des sorties récentes PS5 et des images d'éditeurs PlayStation. Un bug TGA empêchait précédemment le chargement des images en rejetant leur pied de fichier standard de 26 octets ; ce bug est corrigé. Le titre sélectionne désormais un visuel différent chaque jour selon sa date locale. **La bibliothèque de visuels installée n'est pas encore renouvelée automatiquement par HTTPS** : la CI produit de nouveaux paquets régulièrement, mais leur installation sur console reste distincte.
+Les 14 visuels embarqués dans `assets/niak-daily` proviennent d'un relevé GitHub des sorties récentes PS5 et des images d'éditeurs PlayStation. Un bug TGA empêchait précédemment le chargement des images en rejetant leur pied de fichier standard de 26 octets ; ce bug est corrigé. Le titre sélectionne désormais un visuel différent chaque jour selon sa date locale. **Le titre essaie maintenant un rafraîchissement HTTPS quotidien** à partir d'un flux de sorties PS5 publiques (worker hors thread graphique, cache privé `/download0`). En cas d'échec du réseau ou de permission, il garde les 14 images du paquet et sélectionne celle du jour localement. R1 parcourt immédiatement ces images embarquées sans avancer la date réelle. La disponibilité du service HTTPS natif reste à confirmer sur la console et le firmware cible.
 
 Un élément « Paramètres PS5 » ne doit pas prétendre ouvrir directement un service Sony non supporté : l'option quitte vers l'accueil Sony. Aucun accès à des réglages sensibles ou fonction système n'a été contourné.
