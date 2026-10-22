@@ -76,6 +76,23 @@ static int copy_profile_image(const char *source,const char *dest,
     }
     free(data);return ok;
 }
+/* Bind each cached avatar to the actual local foreground account and image
+ * type. No PSN identifier or personal image leaves this console. */
+static void mark_profile_asset(int user,const char *format) {
+    if(user<0 || !format)return;
+    const char *dst="/data/homebrew/PPSA99386/assets/niak-profile-source.txt";
+    char temp[]="/data/homebrew/PPSA99386/assets/.niak-profile-source-XXXXXX";
+    int fd=mkstemp(temp);
+    if(fd<0)return;
+    char identity[32];
+    const int n=snprintf(identity,sizeof(identity),"0x%08X %s\n",
+                         (unsigned)user,format);
+    int ok=n>0 && n<(int)sizeof(identity) &&
+           write(fd,identity,(size_t)n)==n &&
+           fchmod(fd,0644)==0 && fsync(fd)==0;
+    if(close(fd)!=0)ok=0;
+    if(!ok || rename(temp,dst)!=0)unlink(temp);
+}
 static void copy_current_avatar_png(int user) {
     if(user<0)return;
     char profile[256],source[320];
@@ -85,6 +102,7 @@ static void copy_current_avatar_png(int user) {
     static const unsigned char dds[4]={'D','D','S',' '};
     snprintf(source,sizeof(source),"%s/avatar.png",profile);
     if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.png",png,8)) {
+        mark_profile_asset(user,"png");
         report("Current user PNG avatar staged",0);
         return;
     }
@@ -92,6 +110,7 @@ static void copy_current_avatar_png(int user) {
         const char *name=i==0?"avatar128.dds":i==1?"avatar260.dds":"avatar64.dds";
         snprintf(source,sizeof(source),"%s/%s",profile,name);
         if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.dds",dds,4)) {
+            mark_profile_asset(user,"dds");
             report("Current user DDS avatar staged",0);
             return;
         }

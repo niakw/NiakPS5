@@ -205,6 +205,8 @@ class AutoloadTests(unittest.TestCase):
         f=FakeFTP({source:sample})
         ftpmod.install(f,self.root,False)
         self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
+        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile-source.txt"],
+                         b"0x12345678 png\n")
 
     def test_multiple_profiles_are_not_guessed(self):
         root="/system_data/priv/cache/profile/"
@@ -214,6 +216,21 @@ class AutoloadTests(unittest.TestCase):
         self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-profile.png",f.files)
         ftpmod.install(f,self.root,False,avatar_user_id="0x22222222")
         self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
+        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile-source.txt"],
+                         b"0x22222222 png\n")
+
+    def test_staged_dds_identifies_format_and_foreground_owner(self):
+        user="0xA0B0C0D0"
+        dds=b"DDS "+bytes(220)
+        f=FakeFTP({"/system_data/priv/cache/profile/"+user+"/avatar128.dds":dds})
+        ftpmod.install(f,self.root,False,avatar_user_id=user)
+        root="/data/homebrew/PPSA99386/assets/"
+        self.assertEqual(f.files[root+"niak-profile.dds"],dds)
+        self.assertEqual(f.files[root+"niak-profile-source.txt"],b"0xA0B0C0D0 dds\n")
+        native=(SCRIPT.parent/"profile.cpp").read_text()
+        self.assertIn("const bool staged_dds=identified",native)
+        self.assertIn("std::strncmp(marker,identity,10)",native)
+        self.assertNotIn('niak_load_local_png(renderer, "/app0/assets/niak-profile.png")',native)
 
     def test_launchbox_reports_download_and_write_failures_without_secrets(self):
         from unittest.mock import patch

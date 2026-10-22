@@ -34,22 +34,33 @@ const char *niak_ps5_user_label()
 static std::uint32_t niak_user_avatar=0;
 void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
 {
-    niak_user_avatar=niak_load_local_png(renderer, "/app0/assets/niak-profile.png");
-    if(!niak_user_avatar)
+    niak_user_avatar=0;
+    int current=-1;
+    if(sceUserServiceGetForegroundUser(&current)!=0 || current<0)return;
+    char identity[16]{};
+    std::snprintf(identity,sizeof(identity),"0x%08X",
+                  static_cast<unsigned>(current));
+    // Generic staged assets without a matching owner AND format are unsafe:
+    // the console may have changed active users since the last FTP install.
+    char marker[32]{};
+    std::FILE *owner=std::fopen(
+        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt","rb");
+    if(owner) {
+        (void)std::fgets(marker,sizeof(marker),owner);
+        std::fclose(owner);
+    }
+    const bool identified=std::strncmp(marker,identity,10)==0 && marker[10]==' ';
+    const bool staged_png=identified && std::strcmp(marker+11,"png\n")==0;
+    const bool staged_dds=identified && std::strcmp(marker+11,"dds\n")==0;
+    if(staged_png)
         niak_user_avatar=niak_load_local_png(renderer,
             "/data/homebrew/PPSA99386/assets/niak-profile.png");
-    if(!niak_user_avatar) {
-        int current=-1;
-        if(sceUserServiceGetForegroundUser(&current)==0 && current>=0)
-            niak_user_avatar=niak_load_profile_cache_png(renderer,
-                static_cast<unsigned>(current));
-    }
-    if(niak_user_avatar) return;
-    // Fallback: the PS5 avatar cache commonly stores 128x128 DDS (DXT5).
-    // Read only our own staged copy inside /app0, never a system path.
-    std::FILE *file=std::fopen("/app0/assets/niak-profile.dds","rb");
-    if(!file)
-        file=std::fopen("/data/homebrew/PPSA99386/assets/niak-profile.dds","rb");
+    if(!niak_user_avatar)
+        niak_user_avatar=niak_load_profile_cache_png(renderer,
+            static_cast<unsigned>(current));
+    if(niak_user_avatar || !staged_dds)return;
+    std::FILE *file=std::fopen(
+        "/data/homebrew/PPSA99386/assets/niak-profile.dds","rb");
     if(!file)return;
     if(std::fseek(file,0,SEEK_END)!=0){std::fclose(file);return;}
     const long size=std::ftell(file);

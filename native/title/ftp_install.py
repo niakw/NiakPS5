@@ -109,6 +109,9 @@ def copy_avatar_for_ftp(ftp, user_id=None):
             continue
         suffix=".png" if name.endswith(".png") else ".dds"
         upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-profile{suffix}",blob)
+        owner=f"0x{int(user,16):08X} {suffix[1:]}\n"
+        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-profile-source.txt",
+               owner.encode("ascii"))
         print("Avatar: actual PS5 profile image staged locally.")
         return True
     print("Avatar: no readable profile image; Sony profile left untouched.")

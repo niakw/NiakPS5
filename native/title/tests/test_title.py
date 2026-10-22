@@ -108,6 +108,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("/mnt/ext0/user/app/%s/sce_sys/icon0.png",icons)
         self.assertIn("/mnt/ext1/user/appmeta/%s/icon0.png",icons)
         self.assertIn("niak_load_profile_cache_png",(ROOT/"title"/"profile.cpp").read_text())
+        self.assertIn("niak-profile-source.txt",(ROOT/"title"/"profile.cpp").read_text())
+        self.assertIn('mark_profile_asset(user,"dds")',(ROOT/"title"/"autostart.c").read_text())
         self.assertIn("niak_next_daily_backdrop",(ROOT/"title"/"daily_backdrop.cpp").read_text())
         self.assertIn("/data/homebrew/%s/sce_sys/icon0.png",(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("case_renderer.cpp",stage)
