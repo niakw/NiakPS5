@@ -108,7 +108,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("printed(",source)
         self.assertIn("left_spine(",source)
         self.assertIn("if(item.case_spine)",source)
-        self.assertIn("printed(list,item.cover,icon",source)
+        self.assertIn("printed(list,item.cover,fill",source)
+        self.assertIn("printed(list,item.cover,art",source)
         # Fallback design is runtime geometry; no generated image or new
         # commercial artwork is embedded in the application package.
         self.assertIn("APERÇU RECONSTITUÉ — NON OFFICIEL",source)
