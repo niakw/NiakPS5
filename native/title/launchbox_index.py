@@ -22,6 +22,22 @@ ORDER=("fr","eu","world","uk","ca","us","de","es","it","pt","jp","other")
 def normalize(name):
     name=unicodedata.normalize("NFKD",str(name)).encode("ascii","ignore").decode()
     return re.sub(r"\s+"," ",re.sub(r"[^a-z0-9]+"," ",name.lower())).strip()
+
+# A PS5 physical edition can be catalogued under the base title in
+# LaunchBox. Strip ONLY platform descriptors, never the year, numbered
+# sequel, Deluxe/Ultimate suffix or substantive edition name.
+IGNORABLE_SUFFIXES=(" console edition"," playstation 5 edition",
+                    " playstation 4 edition"," ps5 edition"," ps4 edition")
+def safe_titles(name):
+    exact=normalize(name)
+    variants=[exact] if exact else []
+    for suffix in IGNORABLE_SUFFIXES:
+        if exact.endswith(suffix):
+            base=exact[:-len(suffix)]
+            if len(base)>=5 and any(c.isalpha() for c in base):
+                variants.append(base)
+    return tuple(dict.fromkeys(variants))
+
 def clean_overview(notes):
     text=html.unescape(re.sub(r"<[^>]*>"," ",str(notes)))
     return re.sub(r"\s+"," ",text).replace("\t"," ").strip()[:620]
@@ -73,16 +89,28 @@ def parse(xml,installed):
                     (region(el.findtext("Region","")),filename))
         if tag in ("Game","GameAlternateName","GameImage"):
             el.clear();root.clear()
-    by_key={}
+
+    exact_matches={}
+    edition_matches={}
     for gid,(platform,name,notes) in games.items():
         for alias in (name,*aliases.get(gid,[])):
-            key=(platform,normalize(alias))
-            if key in installed:by_key.setdefault(key,set()).add(gid)
+            variants=safe_titles(alias)
+            if not variants:continue
+            exact_matches.setdefault((platform,variants[0]),set()).add(gid)
+            for key in variants[1:]:
+                edition_matches.setdefault((platform,key),set()).add(gid)
     rows=[]
     for key,ids in sorted(installed.items()):
-        matched=by_key.get(key,set())
-        if len(matched)!=1:continue
-        gid=next(iter(matched))
+        matched=exact_matches.get(key,set())
+        # Prefer a unique, platform-exact LaunchBox record. An alternative
+        # edition scan is allowed only when exact has no FRONT artwork.
+        candidates=matched if len(matched)==1 else set()
+        if not any(media.get(g,{}).get("front") for g in candidates):
+            alternative=edition_matches.get(key,set())
+            fronts={g for g in alternative if media.get(g,{}).get("front")}
+            if len(fronts)==1:candidates=fronts
+        if len(candidates)!=1:continue
+        gid=next(iter(candidates))
         info=games[gid];images=media.get(gid,{})
         faces=[face_options(images.get(kind,[])) for kind in
                ("front","back","spine","logo")]
@@ -104,7 +132,11 @@ def build(archive,ids_file,out):
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text("# title\tOverview\tFront\tBack\tSpine\tLogo\tLaunchBoxID\n"+
                       "".join("\t".join(parts)+"\n" for parts in rows),"utf8")
-    print("PS4/PS5 LaunchBox exact regional matches:",len(rows))
+    fronts=sum(row[2]!="-" for row in rows)
+    backs=sum(row[3]!="-" for row in rows)
+    spines=sum(row[4]!="-" for row in rows)
+    print("PS4/PS5 LaunchBox verified-platform matches:",len(rows),
+          "fronts:",fronts,"backs:",backs,"spines:",spines)
 
 def download(path):
     req=urllib.request.Request(SOURCE,headers={"User-Agent":"NiakPS5/1.0"})

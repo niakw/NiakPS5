@@ -25,4 +25,38 @@ class TestRetailCases(unittest.TestCase):
   self.assertTrue(ps4[2].startswith("world:"))
   self.assertNotEqual(ps4[2],ps5[2])
   self.assertEqual(mod.normalize("EA SPORTS® FC 27"),"ea sports fc 27")
+
+ def test_console_edition_matches_base_when_no_exact_front(self):
+  source={( "ps5","anno 1800") :["PPSA00001"],
+          ( "ps5","anno 1800 console edition"):["PPSA00002"]}
+  xml=b'''<LaunchBox>
+  <Game><DatabaseID>21</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>Anno 1800 Console Edition</Name></Game>
+  <Game><DatabaseID>22</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>Anno 1800</Name></Game>
+  <GameImage><DatabaseID>21</DatabaseID><Type>Box - Front</Type>
+    <Region>Europe</Region><FileName>00000000-0000-0000-0000-000000000021.jpg</FileName></GameImage>
+  </LaunchBox>'''
+  rows=mod.parse(io.BytesIO(xml),source)
+  self.assertEqual(len(rows),2)
+  self.assertTrue(all(row[2].startswith("eu:") for row in rows))
+  self.assertEqual(mod.safe_titles("EA SPORTS FC 27"),("ea sports fc 27",))
+  self.assertEqual(mod.safe_titles("Anno 1800 Console Edition"),
+                   ("anno 1800 console edition","anno 1800"))
+  self.assertEqual(mod.safe_titles("Elden Ring Deluxe Edition"),
+                   ("elden ring deluxe edition",))
+
+ def test_ambiguous_edition_is_never_assigned_at_random(self):
+  source={("ps5","my game"):["PPSA00003"]}
+  xml=b'''<LaunchBox>
+  <Game><DatabaseID>30</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>My Game Console Edition</Name></Game>
+  <Game><DatabaseID>31</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>My Game PS5 Edition</Name></Game>
+  <GameImage><DatabaseID>30</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000030.png</FileName></GameImage>
+  <GameImage><DatabaseID>31</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000031.png</FileName></GameImage>
+  </LaunchBox>'''
+  self.assertEqual(mod.parse(io.BytesIO(xml),source),[])
 if __name__=="__main__":unittest.main()
