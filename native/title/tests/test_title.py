@@ -133,6 +133,9 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("if(show_seal)",source)
         host=(ROOT/"title"/"host_preview.py").read_text()
         self.assertIn("make_case_art_fixtures",host)
+        self.assertIn("case-04-homebrew-fallback",host)
+        self.assertIn("case-04-homebrew-fallback",
+                      (ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("NIAK_CASE_PREVIEW_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertNotIn("face_w=bounds.w",source)
 

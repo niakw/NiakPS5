@@ -170,6 +170,14 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
             if(frame==330)render("case-02-back");
             if(frame==445)render("case-03-return");
         }
+        // Visit the real Applications/homebrew shelf. The fifth title has
+        // NO retail scans, intentionally testing the generic physical box.
+        hui::InputFrame next;
+        next.connected=true;
+        next.nav=hui::Direction::down;
+        shell.update(next,kDt);
+        for(int frame=0;frame<100;++frame) shell.update(idle,kDt);
+        render("case-04-homebrew-fallback");
         return ok ? 0 : 1;
     }
     if (const char *strip = std::getenv("HUI_STRIP"))""")

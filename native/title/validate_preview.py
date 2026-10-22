@@ -18,11 +18,19 @@ required=[Path(sys.argv[1]) / f"case-{i:02d}-{suffix}.png" for i,suffix in
           enumerate(("front","spine","back","return"))]
 if not all(p.exists() for p in required):raise SystemExit("Missing rotating case C++ frames")
 from PIL import ImageChops
+fallback=Path(sys.argv[1])/"case-04-homebrew-fallback.png"
+if not fallback.exists():raise SystemExit("Missing no-retail-art homebrew case preview")
 frames=[Image.open(p).convert("RGB").crop((1160,90,1850,760)) for p in required]
 changes=[]
 for x,y in zip(frames,frames[1:]):
     delta=sum(ImageStat.Stat(ImageChops.difference(x,y)).mean)
     changes.append(delta)
+# A fallback case must be distinguishable from the commercial scan.
+with Image.open(fallback) as _fallback:
+    _box=_fallback.convert("RGB").crop((1160,90,1850,760))
+    _difference=sum(ImageStat.Stat(ImageChops.difference(frames[0],_box)).mean)
+    if _difference<8:
+        raise SystemExit("Homebrew without box art did not use a distinct physical-case fallback")
 if any(d<5.5 for d in changes):
     raise SystemExit(f"3D case does not visibly rotate in actual GPU capture: {changes}")
 # A 90-degree side view MUST be much narrower than the face. Pixel-level
