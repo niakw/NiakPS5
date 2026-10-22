@@ -263,7 +263,7 @@ def prepare(kit: Path, project: Path, revision: str):
         item.case_template_back=0;
         item.case_template_spine=0;''')
     replace_once(art_file, '#include "gfx/renderer.hpp"',
-                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/asset_stats.hpp"')
+                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/asset_stats.hpp"\n#include <algorithm>')
     replace_once(art_file, '    release_covers(renderer);\n    constexpr float kSize',
                  '    release_covers(renderer);\n    niak::case_media_stats={};\n    constexpr float kSize')
     replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',
@@ -310,6 +310,9 @@ def prepare(kit: Path, project: Path, revision: str):
         '''    release_covers(renderer);
     niak::case_media_stats={};
     next_cover_to_stream_=0;
+    niak::case_media_stats.total_titles=static_cast<unsigned>(
+        std::count_if(items_.begin(),items_.end(),
+            [](const Item &item){return item.title_id[0]!=0;}));
     return stream_next_covers(renderer,fonts,1);
 }
 
@@ -326,15 +329,23 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
     {
         Item &item=items_[next_cover_to_stream_];
         // Prefer the true installed app icon''')
-    # Do not eagerly decode hundreds of cases at startup. Stream at most
-    # one additional title per four already-presented frames. A single slow
-    # title can still incur an IO delay, but no longer postpones first paint
-    # for every remaining installed game.
+    # Defer streaming when the user is holding a direction or pressing an
+    # action, to avoid a blocking filesystem lookup during navigation.
+    # GPU texture creation remains on the renderer's owning thread.
     replace_once(kit / "src/main.cpp",
         '        shell.update(input, dt);',
         '''        shell.update(input, dt);
-        if(frames>0 && frames%4u==0)
+        if(frames>0 && frames%4u==0 && input.nav==Direction::none &&
+           input.pressed==0 && input.held==0 && !input.focus_lost)
             (void)catalog.stream_next_covers(renderer,fonts,1);''')
+    # A single failed procedural GPU upload must not leave the progressive
+    # loader retrying the same title forever on every subsequent idle frame.
+    replace_once(art_file,
+        '        if (item.cover == 0)\n            return false;',
+        '''        if (item.cover == 0) {
+            ++next_cover_to_stream_;
+            return false;
+        }''')
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
                  '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"')
     replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',

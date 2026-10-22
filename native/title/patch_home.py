@@ -162,7 +162,8 @@ def patch(kit):
         ui::text(list,fonts.semibold,"Médias lus par NiakPS5",
                  1430,305,21,kWhite);
         std::snprintf(media_label,sizeof(media_label),
-                      "%u titres | %u icônes",media.titles,media.icons);
+                      "Chargés : %u/%u | icônes : %u",
+                      media.titles,media.total_titles,media.icons);
         ui::text(list,fonts.regular,media_label,1430,346,18,kWhite);
         std::snprintf(media_label,sizeof(media_label),
                       "Rectos : %u  Versos : %u",media.fronts,media.backs);
