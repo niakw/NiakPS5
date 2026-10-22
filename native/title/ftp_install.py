@@ -532,7 +532,8 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
             raise ValueError("Symlinks are not accepted")
         if local.is_file():
             relative = local.relative_to(directory).as_posix()
-            if relative.startswith("tools/"):
+            if relative.startswith("tools/") or relative.startswith("assets/niak-templates/"):
+                # Validated and uploaded by upload_case_templates() below.
                 continue
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
     copy_avatar_for_ftp(ftp,avatar_user_id)
