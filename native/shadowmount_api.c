@@ -4,6 +4,8 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "shadowmount_api.h"
+#include "shadowmount_http.h"
+#include "socket_guard.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -144,6 +146,7 @@ int niak_scan_shadowmount(NiakGame *games,size_t capacity){
  if(!games||!capacity)return -1;
  int fd=socket(AF_INET,SOCK_STREAM,0);
  if(fd<0)return -1;
+ niak_socket_guard(fd);
  struct timeval tv={1,500000};
  setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
  setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
@@ -162,21 +165,29 @@ int niak_scan_shadowmount(NiakGame *games,size_t capacity){
  "Content-Length: 2\r\nConnection: close\r\n\r\n{}";
  size_t sent=0,total_request=sizeof(request)-1;
  while(sent<total_request){
-  ssize_t result=send(fd,request+sent,total_request-sent,0);
+  ssize_t result=niak_socket_send(fd,request+sent,total_request-sent);
   if(result<=0){close(fd);return -1;}sent+=(size_t)result;
  }
  char *response=(char*)malloc(NIAK_HTTP_LIMIT+1);
  if(!response){close(fd);return -1;}
- size_t size=0;ssize_t n;
- while(size<NIAK_HTTP_LIMIT &&
-       (n=recv(fd,response+size,NIAK_HTTP_LIMIT-size,0))>0)size+=(size_t)n;
- close(fd);
- response[size]=0;
- if(n<0||size==NIAK_HTTP_LIMIT||strncmp(response,"HTTP/1.1 200",12)!=0){
-  free(response);return -1;
+ size_t size=0;
+ const char *body=NULL;
+ int framed=0;
+ /* A Content-Length response is complete without a peer disconnect.
+  * Never inspect an uninitialized recv result when reaching the size cap. */
+ while(size<NIAK_HTTP_LIMIT) {
+  const ssize_t n=recv(fd,response+size,NIAK_HTTP_LIMIT-size,0);
+  if(n>0) {
+   size+=(size_t)n;
+   framed=niak_shadowmount_http_json(response,size,0,&body);
+   if(framed!=0)break;
+   continue;
+  }
+  framed=n==0?niak_shadowmount_http_json(response,size,1,&body):-1;
+  break;
  }
- char *body=strstr(response,"\r\n\r\n");
- if(!body){free(response);return -1;}body+=4;
- int count=niak_parse_shadowmount_games(body,games,capacity);
+ close(fd);
+ if(framed!=1){free(response);return -1;}
+ const int count=niak_parse_shadowmount_games(body,games,capacity);
  free(response);return count;
 }

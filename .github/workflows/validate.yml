@@ -44,7 +44,7 @@ jobs:
           /tmp/niak-dds-test
       - name: Compile and test local ShadowMountPlus API reader
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/shadowmount_api.c native/tests/shadowmount_test.c -lsqlite3 -o /tmp/niak-shadowmount
+          cc -std=c11 -Wall -Wextra -Werror -I native -I native/title native/catalog.c native/shadowmount_api.c native/tests/shadowmount_test.c -lsqlite3 -o /tmp/niak-shadowmount
           /tmp/niak-shadowmount
       - name: Validate title staging and FTP package
         run: |

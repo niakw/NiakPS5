@@ -218,7 +218,7 @@ def prepare(kit: Path, project: Path, revision: str):
     (src_niak/"version.hpp").write_text(
         '#pragma once\nnamespace niak {inline constexpr const char *revision = "'
         + revision + '";}\n',encoding="utf8")
-    for filename in ("catalog.c", "catalog.h", "shadowmount_api.c", "shadowmount_api.h"):
+    for filename in ("catalog.c", "catalog.h", "shadowmount_api.c", "shadowmount_api.h", "shadowmount_http.h"):
         shutil.copy2(project / "native" / filename, src_niak / filename)
     for filename in ("title_meta.cpp", "title_meta.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
