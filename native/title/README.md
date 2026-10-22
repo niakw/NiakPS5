@@ -112,6 +112,15 @@ python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --refresh-art
 
 Ordre : **LaunchBox → TheGamesDB (recto/verso) → SteamGridDB (illustration de recto)**. La dernière source est une illustration de bibliothèque communautaire, pas nécessairement une jaquette PS5 physique officielle. Les faces arrière et tranches non trouvées conservent le traitement de secours du boîtier ; une fausse tranche n'est jamais téléchargée. La recherche rejette les noms ambigus et vérifie la plateforme TheGamesDB avant de télécharger. Les images vont uniquement dans le cache privé du titre sur la console ; respecter les droits et limites des fournisseurs. Sans clés, LaunchBox et les visuels de secours fonctionnent comme avant.
 
+## Gabarits 3D PS4/PS5 fournis par l'utilisateur
+
+Six images PNG privées (ps4-front, ps4-back, ps4-spine, ps5-front, ps5-back, ps5-spine) sont acceptées sous `PPSA99386/assets/niak-templates/`.
+Décompresser `NiakPS5-gabarits-prives.zip` au même emplacement que le dossier `PPSA99386/` extrait, puis utiliser l'installation FTP habituelle. `--refresh-art` transfère également les gabarits sans réinstaller le titre. `--status` affiche le nombre de fichiers présents. Quitter complètement NiakPS5 puis le relancer après modification : les textures sont chargées au démarrage.
+
+Le rendu garde la priorité aux véritables scans recto, verso et tranche. À défaut, le moteur recombine l'icône ou artwork connu, la description disponible et les gabarits PS4/PS5 sur le boîtier fermé. Les parties hautes du recto, basses du verso et les tranches proviennent des éléments envoyés par le propriétaire, non de GitHub ni des builds CI. L'identifiant historique au pied des tranches est masqué. Sans gabarits, le rendu procédural neutre reste disponible.
+
+Attention : les notes légales, classifications et logos présents dans les exemples sont propres aux jeux originaux. Ils ne constituent pas des informations officielles pour les autres titres. L'assemblage est un habillage personnel, distinct d'une jaquette authentique.
+
 ## Diagnostic local et récupération des jaquettes
 
 La simple copie du ZIP par FTP ne télécharge **pas** les images privées LaunchBox et ne configure **pas** l'autoload. Utiliser le script embarqué dans le dossier extrait pour obtenir ces fonctions sans publier les jaquettes :

@@ -426,6 +426,7 @@ def diagnose(ftp,local_directory=None):
     files=_listed(ftp,app)
     assets=_listed(ftp,app+"/assets")
     covers=_listed(ftp,app+"/assets/niak-cases")
+    templates=_listed(ftp,app+"/assets/niak-templates")
     payloads=_listed(ftp,"/data/pldmgr/payloads/niakps5")
     def known(state):
         return "accès refusé / inconnu" if state is None else str(state)
@@ -442,6 +443,10 @@ def diagnose(ftp,local_directory=None):
     print("Métadonnées locales :",known(None if assets is None else app+"/assets/niak-local-titles.tsv" in assets))
     print("Avatar copié :",known(None if assets is None else any(
         app+"/assets/"+name in assets for name in ("niak-profile.png","niak-profile.dds"))))
+    if templates is None: print("Gabarits 3D privés : accès inconnu / refusé")
+    else:
+        files={str(x).rsplit("/",1)[-1] for x in templates}
+        print("Gabarits 3D privés :",len(files&TEMPLATE_NAMES),"/6")
     if covers is None: print("Jaquettes privées : accès refusé / inconnu")
     else:
         art={x.rsplit("/",1)[-1] for x in covers}
@@ -487,6 +492,38 @@ def diagnose(ftp,local_directory=None):
     print("Un succès historique ne prouve pas le démarrage automatique actuel.")
 
 
+# Six privately supplied, user-owned case overlay files.
+TEMPLATE_NAMES={f"{platform}-{side}.png"
+                for platform in ("ps4","ps5")
+                for side in ("front","back","spine")}
+
+def upload_case_templates(ftp,directory):
+    """Send only recognized, bounded PNG templates to the owner's PS5."""
+    folder=directory/"assets"/"niak-templates"
+    if not folder.is_dir():return 0
+    entries=list(folder.iterdir())
+    for path in entries:
+        if path.is_symlink() or not path.is_file() or path.name not in TEMPLATE_NAMES:
+            raise ValueError("Unrecognized private template file")
+    for path in entries:
+        content=path.read_bytes()
+        if not 33<=len(content)<=3*1024*1024 or content[:8]!=b"\x89PNG\r\n\x1a\n":
+            raise ValueError("Invalid case template PNG")
+        width=int.from_bytes(content[16:20],"big")
+        height=int.from_bytes(content[20:24],"big")
+        part=path.stem.split("-",1)[1]
+        if part=="spine": valid=40<=width<=200 and 350<=height<=1600
+        elif part=="front": valid=450<=width<=2000 and 60<=height<=400
+        else: valid=450<=width<=1600 and 220<=height<=900
+        if not valid or width*height>2500000:
+            raise ValueError("Invalid case template proportions")
+        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-templates/{path.name}",content)
+    if entries:
+        print(f"Boîtiers 3D : {len(entries)}/6 gabarits personnels envoyés. "
+              "Relancer NiakPS5 pour recharger les textures.")
+    return len(entries)
+
+
 def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None, art_limit=150):
     if directory.name != TITLE or not (directory / "sce_sys/param.json").is_file():
         raise ValueError("Extract PPSA99386/ and run the installer inside that folder")
@@ -499,6 +536,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
                 continue
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
     copy_avatar_for_ftp(ftp,avatar_user_id)
+    upload_case_templates(ftp,directory)
     upload_local_homebrew_names(ftp)
     fetch_retail_covers(ftp,directory,art_limit)
     fetch_alternative_covers(ftp,directory,art_limit)
@@ -577,6 +615,7 @@ def main():
         if args.status:
             diagnose(ftp,directory)
         elif args.refresh_art:
+            upload_case_templates(ftp,directory)
             upload_local_homebrew_names(ftp)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
             # A forced LaunchBox repair must NOT overwrite its valid scans
