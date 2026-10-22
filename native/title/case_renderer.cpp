@@ -214,15 +214,19 @@ void outer_face(DrawList &list,const Camera &camera,
                         area.first,pos.y, std::clamp(area.second*0.066f,10.f,18.f),
                         area.second,21.f,Color::rgb(0xffffff),2);
             } else {
-                const auto area=text_bounds(0.055f,0.945f,0.505f);
-                const auto pos=paper(0.055f,0.505f);
+                // The PS4 legal strip begins near 57% of the jacket,
+                // leaving much less room for editorial text than the PS5
+                // strip. Keep every text line above that fixed artwork.
+                const float description_top=ps4?0.482f:0.505f;
+                const auto area=text_bounds(0.055f,0.945f,description_top);
+                const auto pos=paper(0.055f,description_top);
                 if(area.second>65.f) {
                     const char *description=item.blurb&&item.blurb[0]?
                         item.blurb:item.title;
                     hui::ui::paragraph(list,fonts.regular,description,
                         area.first,pos.y,std::clamp(area.second*0.045f,9.f,13.f),
-                        area.second,15.f,Color::rgb(0x16263c),
-                        item.case_template_back && ps4 ? 2 : 4);
+                        area.second,ps4?12.f:15.f,
+                        Color::rgb(0x16263c),ps4?2:4);
                     if(!item.case_template_back) {
                         const auto lower=text_bounds(0.08f,0.92f,0.735f);
                         const auto lower_y=paper(0.08f,0.735f).y;
