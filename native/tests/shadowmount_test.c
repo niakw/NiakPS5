@@ -25,6 +25,17 @@ int main(void){
  assert(niak_parse_shadowmount_games("{\"status\": 13,\"games\":[]}",g,5)==-1);
  assert(niak_parse_shadowmount_games("{\"status\":0,\"games\":[]}",g,5)==0);
  assert(niak_parse_shadowmount_games("{\"status\":0,\"games\":[{\"title_id\":\"PPSA00001\",\"name\":\"a\"},{\"title_id\":\"PPSA00001\",\"name\":\"b\"}]}",g,5)==1);
+ // ShadowMountPlus may JSON-escape accented names and emoji.
+ const char *escaped="{\"status\":0,\"games\":["
+    "{\"title_id\":\"PPSA12345\",\"name\":\"Jeu \\u00e9dition \\uD83C\\uDFAE\"}]}";
+ assert(niak_parse_shadowmount_games(escaped,g,5)==1);
+ assert(strcmp(g[0].title,"Jeu \xc3\xa9dition \xf0\x9f\x8e\xae")==0);
+ // A malformed UTF-16 surrogate is rejected; fallback is the exact title ID.
+ const char *bad_unicode="{\"status\":0,\"games\":["
+    "{\"title_id\":\"CUSA22334\",\"name\":\"\\uD83C\"}]}";
+ assert(niak_parse_shadowmount_games(bad_unicode,g,5)==1);
+ assert(strcmp(g[0].title,"CUSA22334")==0);
+
  // HTTP/1.1 persistent connection: do not wait for EOF after body length.
  char raw[256]="HTTP/1.1 200 OK\r\nContent-Length: 23\r\n"
                "Connection: keep-alive\r\n\r\n{\"status\":0,\"games\":[]}";

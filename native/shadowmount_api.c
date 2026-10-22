@@ -29,20 +29,70 @@ static int match_key(const char **p,const char *key) {
  *p+=n+1;skip_ws(p);if(**p!=':')return 0;++*p;
  skip_ws(p);return 1;
 }
+/* Decode valid JSON Unicode escapes into UTF-8 rather than '?'.
+ * Correctly combine UTF-16 surrogate pairs; reject malformed sequences. */
+static int json_hex4(const char **p,unsigned *value) {
+ unsigned n=0;
+ for(int i=0;i<4;i++) {
+  const unsigned char c=(unsigned char)**p;
+  unsigned digit=0;
+  if(c>='0'&&c<='9')digit=(unsigned)(c-'0');
+  else if(c>='a'&&c<='f')digit=(unsigned)(c-'a'+10);
+  else if(c>='A'&&c<='F')digit=(unsigned)(c-'A'+10);
+  else return 0;
+  n=(n<<4)|digit;
+  ++*p;
+ }
+ *value=n;return 1;
+}
+static void append_utf8(char *dest,size_t capacity,size_t *used,unsigned point) {
+ unsigned char bytes[4];
+ size_t count=0;
+ if(point<0x80u){bytes[0]=(unsigned char)point;count=1;}
+ else if(point<0x800u){
+  bytes[0]=(unsigned char)(0xC0u|(point>>6));
+  bytes[1]=(unsigned char)(0x80u|(point&63u));count=2;
+ } else if(point<0x10000u){
+  bytes[0]=(unsigned char)(0xE0u|(point>>12));
+  bytes[1]=(unsigned char)(0x80u|((point>>6)&63u));
+  bytes[2]=(unsigned char)(0x80u|(point&63u));count=3;
+ } else {
+  bytes[0]=(unsigned char)(0xF0u|(point>>18));
+  bytes[1]=(unsigned char)(0x80u|((point>>12)&63u));
+  bytes[2]=(unsigned char)(0x80u|((point>>6)&63u));
+  bytes[3]=(unsigned char)(0x80u|(point&63u));count=4;
+ }
+ if(*used+count<capacity) {
+  memcpy(dest+*used,bytes,count);
+  *used+=count;
+ }
+}
 static int read_json_string(const char **p,char *dst,size_t cap) {
  if(!cap || **p!='"')return 0;
  ++*p;
  size_t used=0;
- while(**p&&**p!='"'){
+ while(**p&&**p!='"') {
   unsigned char c=(unsigned char)*(*p)++;
-  if(c=='\\'){
+  if(c=='\\') {
    c=(unsigned char)*(*p)++;
-   if(c==0)return 0;
-   if(c=='u'){for(int i=0;i<4;i++){if(!**p)return 0;++*p;}c='?';}
-   else if(c=='n'||c=='t'||c=='r')c=' ';
-   else if(c!='"'&&c!='\\'&&c!='/')c='?';
+   if(c=='u') {
+    unsigned point=0;
+    if(!json_hex4(p,&point))return 0;
+    if(point>=0xD800u && point<=0xDBFFu) {
+     if((*p)[0]!='\\' || (*p)[1]!='u')return 0;
+     *p+=2;
+     unsigned low=0;
+     if(!json_hex4(p,&low)||low<0xDC00u||low>0xDFFFu)return 0;
+     point=0x10000u+((point-0xD800u)<<10)+(low-0xDC00u);
+    } else if(point>=0xDC00u&&point<=0xDFFFu)return 0;
+    if(point<32u || point==127u)point=' ';
+    append_utf8(dst,cap,&used,point);
+    continue;
+   }
+   if(c=='n'||c=='t'||c=='r'||c=='b'||c=='f')c=' ';
+   else if(c!='"'&&c!='\\'&&c!='/')return 0;
   }
-  if(c<32)return 0;
+  if(c<32u)return 0;
   if(used+1<cap)dst[used++]=(char)c;
  }
  if(**p!='"')return 0;
