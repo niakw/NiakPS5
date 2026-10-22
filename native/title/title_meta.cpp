@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <utility>
 using Index=std::unordered_map<std::string,NiakTitleMetadata>;
 static Index read_titles(){
  Index index;
@@ -29,10 +30,24 @@ static Index read_titles(){
   v[4]=current;v[4][std::strcspn(v[4],"\r\n")]=0;
   if(std::strlen(v[0])!=9 || !*v[1])continue;
   const auto it=index.find(v[0]);
-  if(it==index.end()) index.emplace(v[0],NiakTitleMetadata{v[1],v[2],v[3],v[4]});
-  else if(std::strstr(source,"local-titles")) {
+  const bool local=std::strstr(source,"local-titles")!=nullptr;
+  auto is_category=[](const char *value) {
+      return std::strcmp(value,"Jeu")==0 ||
+             std::strcmp(value,"Application")==0;
+  };
+  if(it==index.end()) {
+   NiakTitleMetadata data{v[1],v[2],v[3],v[4],{}};
+   if(local && is_category(v[2])) {
+      data.category=v[2];
+      data.genre.clear(); // A classification is not a genre.
+   }
+   index.emplace(v[0],std::move(data));
+  } else if(local) {
    it->second.name=v[1];
-   if(v[2][0])it->second.genre=v[2];
+   if(v[2][0]) {
+       if(is_category(v[2]))it->second.category=v[2];
+       else it->second.genre=v[2];
+   }
    if(v[3][0])it->second.publisher=v[3];
    if(v[4][0])it->second.released=v[4];
   }

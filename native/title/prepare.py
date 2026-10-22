@@ -467,10 +467,9 @@ Catalog::Catalog()
                          (game.id[0]=='C' ? "PS4" : "PS5");
             // The current scanner has no trusted category for native titles.
             // Homebrew folders are initially classified as applications.
-            if (known && (meta.genre=="Jeu" || meta.genre=="Game"))
+            if (known && meta.category=="Jeu")
                 item.application=false;
-            else if (known && (meta.genre=="Application" ||
-                               meta.genre=="Utility" || meta.genre=="Outils"))
+            else if (known && meta.category=="Application")
                 item.application=true;
             else
                 item.application = game.is_homebrew != 0;
