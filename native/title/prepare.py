@@ -451,7 +451,15 @@ Catalog::Catalog()
             const std::string summary=known ? niak_title_summary(meta) : "";
             const std::string description=niak_title_overview(game.id);
             // Unknown metadata stays empty rather than showing invented prose.
-            owned_blurbs_.emplace_back(!description.empty() ? description : summary);
+            // Keep factual metadata visible even when LaunchBox also has a
+            // full editorial overview; show verified facts FIRST.
+            std::string detail=summary;
+            if(!description.empty()) {
+                if(!detail.empty())detail+=" — ";
+                detail+=description;
+            }
+            if(detail.size()>900)detail.resize(900);
+            owned_blurbs_.emplace_back(std::move(detail));
             Item item{};
             item.title = owned_titles_.back().c_str();
             item.studio = game.is_homebrew ? "Application" : "Jeu installé";
