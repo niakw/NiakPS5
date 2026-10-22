@@ -70,7 +70,7 @@ class NativeTitleTests(unittest.TestCase):
         preview=(ROOT / "title" / "validate_preview.py").read_text()
         self.assertIn("Color::rgb(0x081014, 0.68f)", source)
         self.assertIn("Wallpaper washes out NiakPS5", preview)
-        self.assertIn("printed_face", (ROOT / "title" / "case_renderer.cpp").read_text())
+        self.assertIn("outer_face", (ROOT / "title" / "case_renderer.cpp").read_text())
 
     def test_final_rendering_contracts(self):
         source=(ROOT / "title" / "polish.py").read_text()
@@ -85,6 +85,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_draw_rotating_case(list, it, ring",source)
         self.assertIn("niak_draw_rotating_case(list, it, art",source)
         self.assertIn("case_selected_at_",source)
+        self.assertIn("clock_ - case_selected_at_",source)
         self.assertIn("shelf.column = next;",source)
         self.assertIn("row_ = next;",source)
         self.assertIn("game.homebrew",case)
@@ -93,18 +94,18 @@ class NativeTitleTests(unittest.TestCase):
 
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
-        for name in ("case_front","case_back","case_spine","PS4","PS5","animation",
-                     "d.image","game.blurb","homebrew"):
+        for name in ("case_front","case_back","case_spine","PS4","PS5","yaw_at",
+                     "list.image","item.blurb","homebrew"):
             self.assertIn(name,source)
         stage=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("niak_load_case_art",stage)
         self.assertIn("case_renderer.cpp",stage)
         self.assertIn('item.case_spine = niak_load_case_art(renderer,item.title_id,"spine")',stage)
-        self.assertIn("strip_art(",source)
-        self.assertIn("spine_print(",source)
-        self.assertIn("printed_face(",source)
-        self.assertIn("hinge(",source)
-        self.assertIn("SEALED seam",source)
+        self.assertIn("printed(",source)
+        self.assertIn("left_spine(",source)
+        self.assertIn("outer_face(",source)
+        self.assertIn("right_seal(",source)
+        self.assertIn("Positive sin means",source)
         for forbidden in ("disk_tray(", "inside_door(", "front_door(",
                           "Surface flap(", "Motion {", "motion.opening"):
             self.assertNotIn(forbidden,source)
@@ -117,7 +118,10 @@ class NativeTitleTests(unittest.TestCase):
             self.assertIn(angle,preview)
         self.assertIn("cam.project(",source)
         self.assertNotIn("case_wrap",source)
-        self.assertIn("spine_print(d,cam,game,L,T,B,F,K,w)",source)
+        self.assertIn("if(back&&show_face)",source)
+        self.assertIn("if(!back&&show_face)",source)
+        self.assertIn("if(show_spine)",source)
+        self.assertIn("if(show_seal)",source)
         host=(ROOT/"title"/"host_preview.py").read_text()
         self.assertIn("make_case_art_fixtures",host)
         self.assertIn("NIAK_CASE_PREVIEW_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())
