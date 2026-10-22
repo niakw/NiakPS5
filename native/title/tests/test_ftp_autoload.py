@@ -167,6 +167,15 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(result,0)
         open_url.assert_not_called()
         self.assertEqual(f.files[existing],b"image")
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self,*args): pass
+            def read(self,length): return b"placeholder-image"
+        with (patch.object(urllib.request,"urlopen",return_value=Response()),
+              patch.object(ftpmod,"_decode_retail_image",return_value=b"repaired-png")):
+            refreshed=ftpmod.fetch_retail_covers(f,self.root,force=True)
+        self.assertEqual(refreshed,1)
+        self.assertEqual(f.files[existing],b"repaired-png")
 
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
