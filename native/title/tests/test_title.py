@@ -89,14 +89,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("clock_ - case_selected_at_",source)
         self.assertIn("shelf.column = next;",source)
         self.assertIn("row_ = next;",source)
-        self.assertIn("item.homebrew",case)
+        self.assertIn("!item.case_front",case)
         self.assertNotIn("loading_percent",case)
         self.assertNotIn("progress_percent",case)
 
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
         for name in ("case_front","case_back","case_spine","PS4","PS5","yaw_at",
-                     "list.image","item.blurb","homebrew"):
+                     "list.image","item.blurb","!item.case_front"):
             self.assertIn(name,source)
         stage=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("niak_load_case_art",stage)
