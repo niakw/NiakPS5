@@ -70,7 +70,7 @@ class NativeTitleTests(unittest.TestCase):
         preview=(ROOT / "title" / "validate_preview.py").read_text()
         self.assertIn("Color::rgb(0x081014, 0.68f)", source)
         self.assertIn("Wallpaper washes out NiakPS5", preview)
-        self.assertIn("caseface.w+6", (ROOT / "title" / "case_renderer.cpp").read_text())
+        self.assertIn("framed_face", (ROOT / "title" / "case_renderer.cpp").read_text())
 
     def test_final_rendering_contracts(self):
         source=(ROOT / "title" / "polish.py").read_text()
@@ -93,12 +93,16 @@ class NativeTitleTests(unittest.TestCase):
 
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
-        for name in ("case_front","case_back","PS4","PS5","front_hold",
+        for name in ("case_front","case_back","case_spine","PS4","PS5","case_yaw",
                      "list.image","game.blurb","homebrew"):
             self.assertIn(name,source)
         stage=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("niak_load_case_art",stage)
         self.assertIn("case_renderer.cpp",stage)
+        self.assertIn('item.case_spine = niak_load_case_art(renderer,item.title_id,"spine")',stage)
+        self.assertIn("textured_face(",source)
+        self.assertIn("cam.project(",source)
+        self.assertNotIn("face_w=bounds.w",source)
 
     def test_real_top_navigation(self):
         from pathlib import Path

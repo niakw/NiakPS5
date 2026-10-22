@@ -104,6 +104,7 @@ class AutoloadTests(unittest.TestCase):
               patch.object(ftpmod,"_decode_retail_image",return_value=b"compressed png")):
             count=ftpmod.fetch_retail_covers(f,self.root)
         self.assertEqual(count,2)
+        self.assertIn((("spine",4)),(("front",2),("back",3),("spine",4),("logo",5)))
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-front.png",f.files)
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-back.png",f.files)
         self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA01234-front.png",f.files)

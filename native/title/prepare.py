@@ -90,7 +90,8 @@ def prepare(kit: Path, project: Path):
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
-                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;
+    std::uint32_t case_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::vector<Item> items_;')
 
@@ -124,6 +125,7 @@ def prepare(kit: Path, project: Path):
         if (item.title_id[0]) {
             item.case_front = niak_load_case_art(renderer,item.title_id,"front");
             item.case_back = niak_load_case_art(renderer,item.title_id,"back");
+            item.case_spine = niak_load_case_art(renderer,item.title_id,"spine");
             item.logo_art = niak_load_case_art(renderer,item.title_id,"logo");
             item.cover = niak_load_game_icon(renderer, item.title_id);
         }

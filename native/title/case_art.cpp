@@ -12,7 +12,7 @@ extern "C" {
 std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side){
  if(!niak_valid_title_id(id)||!side ||
     (std::strcmp(side,"front") && std::strcmp(side,"back") &&
-     std::strcmp(side,"logo")))return 0;
+     std::strcmp(side,"logo") && std::strcmp(side,"spine")))return 0;
  char file[170];
  std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
  FILE *fp=std::fopen(file,"rb");if(!fp)return 0;
@@ -29,7 +29,8 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  const unsigned height=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
                        (unsigned(png[22])<<8)|png[23];
  const bool logo=std::strcmp(side,"logo")==0;
- if(width<(logo?32u:64u)||height<(logo?20u:100u)||
+ const bool spine=std::strcmp(side,"spine")==0;
+ if(width<(logo?32u:spine?16u:64u)||height<(logo?20u:100u)||
     width>(logo?1400u:1024u)||height>1536u)return 0;
  std::vector<unsigned char> pixels;unsigned w=0,h=0;
  if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||

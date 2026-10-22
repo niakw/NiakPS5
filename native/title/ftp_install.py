@@ -171,13 +171,13 @@ def _decode_retail_image(raw,side):
     if Image:
         with Image.open(BytesIO(raw)) as source:
             source.load()
-            if source.width<64 or source.height<40 or source.width*source.height>14_000_000:
+            if source.width<(16 if side=="spine" else 64) or source.height<40 or source.width*source.height>14_000_000:
                 raise ValueError("Unexpected image geometry")
             if side=="logo":
                 image=source.convert("RGBA")
                 image.thumbnail((850,300),Image.Resampling.LANCZOS)
             else:
-                if source.height<200 or source.width/source.height>1.4:
+                if source.height<200 or source.width/source.height>(0.42 if side=="spine" else 1.4):
                     raise ValueError("Not a retail box scan")
                 image=source.convert("RGB")
                 image.thumbnail((600,900),Image.Resampling.LANCZOS)
@@ -216,9 +216,9 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
         columns=line.split("\t")
         if len(columns)<7 or columns[0] not in installed:continue
         ident=columns[0]
-        if shipped>=maximum_titles*3:break
+        if shipped>=maximum_titles*4:break
         # Metadata fields: ID, description, front, back, spine, logo, sourceID.
-        for side,field in (("front",2),("back",3),("logo",5)):
+        for side,field in (("front",2),("back",3),("spine",4),("logo",5)):
             choices=columns[field]
             if choices=="-":continue
             for candidate in choices.split(";")[:8]:
