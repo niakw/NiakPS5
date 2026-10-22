@@ -15,7 +15,7 @@ static void file_at(const char *path,const char *body) {
 int main(void) {
     char root[]="/tmp/niak-launch-perms-XXXXXX";
     assert(mkdtemp(root));
-    char base[256],param[310],meta_dir[300];
+    char base[256],param[512],meta_dir[300];
     const char *roots[]={root};
     snprintf(base,sizeof(base),"%s/PPSA12345",root);
     assert(mkdir(base,0700)==0);
