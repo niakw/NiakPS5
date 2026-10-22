@@ -30,6 +30,12 @@ class FakeFTP:
     def sendcmd(self,command):
         assert command.startswith("SITE CHMOD ")
         return "200 okay"
+    def delete(self,path):
+        from ftplib import error_perm
+        if path not in self.files:
+            raise error_perm("550 not found")
+        del self.files[path]
+        return "250 removed"
 
 class AutoloadTests(unittest.TestCase):
     def setUp(self):
@@ -168,6 +174,8 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("/data/niakps5-autostart.enabled",f.files)
         self.assertIn("/data/niakps5-return-after-game.enabled",f.files)
         ftpmod.install(f,self.root,True,False)
+        self.assertNotIn("/data/niakps5-return-after-game.enabled",f.files)
+        self.assertIn("/data/niakps5-autostart.enabled",f.files)
         self.assertEqual(f.files[ftpmod.AUTOLOAD].decode().count(ftpmod.PAYLOAD),1)
         # A repeat install must never replace the original pre-Niak backups.
         self.assertEqual(f.files[ftpmod.AUTOLOAD+".niakps5.bak"],initial)
@@ -184,6 +192,26 @@ class AutoloadTests(unittest.TestCase):
         self.assertNotIn(ftpmod.PAYLOAD,f.files)
         self.assertNotIn(ftpmod.AUTOLOAD+".niakps5.bak",f.files)
         self.assertNotIn("/data/niakps5-autostart.enabled",f.files)
+
+    def test_disabled_return_flag_remains_disabled_on_reinstall(self):
+        f=FakeFTP()
+        ftpmod.install(f,self.root,True,False)
+        self.assertNotIn("/data/niakps5-return-after-game.enabled",f.files)
+        ftpmod.install(f,self.root,True,True)
+        self.assertIn("/data/niakps5-return-after-game.enabled",f.files)
+        ftpmod.install(f,self.root,True,False)
+        self.assertNotIn("/data/niakps5-return-after-game.enabled",f.files)
+
+    def test_failed_return_flag_removal_cannot_silently_claim_opt_out(self):
+        from ftplib import error_perm
+        marker="/data/niakps5-return-after-game.enabled"
+        class UndeletableFTP(FakeFTP):
+            def delete(self,path):
+                raise error_perm("550 permission denied")
+        f=UndeletableFTP({marker:b""})
+        with self.assertRaises(error_perm):
+            ftpmod.install(f,self.root,True,False)
+        self.assertIn(marker,f.files)
 
     def test_autoload_backup_is_never_replaced_if_it_preexists(self):
         initial=b"/data/pldmgr/payloads/shadow/shadow.elf\n"
