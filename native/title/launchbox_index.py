@@ -106,7 +106,11 @@ def parse(xml,installed):
         # edition scan is allowed only when exact has no FRONT artwork.
         candidates=matched if len(matched)==1 else set()
         if not any(media.get(g,{}).get("front") for g in candidates):
-            alternative=edition_matches.get(key,set())
+            alternative=set(edition_matches.get(key,set()))
+            # Symmetric lookup: Anno 1800 Console Edition on the console may
+            # have a PS5 LaunchBox image filed under "Anno 1800" itself.
+            for base in safe_titles(key[1])[1:]:
+                alternative.update(exact_matches.get((key[0],base),set()))
             fronts={g for g in alternative if media.get(g,{}).get("front")}
             if len(fronts)==1:candidates=fronts
         if len(candidates)!=1:continue

@@ -46,6 +46,19 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(mod.safe_titles("Elden Ring Deluxe Edition"),
                    ("elden ring deluxe edition",))
 
+ def test_console_edition_installed_matches_plain_title_cover(self):
+  sources={("ps5","anno 1800 console edition"):["PPSA04716"]}
+  xml=b'''<LaunchBox>
+   <Game><DatabaseID>22</DatabaseID><Platform>Sony Playstation 5</Platform>
+     <Name>Anno 1800</Name></Game>
+   <GameImage><DatabaseID>22</DatabaseID><Type>Box - Front</Type>
+     <Region>Europe</Region><FileName>00000000-0000-0000-0000-000000000022.png</FileName></GameImage>
+  </LaunchBox>'''
+  result=mod.parse(io.BytesIO(xml),sources)
+  self.assertEqual(len(result),1)
+  self.assertEqual(result[0][0],"PPSA04716")
+  self.assertTrue(result[0][2].startswith("eu:"))
+
  def test_ambiguous_edition_is_never_assigned_at_random(self):
   source={("ps5","my game"):["PPSA00003"]}
   xml=b'''<LaunchBox>
