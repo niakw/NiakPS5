@@ -236,10 +236,15 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
         print("LaunchBox: aucun titre trouvé par FTP dans les dossiers autorisés.")
         return 0
     import urllib.request
+    import urllib.error
     cached=_remote_filenames(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases") or set()
     shipped=0
     indexed_matches=0
     attempted=0
+    failed_http={}
+    failed_network=0
+    failed_image=0
+    failed_ftp=0
     for line in index.read_text("utf8").splitlines():
         if not line or line.startswith("#"):continue
         columns=line.split("\t")
@@ -267,19 +272,45 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
                         "User-Agent":"NiakPS5-private-FTP-art/1.0"})
                     with urllib.request.urlopen(req,timeout=10) as response:
                         raw=response.read(5*1024*1024+1)
-                    if not raw or len(raw)>5*1024*1024:continue
-                    png=_decode_retail_image(raw,side)
-                    if not png or len(png)>3*1024*1024:continue
-                    upload(ftp,destination,png)
-                    shipped+=1
-                    break
-                except (OSError,ValueError,TimeoutError,Exception) as exc:
-                    # Keep icon/description fallbacks when LaunchBox is offline
-                    # or a specific regional scan is malformed.
+                except urllib.error.HTTPError as error:
+                    failed_http[error.code]=failed_http.get(error.code,0)+1
                     continue
+                except (OSError,TimeoutError,ValueError):
+                    failed_network+=1
+                    continue
+                if not raw or len(raw)>5*1024*1024:
+                    failed_image+=1
+                    continue
+                try:
+                    png=_decode_retail_image(raw,side)
+                except (OSError,ValueError,TimeoutError):
+                    failed_image+=1
+                    continue
+                if not png or len(png)>3*1024*1024:
+                    failed_image+=1
+                    continue
+                try:
+                    upload(ftp,destination,png)
+                except (OSError,ValueError):
+                    failed_ftp+=1
+                    continue
+                cached.add(posixpath.basename(destination))
+                shipped+=1
+                break
     print(f"LaunchBox: {len(installed)} titres installés visibles par FTP, "
           f"{indexed_matches} correspondances exactes, {attempted} visuels tentés, "
           f"{shipped} fichiers transférés.")
+    if any((failed_http,failed_network,failed_image,failed_ftp)):
+        codes=", ".join(f"{code}: {count}" for code,count in sorted(failed_http.items()))
+        print("LaunchBox diagnostic : "
+              f"HTTP [{codes or 'aucun'}], réseau={failed_network}, "
+              f"images rejetées={failed_image}, FTP refusé={failed_ftp}.")
+        if failed_http.get(403) or failed_http.get(429):
+            print("LaunchBox : source distante restreinte ou limitée ; "
+                  "conserver le cache et utiliser le boîtier reconstruit.")
+        if failed_ftp:
+            print("LaunchBox : écriture des visuels non autorisée ; "
+                  "vérifier l'accès FTP à /data/homebrew/PPSA99386/assets/niak-cases.")
     if not indexed_matches:
         print("LaunchBox: vérifier le nom/version du titre dans l'index; "
               "aucune jaquette ne peut être déduite d'un identifiant seul.")
