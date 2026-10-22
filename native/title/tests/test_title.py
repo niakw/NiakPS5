@@ -135,6 +135,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("make_case_art_fixtures",host)
         self.assertIn("case-04-homebrew-fallback",host)
         self.assertIn("case-05-wallpaper-r1",host)
+        self.assertIn("case-06-touchpad-details",host)
+        self.assertIn("Touchpad click did not open",(ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("R1 did not visibly switch",(ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("item.application=n==4",host)
         self.assertIn("case-04-homebrew-fallback",

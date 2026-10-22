@@ -185,6 +185,12 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         shell.update(next,kDt);
         for(int frame=0;frame<100;++frame) shell.update(idle,kDt);
         render("case-04-homebrew-fallback");
+        hui::InputFrame touchpad;
+        touchpad.connected=true;
+        touchpad.pressed=hui::action_bit(hui::Action::touch);
+        shell.update(touchpad,kDt);
+        for(int frame=0;frame<32;++frame) shell.update(idle,kDt);
+        render("case-06-touchpad-details");
         return ok ? 0 : 1;
     }
     if (const char *strip = std::getenv("HUI_STRIP"))""")

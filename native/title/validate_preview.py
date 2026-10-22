@@ -21,6 +21,8 @@ from PIL import ImageChops
 fallback=Path(sys.argv[1])/"case-04-homebrew-fallback.png"
 wallpaper=Path(sys.argv[1])/"case-05-wallpaper-r1.png"
 if not wallpaper.exists():raise SystemExit("Missing R1 wallpaper capture")
+detail=Path(sys.argv[1])/"case-06-touchpad-details.png"
+if not detail.exists():raise SystemExit("Missing touchpad details capture")
 if not fallback.exists():raise SystemExit("Missing no-retail-art homebrew case preview")
 frames=[Image.open(p).convert("RGB").crop((1160,90,1850,760)) for p in required]
 changes=[]
@@ -35,6 +37,14 @@ with Image.open(wallpaper) as _after, Image.open(required[0]) as _before_image:
     _before=_before_image.convert("RGB").crop((865,105,1115,480))
     if sum(ImageStat.Stat(ImageChops.difference(_before,_background)).mean)<4:
         raise SystemExit("R1 did not visibly switch the wallpaper")
+# Touchpad must open the NiakPS5 detail sheet (large in-panel overlay),
+# not the upstream English developer panel or an inert screen.
+with Image.open(detail) as touch,Image.open(fallback) as before_touch:
+    region=(140,595,1770,1010)
+    change=sum(ImageStat.Stat(ImageChops.difference(
+        touch.convert("RGB").crop(region),
+        before_touch.convert("RGB").crop(region))).mean)
+    if change<11:raise SystemExit("Touchpad click did not open NiakPS5 details")
 # A fallback case must be distinguishable from the commercial scan.
 with Image.open(fallback) as _fallback:
     _box=_fallback.convert("RGB").crop((1160,90,1850,760))
