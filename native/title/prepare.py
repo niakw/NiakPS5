@@ -102,7 +102,7 @@ def prepare(kit: Path, project: Path):
             }'''
     replace_once(aurora, old_launch, new_launch)
     replace_once(aurora, '            sheet_open_ = true;',
-                 '            launch_error_[0] = 0;\\n            sheet_open_ = true;')
+                 '            launch_error_[0] = 0;\n            sheet_open_ = true;')
     # Private favorites are reloaded and sorted before the first screen draw.
     replace_once(aurora, '        favorite_.assign(items.size(), false);',
     """        favorite_.assign(items.size(), false);
