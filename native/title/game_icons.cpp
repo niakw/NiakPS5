@@ -135,6 +135,7 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     for(const char *format : {
         "/data/homebrew/%s/sce_sys/icon0.png",
         "/user/app/%s/sce_sys/icon0.png",
+        "/user/appmeta/%s/icon0.png",
         "/system_ex/app/%s/sce_sys/icon0.png"}) {
         char path[160]{};
         std::snprintf(path,sizeof(path),format,id);
