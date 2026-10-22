@@ -12,6 +12,8 @@ static void make_dir(const char *path){if(mkdir(path,0700))perror(path);}
 int main(void){
   assert(niak_valid_title_id("PPSA12345"));
   assert(niak_valid_title_id("CUSA98765"));
+  assert(niak_valid_title_id("LAPY12345"));
+  assert(niak_valid_title_id("FAKE12345"));
   assert(!niak_valid_title_id("NPXS40000"));
   assert(!niak_valid_title_id("PPSA12345/../"));
   assert(!niak_valid_title_id("PPSA1234"));

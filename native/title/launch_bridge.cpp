@@ -14,7 +14,9 @@ namespace {
 constexpr unsigned short kPort=19187;
 bool valid(const char *id) {
     if(!id || std::strlen(id)!=9)return false;
-    if(std::strncmp(id,"PPSA",4)&&std::strncmp(id,"CUSA",4))return false;
+    if(std::strncmp(id,"PPSA",4)&&std::strncmp(id,"CUSA",4)&&
+       std::strncmp(id,"LAPY",4)&&std::strncmp(id,"FAKE",4)&&
+       std::strncmp(id,"NPXS",4))return false;
     for(int i=4;i<9;++i)if(id[i]<'0'||id[i]>'9')return false;
     return true;
 }

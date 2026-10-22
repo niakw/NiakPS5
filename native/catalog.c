@@ -14,7 +14,8 @@ static void copy_text(char *dst, size_t cap, const char *src) {
 }
 int niak_valid_title_id(const char *id) {
   if (!id || strlen(id)!=9) return 0;
-  if (strncmp(id,"CUSA",4)!=0 && strncmp(id,"PPSA",4)!=0) return 0;
+  if (strncmp(id,"CUSA",4)!=0 && strncmp(id,"PPSA",4)!=0 &&
+      strncmp(id,"LAPY",4)!=0 && strncmp(id,"FAKE",4)!=0) return 0;
   /* Disallow arbitrarily long identifiers and path separators. */
   for (int i=4;i<9;i++) if (id[i]<'0' || id[i]>'9') return 0;
   return id[9]=='\0';

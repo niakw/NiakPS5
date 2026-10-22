@@ -105,7 +105,9 @@ static void copy_current_avatar_png(int user) {
  */
 static int permitted_title(const char *id) {
     if(!id||strlen(id)!=9||
-       (strncmp(id,"PPSA",4)!=0 && strncmp(id,"CUSA",4)!=0)||
+       (strncmp(id,"PPSA",4)!=0 && strncmp(id,"CUSA",4)!=0 &&
+        strncmp(id,"LAPY",4)!=0 && strncmp(id,"FAKE",4)!=0 &&
+        strncmp(id,"NPXS",4)!=0)||
        strcmp(id,NIAK_TITLE)==0)return 0;
     for(int i=4;i<9;++i)if(id[i]<'0'||id[i]>'9')return 0;
     const char *roots[]={"/user/app/","/system_ex/app/","/data/homebrew/",
@@ -113,8 +115,23 @@ static int permitted_title(const char *id) {
     char path[192];struct stat st;
     for(size_t i=0;i<sizeof(roots)/sizeof(roots[0]);++i) {
         int n=snprintf(path,sizeof(path),"%s%s",roots[i],id);
-        if(n>0&&n<(int)sizeof(path) && stat(path,&st)==0 && S_ISDIR(st.st_mode))
-            return 1;
+        if(n>0&&n<(int)sizeof(path) && stat(path,&st)==0 && S_ISDIR(st.st_mode)) {
+            if(strncmp(id,"NPXS",4)!=0)return 1;
+            char meta_path[256];
+            int k=snprintf(meta_path,sizeof(meta_path),"%s/sce_sys/param.json",path);
+            if(k<=0||k>=(int)sizeof(meta_path))continue;
+            FILE *meta=fopen(meta_path,"rb");if(!meta)continue;
+            char data[32769]={0};
+            size_t size=fread(data,1,sizeof(data)-1,meta);
+            fclose(meta);
+            if(size<30)continue;
+            // Only media apps. Internal system/services use different values.
+            const char *v=strstr(data,"applicationCategoryType");
+            if(!v || !(v=strchr(v,':')))continue;
+            const long category=strtol(v+1,NULL,10);
+            if(category==65536||category==65792||category==66048)
+                return 1;
+        }
     }
     return 0;
 }
