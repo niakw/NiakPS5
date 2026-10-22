@@ -138,12 +138,12 @@ class AutoloadTests(unittest.TestCase):
         from contextlib import redirect_stdout
         from io import StringIO
         app="/data/homebrew/PPSA99386"
-        log=b"NiakPS5 optional autostart start rc=0x00000000\\n"
-        log+=b"sceSystemServiceLaunchApp rc=0x00000000\\n"
+        log=b"NiakPS5 optional autostart start rc=0x00000000\n"
+        log+=b"sceSystemServiceLaunchApp rc=0x00000000\n"
         original={app+"/eboot.bin":b"native",
                   "/data/niakps5-autostart.log":log,
-                  ftpmod.AUTOLOAD:(ftpmod.PAYLOAD+"\\n").encode(),
-                  ftpmod.CONFIG:b"AUTOLOAD_ENABLED=1\\n"}
+                  ftpmod.AUTOLOAD:(ftpmod.PAYLOAD+"\n").encode(),
+                  ftpmod.CONFIG:b"AUTOLOAD_ENABLED=1\n"}
         f=FakeFTP(original)
         out=StringIO()
         with redirect_stdout(out):
@@ -160,7 +160,7 @@ class AutoloadTests(unittest.TestCase):
         f=FakeFTP({f"/user/app/{id}/eboot.bin":b"game",existing:b"image"})
         (self.root/"assets").mkdir(exist_ok=True)
         (self.root/"assets/niak-launchbox-cases.tsv").write_text(
-            id+"\\t-\\tfr:00000000-0000-0000-0000-000000000001.jpg\\t-\\t-\\t-\\t4\\n")
+            id+"\t-\tfr:00000000-0000-0000-0000-000000000001.jpg\t-\t-\t-\t4\n")
         with patch.object(urllib.request,"urlopen") as open_url:
             result=ftpmod.fetch_retail_covers(f,self.root)
         self.assertEqual(result,0)
