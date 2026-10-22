@@ -41,7 +41,11 @@ int main(void){
                    "9\r\n{\"status\"\r\n"
                    "E\r\n:0,\"games\":[]}\r\n0\r\n\r\n";
  size_t chunk_size=strlen(chunked);
- assert(niak_shadowmount_http_json(chunked,chunk_size-2,0,&body)==0);
+ // The parser NUL-terminates the supplied view; keep the complete test
+ // frame untouched while examining a deliberately truncated snapshot.
+ char fragment[256];
+ memcpy(fragment,chunked,chunk_size+1);
+ assert(niak_shadowmount_http_json(fragment,chunk_size-2,0,&body)==0);
  assert(niak_shadowmount_http_json(chunked,chunk_size,0,&body)==1);
  assert(strcmp(body,"{\"status\":0,\"games\":[]}") == 0);
  char bad_transfer[256]="HTTP/1.1 200 OK\r\nTransfer-Encoding: gzip\r\n\r\n0\r\n\r\n";
