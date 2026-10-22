@@ -93,7 +93,7 @@ class NativeTitleTests(unittest.TestCase):
 
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
-        for name in ("case_front","case_back","case_spine","case_wrap","PS4","PS5","animation",
+        for name in ("case_front","case_back","case_spine","PS4","PS5","animation",
                      "d.image","game.blurb","homebrew"):
             self.assertIn(name,source)
         stage=(ROOT/"title"/"prepare.py").read_text()
@@ -105,12 +105,10 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("front_door(",source)
         self.assertIn("disk_tray(",source)
         self.assertIn("hinge(",source)
-        self.assertIn("kBackEnd",source)
-        self.assertIn("kSpineEnd",source)
         self.assertIn("The free RIGHT edge unlatches",source)
         self.assertIn("cam.project(",source)
-        self.assertIn('item.case_wrap = niak_load_case_art(renderer,item.title_id,"wrap")',stage)
-        self.assertIn("_compose_case_wrap",(ROOT/"title"/"ftp_install.py").read_text())
+        self.assertNotIn("case_wrap",source)
+        self.assertIn("spine_print(d,cam,game,L,T,B,F,K,w)",source)
         host=(ROOT/"title"/"host_preview.py").read_text()
         self.assertIn("make_case_art_fixtures",host)
         self.assertIn("NIAK_CASE_PREVIEW_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())

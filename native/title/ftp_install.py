@@ -201,62 +201,6 @@ def _decode_retail_image(raw,side):
                 return dst.read_bytes()
     return None
 
-def _compose_case_wrap(parts):
-    """Private continuous back/spine/front paper jacket, never uploaded publicly.
-
-    Separate LaunchBox scans cannot reconstruct unavailable original art.
-    The 964x620 atlas removes physical gaps and joins the three paper folds
-    with small color blends. The spine is interpolated when absent.
-    """
-    try:
-        from PIL import Image
-    except ImportError:
-        return None
-    if "front" not in parts or "back" not in parts:
-        return None
-    W,H,S=460,620,44
-    def section(name,width):
-        with Image.open(BytesIO(parts[name])) as img:
-            img.load()
-            if img.width<16 or img.height<100:
-                raise ValueError("Bad jacket scan")
-            return img.convert("RGB").resize((width,H),Image.Resampling.LANCZOS)
-    try:
-        back=section("back",W)
-        front=section("front",W)
-        wrap=Image.new("RGB",(2*W+S,H))
-        wrap.paste(back,(0,0))
-        wrap.paste(front,(W+S,0))
-        if "spine" in parts:
-            wrap.paste(section("spine",S),(W,0))
-        else:
-            px=wrap.load()
-            for y in range(H):
-                c0=back.getpixel((W-1,y))
-                c1=front.getpixel((0,y))
-                for x in range(S):
-                    t=(x+1)/(S+1)
-                    px[W+x,y]=tuple(round(c0[k]*(1-t)+c1[k]*t)
-                                     for k in range(3))
-        pixels=wrap.load()
-        # The paper has continuous colour at the fold, with no blank band.
-        for seam in (W,W+S):
-            for y in range(H):
-                lo=pixels[seam-7,y]
-                hi=pixels[seam+6,y]
-                for dx in range(-6,6):
-                    t=(dx+7)/13
-                    pixels[seam+dx,y]=tuple(round(
-                        lo[k]*(1-t)+hi[k]*t) for k in range(3))
-        wrap=wrap.quantize(colors=224,method=Image.Quantize.MEDIANCUT)
-        out=BytesIO()
-        wrap.save(out,"PNG",optimize=True)
-        result=out.getvalue()
-        return result if len(result)<=3*1024*1024 else None
-    except (OSError,ValueError):
-        return None
-
-
 def fetch_retail_covers(ftp, folder, maximum_titles=60):
     """Download LaunchBox regional scans directly to owner's PS5 via FTP.
     Build ZIP ships text index only; third-party scans never enter repository.
@@ -267,15 +211,12 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
     if not installed:return 0
     import urllib.request
     shipped=0
-    matched_titles=0
     for line in index.read_text("utf8").splitlines():
         if not line or line.startswith("#"):continue
         columns=line.split("\t")
         if len(columns)<7 or columns[0] not in installed:continue
         ident=columns[0]
-        if matched_titles>=maximum_titles:break
-        matched_titles+=1
-        downloaded={}
+        if shipped>=maximum_titles*4:break
         # Metadata fields: ID, description, front, back, spine, logo, sourceID.
         for side,field in (("front",2),("back",3),("spine",4),("logo",5)):
             choices=columns[field]
@@ -296,17 +237,12 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
                     png=_decode_retail_image(raw,side)
                     if not png or len(png)>3*1024*1024:continue
                     upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png",png)
-                    downloaded[side]=png
                     shipped+=1
                     break
                 except (OSError,ValueError,TimeoutError,Exception) as exc:
                     # Keep icon/description fallbacks when LaunchBox is offline
                     # or a specific regional scan is malformed.
                     continue
-        joined=_compose_case_wrap(downloaded)
-        if joined:
-            upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-wrap.png",joined)
-            shipped+=1
     print(f"LaunchBox: {shipped} jaquettes/logos copiés en privé via FTP.")
     return shipped
 

@@ -64,13 +64,6 @@ def make_case_art_fixtures(kit):
     d.text((13,85),"5",fill=(18,35,74),font=font(23))
     d.line((10,145,10,580),fill=(27,103,175),width=4)
     spine.save(output/f"{ident}-spine.png",optimize=True)
-    # Original QA art only; same no-gap atlas generator as private FTP.
-    from ftp_install import _compose_case_wrap
-    components={side:(output/f"{ident}-{side}.png").read_bytes()
-                for side in ("front","spine","back")}
-    wrap=_compose_case_wrap(components)
-    if wrap is None:raise RuntimeError("Continuous preview sleeve failed")
-    (output/f"{ident}-wrap.png").write_bytes(wrap)
 
 def one(path,old,new):
     data=path.read_text("utf8")

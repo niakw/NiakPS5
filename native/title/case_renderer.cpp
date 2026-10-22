@@ -15,8 +15,6 @@ using hui::gfx::Rect;
 struct Point {float x,y;};
 struct Surface {float x,y,z;};
 constexpr float pi=3.14159265358979323846f;
-constexpr float kBackEnd=460.0f/964.0f;
-constexpr float kSpineEnd=504.0f/964.0f;
 float ease(float t) {
     t=std::clamp(t,0.0f,1.0f);
     return t*t*(3.0f-2.0f*t);
@@ -198,11 +196,11 @@ void printed_face(DrawList &d,const Camera &cam,
                           :L+(paperRight-L)*t;
         return p(x,paperTop+(paperBottom-paperTop)*v);
     };
-    const std::uint32_t image=game.case_wrap?game.case_wrap:
-                              back?game.case_back:game.case_front;
-    const float u0=game.case_wrap?(back?0.0f:kSpineEnd):0.0f;
-    const float u1=game.case_wrap?(back?kBackEnd:1.0f):1.0f;
-    if(image) strip_art(d,paper,image,u0,u1,60,Color::rgb(0xffffff));
+    // Separate original scans meet at the SAME physical printed fold.
+    // Back right edge -> spine rear edge; spine front edge -> front left edge.
+    // No atlas, gap-filler, resampling, or plastic band inserted between them.
+    const std::uint32_t image=back?game.case_back:game.case_front;
+    if(image) strip_art(d,paper,image,0.0f,1.0f,60,Color::rgb(0xffffff));
     else {
         const auto a=paper(0,0),b=paper(1,0),c=paper(1,1),e=paper(0,1);
         quad(d,a,b,c,e,Color::rgb(0x183e67));
@@ -246,10 +244,10 @@ void front_door(DrawList &d,const Camera &cam,
         auto paper=[&](float t,float v){
             return outer(L+(paperRight-L)*t,T+border+(B-T-2*border)*v);
         };
-        const auto image=game.case_wrap?game.case_wrap:game.case_front;
+        // Hinged FRONT scan starts on the very edge of the left fold.
+        const auto image=game.case_front;
         if(image)
-            strip_art(d,paper,image,game.case_wrap?kSpineEnd:0.0f,
-                      1.0f,60,Color::rgb(0xffffff));
+            strip_art(d,paper,image,0.0f,1.0f,60,Color::rgb(0xffffff));
         else {
             const auto a=paper(0,0),b=paper(1,0),c=paper(1,1),e=paper(0,1);
             quad(d,a,b,c,e,Color::rgb(0x18416f));
@@ -272,10 +270,9 @@ void spine_print(DrawList &d,const Camera &cam,const hui::demo::Item &game,
     const auto sleeve=[&](float t,float v){
         return cam.project({L,T+border+(B-T-2*border)*v,K+(F-K)*t});
     };
-    const auto img=game.case_wrap?game.case_wrap:game.case_spine;
-    const float a=game.case_wrap?kBackEnd:0.0f;
-    const float b=game.case_wrap?kSpineEnd:1.0f;
-    if(img)strip_art(d,sleeve,img,a,b,18,Color::rgb(0xffffff));
+    // The spine scan reaches z=K and z=F exactly, adjoining both art faces.
+    if(game.case_spine)
+        strip_art(d,sleeve,game.case_spine,0.0f,1.0f,18,Color::rgb(0xffffff));
 }
 } // namespace
 
@@ -318,8 +315,8 @@ void niak_draw_rotating_case(hui::gfx::DrawList &d,const hui::demo::Item &game,
         disk_tray(d,cam,L,R,T,B,K,w,h);
         front_door(d,cam,game,fonts,L,R,T,B,F,w,motion.opening);
     }
-    // The plastic tube lies OUTSIDE the paper fold. Never put a blue strip
-    // BETWEEN the printed back, spine, and front portions of the jacket.
-    spine_print(d,cam,game,L,T,B,F,K,w);
+    // Molded hinge is underneath the paper sleeve: never cover the print
+    // with an opaque blue strip. All three scans share the fold vertices.
     hinge(d,cam,L,T,B,K,F,w);
+    spine_print(d,cam,game,L,T,B,F,K,w);
 }
