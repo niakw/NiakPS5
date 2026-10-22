@@ -127,11 +127,13 @@ void outer_face(DrawList &list,const Camera &camera,
             // Full-bleed art begins directly under the branded top banner.
             // The square installed icon is enlarged as an atmospheric base,
             // and repeated at a natural near-square ratio to preserve detail.
-            if(item.cover) {
+            if(item.case_scene || item.cover) {
                 auto fill=[&](float u,float v){
                     return paper(u,0.115f+0.885f*v);
                 };
-                printed(list,item.cover,fill,24,24,!item.cover_is_image);
+                const auto image=item.case_scene?item.case_scene:item.cover;
+                printed(list,image,fill,24,24,
+                        item.case_scene?false:!item.cover_is_image);
                 block(0,0.71f,1,1,Color::rgb(0x051021,0.70f));
                 auto detail=[&](float u,float v){
                     return paper(0.055f+u*0.89f,0.18f+v*0.59f);
@@ -154,11 +156,13 @@ void outer_face(DrawList &list,const Camera &camera,
             // MIDDLE: real summary text. LOWER: reusable generic layout,
             // explicitly NOT a simulated barcode, PEGI or official back scan.
             block(0,0,1,0.10f,Color::rgb(ps4?0x0349a2:0xeaf3fc));
-            if(item.cover) {
+            if(item.case_scene || item.cover) {
                 auto art=[&](float u,float v) {
                     return paper(0.025f+u*0.95f,0.115f+v*0.37f);
                 };
-                printed(list,item.cover,art,26,12,!item.cover_is_image);
+                const auto image=item.case_scene?item.case_scene:item.cover;
+                printed(list,image,art,26,12,
+                        item.case_scene?false:!item.cover_is_image);
             }
             // Exact proportions of the user-provided strips:
             // PS4: 647x362 (~1.79), PS5: 1000x411 (~2.43).

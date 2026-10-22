@@ -160,6 +160,52 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     return 0;
 }
 
+std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char *id) {
+    if(!niak_valid_title_id(id))return 0;
+    std::vector<unsigned char> png;
+    for(const char *format : {
+        "/data/homebrew/%s/sce_sys/pic1.png",
+        "/user/app/%s/sce_sys/pic1.png",
+        "/user/appmeta/%s/pic1.png",
+        "/system_ex/app/%s/sce_sys/pic1.png",
+        "/mnt/ext0/user/app/%s/sce_sys/pic1.png",
+        "/mnt/ext1/user/app/%s/sce_sys/pic1.png"
+    }) {
+        char path[200]{};
+        std::snprintf(path,sizeof(path),format,id);
+        png.clear();
+        if(!read_local_png(path,png) || png.size()<24)continue;
+        static const unsigned char signature[8]={137,80,78,71,13,10,26,10};
+        if(std::memcmp(png.data(),signature,8))continue;
+        const unsigned source_w=size32(png.data()+16);
+        const unsigned source_h=size32(png.data()+20);
+        // Artwork is a LANDSCAPE scene. Never mistake a game box or icon.
+        if(source_w<512||source_h<256||source_w>2048||source_h>1536||
+           source_w<source_h*1.3f||source_w>source_h*2.5f)continue;
+        std::vector<unsigned char> rgba;
+        unsigned w=0,h=0;
+        if(lodepng::decode(rgba,w,h,png)!=0||w!=source_w||h!=source_h||
+           rgba.size()!=std::size_t(w)*h*4)continue;
+        const unsigned target_w=768;
+        const unsigned target_h=std::max(320u,std::min(560u,
+            static_cast<unsigned>((std::uint64_t(target_w)*h)/w)));
+        std::vector<unsigned char> scaled(std::size_t(target_w)*target_h*4);
+        for(unsigned y=0;y<target_h;++y) {
+            const unsigned sy=std::min(h-1,static_cast<unsigned>(
+                (std::uint64_t(y)*h)/target_h));
+            for(unsigned x=0;x<target_w;++x) {
+                const unsigned sx=std::min(w-1,static_cast<unsigned>(
+                    (std::uint64_t(x)*w)/target_w));
+                const std::size_t src=(std::size_t(sy)*w+sx)*4;
+                const std::size_t dst=(std::size_t(y)*target_w+x)*4;
+                for(int k=0;k<4;++k)scaled[dst+k]=rgba[src+k];
+            }
+        }
+        return renderer.create_texture(int(target_w),int(target_h),scaled.data());
+    }
+    return 0;
+}
+
 std::uint32_t niak_load_profile_cache_png(hui::gfx::Renderer &renderer,unsigned user) {
     char path[160];
     std::snprintf(path,sizeof(path),
