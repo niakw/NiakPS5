@@ -66,6 +66,44 @@ class AutoloadTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ftpmod.upload_case_templates(FakeFTP(),self.root)
 
+
+    def test_installed_publisher_artwork_is_staged_privately_once(self):
+        import io
+        import struct
+        import zlib
+        from contextlib import redirect_stdout
+        def png(w,h):
+            def chunk(tag,data):
+                return (struct.pack(">I",len(data))+tag+data+
+                        struct.pack(">I",zlib.crc32(tag+data)&0xffffffff))
+            pixels=b"".join(b"\0"+b"\x18\x28\x38\xff"*w for _ in range(h))
+            return (b"\x89PNG\r\n\x1a\n"+
+                    chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,6,0,0,0))+
+                    chunk(b"IDAT",zlib.compress(pixels))+
+                    chunk(b"IEND",b""))
+        title="PPSA01234"
+        root=f"/user/app/{title}/sce_sys"
+        console=FakeFTP({root+"/icon0.png":png(512,512),
+                         root+"/pic1.png":png(640,360),
+                         "/user/av_contents/photo/private.png":png(512,512)})
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(ftpmod.stage_installed_artwork(console,2),2)
+            self.assertEqual(ftpmod.stage_installed_artwork(console,2),0)
+        cached="/data/homebrew/PPSA99386/assets/niak-installed/"
+        self.assertEqual(len([p for p in console.files if p.startswith(cached)]),2)
+        self.assertTrue(console.files[cached+title+"-icon.png"].startswith(b"\x89PNG"))
+        self.assertTrue(console.files[cached+title+"-scene.png"].startswith(b"\x89PNG"))
+        native=(SCRIPT.parent/"game_icons.cpp").read_text()
+        self.assertIn('"/app0/assets/niak-installed/%s-icon.png"',native)
+        self.assertIn('"/app0/assets/niak-installed/%s-scene.png"',native)
+
+    def test_installed_artwork_rejects_malformed_and_oversized_png(self):
+        self.assertIsNone(ftpmod._prepare_installed_png(b"NOTPNG",False))
+        header=(b"\x89PNG\r\n\x1a\n"+b"\x00"*8+
+                (9000).to_bytes(4,"big")+(9000).to_bytes(4,"big")+b"\x00"*16)
+        self.assertIsNone(ftpmod._prepare_installed_png(header,False))
+        self.assertIsNone(ftpmod._prepare_installed_png(b"x"*(5*1024*1024+1),False))
+
     def test_no_autoload_does_not_touch_pldmgr(self):
         f=FakeFTP()
         ftpmod.install(f,self.root,False)

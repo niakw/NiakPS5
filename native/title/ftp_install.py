@@ -65,10 +65,10 @@ def upload(ftp, path, content):
 PROFILE_ROOT="/system_data/priv/cache/profile"
 MAX_AVATAR=2*1024*1024
 
-def _bounded_retrieve(ftp,path):
+def _bounded_retrieve(ftp,path,limit=MAX_AVATAR):
     out=BytesIO()
     def feed(block):
-        if out.tell()+len(block)>MAX_AVATAR:
+        if out.tell()+len(block)>limit:
             raise ValueError("Avatar exceeds safe size")
         out.write(block)
     try: ftp.retrbinary("RETR "+path,feed)
@@ -183,6 +183,85 @@ def _installed_title_ids(ftp, limit=150):
                 found.add(ident)
         if len(found)>=limit:break
     return sorted(found)[:limit]
+
+
+# A sandboxed title may not read another game's icon0/pic1 even though
+# the owner's FTP server can. Cache publisher-provided game artwork in
+# NiakPS5's own data directory, not private captures or screenshots.
+INSTALLED_ART_ROOT=f"/data/homebrew/{TITLE}/assets/niak-installed"
+
+def _prepare_installed_png(data,scene=False):
+    """Bounded PNG for the native decoder, reduced with Pillow if available."""
+    if not data or len(data)>5*1024*1024 or data[:8]!=b"\x89PNG\r\n\x1a\n":
+        return None
+    if len(data)<33:return None
+    width=int.from_bytes(data[16:20],"big")
+    height=int.from_bytes(data[20:24],"big")
+    if width<32 or height<32 or width>4096 or height>2304 or width*height>9500000:
+        return None
+    if scene and (width<512 or height<256 or not 1.3<=width/height<=2.5):
+        return None
+    try:
+        from PIL import Image
+        output=BytesIO()
+        with Image.open(BytesIO(data)) as source:
+            if source.format!="PNG":return None
+            source.load()
+            source.thumbnail((1024,768) if scene else (512,512),Image.Resampling.LANCZOS)
+            source.convert("RGB" if scene else "RGBA").save(
+                output,format="PNG",optimize=True,compress_level=9)
+        encoded=output.getvalue()
+        if len(encoded)<=4*1024*1024:return encoded
+    except ImportError:
+        pass
+    except (OSError,ValueError,OverflowError):
+        return None
+    if len(data)<=4*1024*1024 and width<=2048 and height<=2048:
+        return data
+    return None
+
+def stage_installed_artwork(ftp,maximum_titles=150,force=False):
+    """Store actual installed-title icon0/pic1 locally; never scrape user media."""
+    ids=_installed_title_ids(ftp,maximum_titles)
+    existing=_remote_filenames(ftp,INSTALLED_ART_ROOT) or set()
+    count=0
+    rejected=0
+    for ident in ids:
+        for side,filename in (("icon","icon0.png"),("scene","pic1.png")):
+            destination=f"{INSTALLED_ART_ROOT}/{ident}-{side}.png"
+            if posixpath.basename(destination) in existing and not force:
+                continue
+            sources=(
+                f"/data/homebrew/{ident}/sce_sys/{filename}",
+                f"/user/app/{ident}/sce_sys/{filename}",
+                f"/user/appmeta/{ident}/{filename}",
+                f"/system_ex/app/{ident}/sce_sys/{filename}",
+                f"/mnt/ext0/user/app/{ident}/sce_sys/{filename}",
+                f"/mnt/ext0/user/appmeta/{ident}/{filename}",
+                f"/mnt/ext1/user/app/{ident}/sce_sys/{filename}",
+                f"/mnt/ext1/user/appmeta/{ident}/{filename}",
+            )
+            for source in sources:
+                try:
+                    raw=_bounded_retrieve(ftp,source,limit=5*1024*1024)
+                except (OSError,ValueError):
+                    rejected+=1
+                    continue
+                if raw is None:continue
+                png=_prepare_installed_png(raw,scene=side=="scene")
+                if not png:
+                    rejected+=1
+                    continue
+                try:upload(ftp,destination,png)
+                except (OSError,error_perm):
+                    rejected+=1
+                    break
+                existing.add(posixpath.basename(destination))
+                count+=1
+                break
+    print(f"Visuels installés : {count} PNG copiés depuis {len(ids)} titres "
+          f"(rejets/permissions : {rejected}).")
+    return count
 
 def _decode_retail_image(raw,side):
     """Personal-use PS5 optimized PNG; no unauthorized source is republished."""
@@ -472,6 +551,7 @@ def diagnose(ftp,local_directory=None):
     files=_listed(ftp,app)
     assets=_listed(ftp,app+"/assets")
     covers=_listed(ftp,app+"/assets/niak-cases")
+    installed_art=_remote_filenames(ftp,app+"/assets/niak-installed")
     templates=_listed(ftp,app+"/assets/niak-templates")
     payloads=_listed(ftp,"/data/pldmgr/payloads/niakps5")
     def known(state):
@@ -489,6 +569,12 @@ def diagnose(ftp,local_directory=None):
     print("Métadonnées locales :",known(None if assets is None else app+"/assets/niak-local-titles.tsv" in assets))
     print("Avatar copié :",known(None if assets is None else any(
         app+"/assets/"+name in assets for name in ("niak-profile.png","niak-profile.dds"))))
+    if installed_art is None:
+        print("Icônes/fonds en cache : accès inconnu / refusé")
+    else:
+        print("Icônes/fonds en cache :",
+              sum(name.endswith("-icon.png") for name in installed_art),"icônes,",
+              sum(name.endswith("-scene.png") for name in installed_art),"fonds")
     if templates is None: print("Gabarits 3D privés : accès inconnu / refusé")
     else:
         files={str(x).rsplit("/",1)[-1] for x in templates}
@@ -606,6 +692,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     copy_avatar_for_ftp(ftp,avatar_user_id)
     upload_case_templates(ftp,directory)
     upload_local_homebrew_names(ftp)
+    stage_installed_artwork(ftp,art_limit)
     fetch_retail_covers(ftp,directory,art_limit)
     fetch_alternative_covers(ftp,directory,art_limit)
     if not autoload:
@@ -685,6 +772,7 @@ def main():
         elif args.refresh_art:
             upload_case_templates(ftp,directory)
             upload_local_homebrew_names(ftp)
+            stage_installed_artwork(ftp,args.art_limit,force=args.force_art)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
             # A forced LaunchBox repair must NOT overwrite its valid scans
             # with a community grid or another provider.

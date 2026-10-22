@@ -138,6 +138,8 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     // Try the actual installed icon first. This also works for homebrews
     // when ShadowMountPlus does not expose their icon endpoint.
     for(const char *format : {
+        "/app0/assets/niak-installed/%s-icon.png",
+        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.png",
         "/data/homebrew/%s/sce_sys/icon0.png",
         "/user/app/%s/sce_sys/icon0.png",
         "/user/appmeta/%s/icon0.png",
@@ -168,6 +170,8 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
     if(!niak_valid_title_id(id))return 0;
     std::vector<unsigned char> png;
     for(const char *format : {
+        "/app0/assets/niak-installed/%s-scene.png",
+        "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.png",
         "/data/homebrew/%s/sce_sys/pic1.png",
         "/user/app/%s/sce_sys/pic1.png",
         "/user/appmeta/%s/pic1.png",
