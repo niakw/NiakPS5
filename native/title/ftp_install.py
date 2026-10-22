@@ -131,9 +131,11 @@ def upload_local_homebrew_names(ftp):
     roots=("/data/homebrew","/user/app","/system_ex/app",
            "/mnt/ext0/user/app","/mnt/ext1/user/app")
     records={}
+    readable_roots=0
     for root in roots:
       try: entries=ftp.nlst(root)
       except (error_perm,AttributeError,OSError):continue
+      readable_roots+=1
       for dirname in entries[:300]:
         ident=posixpath.basename(dirname.rstrip("/"))
         if not re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE|NPXS)[0-9]{5}",ident):continue
@@ -173,9 +175,12 @@ def upload_local_homebrew_names(ftp):
                 continue
             if title and "\t" not in title:
                 records[ident]=(title,genre)
-    # Always replace the private overlay, including when it is empty.
-    # Otherwise an uninstall or changed permissions retain stale game names
-    # and NPXS media authorization from an earlier installation.
+    # Clear stale entries only if some directories were actually readable.
+    # If every root refused FTP access, installation state is UNKNOWN, not
+    # empty: preserve the last verified private title overlay.
+    if not readable_roots:
+        print("Titles: cannot list installed title roots; previous private metadata preserved.")
+        return 0
     contents="".join(f"{id}\t{name}\t{kind}\t\t\n"
                      for id,(name,kind) in sorted(records.items()))
     upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",

@@ -161,6 +161,20 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(ftp.files[path],b"")
         self.assertEqual(ftpmod._verified_media_ids(ftp),[])
 
+    def test_denied_ftp_roots_preserve_last_verified_title_overlay(self):
+        from ftplib import error_perm
+        class InaccessibleTitles(FakeFTP):
+            def nlst(self,path):
+                if path in ("/data/homebrew","/user/app","/system_ex/app",
+                            "/mnt/ext0/user/app","/mnt/ext1/user/app"):
+                    raise error_perm("550 Permission denied")
+                return super().nlst(path)
+        private=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"
+        old=b"PPSA00001\\tJeu deja connu\\tJeu\\t\\t\\n"
+        console=InaccessibleTitles({private:old})
+        self.assertEqual(ftpmod.upload_local_homebrew_names(console),0)
+        self.assertEqual(console.files[private],old)
+
     def test_installed_metadata_rejects_inconsistent_title_identity(self):
         # The folder and an explicit titleId must represent the same title;
         # otherwise stale/copied param.json can mislabel a title in the UI.
