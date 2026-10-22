@@ -119,7 +119,7 @@ class SourceTests(unittest.TestCase):
                     return Response(url,b"fake JPG")
                 raise AssertionError("Unexpected URL: "+url.split("?")[0])
             with (patch.dict(os.environ,{"NIAK_THEGAMESDB_KEY":"secret-test",
-                                        "NIAK_STEAMGRIDDB_KEY":""}),
+                                        "NIAK_STEAMGRIDDB_KEY":"configured-too"}),
                   patch("urllib.request.urlopen",side_effect=query),
                   patch.object(ftp,"_decode_retail_image",return_value=b"valid fixture")):
                 count=ftp.fetch_alternative_covers(fake,folder)

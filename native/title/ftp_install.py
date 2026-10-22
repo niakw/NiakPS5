@@ -335,19 +335,24 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
         missing={side for side,path in paths.items() if force or path not in cached}
         if not missing:continue
         platform="ps5" if ident.startswith("PPSA") else "ps4"
-        candidates=[]
-        if tgdb:
-            requests+=1
-            try:candidates.append(("thegamesdb",providers.tgdb_cover_urls(name,platform,tgdb)))
-            except (OSError,ValueError,KeyError,TypeError) as exc:
-                # Do not print API exception text because query URLs contain keys.
-                candidates.append(("thegamesdb",{}))
-        if sgdb and "front" in missing:
-            requests+=1
-            try:candidates.append(("steamgriddb",providers.steamgriddb_portrait_url(name,sgdb)))
-            except (OSError,ValueError,KeyError,TypeError):
-                candidates.append(("steamgriddb",{}))
-        for source,art in candidates:
+        def candidate_sources():
+            nonlocal requests
+            if tgdb:
+                requests+=1
+                try:
+                    yield "thegamesdb",providers.tgdb_cover_urls(name,platform,tgdb)
+                except (OSError,ValueError,KeyError,TypeError):
+                    # Never print exceptions containing API URLs or credentials.
+                    yield "thegamesdb",{}
+            # Query the community provider ONLY after the physical-cover
+            # provider has actually failed to deliver a valid FRONT scan.
+            if sgdb and "front" in missing:
+                requests+=1
+                try:
+                    yield "steamgriddb",providers.steamgriddb_portrait_url(name,sgdb)
+                except (OSError,ValueError,KeyError,TypeError):
+                    yield "steamgriddb",{}
+        for source,art in candidate_sources():
             for side in ("front","back"):
                 if side not in missing:continue
                 url=art.get(side) if isinstance(art,dict) else None
