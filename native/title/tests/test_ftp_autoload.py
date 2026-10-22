@@ -42,6 +42,30 @@ class AutoloadTests(unittest.TestCase):
         (self.root/"tools/niakps5.elf").write_bytes(b"\x7fELFps5 test")
     def tearDown(self):
         self.tmp.cleanup()
+    def test_user_supplied_case_templates_are_private_and_checked(self):
+        import struct
+        import io
+        from contextlib import redirect_stdout
+        folder=self.root/"assets/niak-templates"
+        folder.mkdir(parents=True)
+        examples={"ps4-front":(949,136),"ps4-back":(647,362),
+                  "ps4-spine":(72,800),"ps5-front":(1487,209),
+                  "ps5-back":(1000,411),"ps5-spine":(85,1000)}
+        for name,(width,height) in examples.items():
+            # Enough PNG header bytes for the bounded transfer validator.
+            (folder/(name+".png")).write_bytes(
+                b"\\x89PNG\\r\\n\\x1a\\n"+b"\\x00"*8+
+                struct.pack(">II",width,height)+b"\\x00"*16)
+        console=FakeFTP()
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(ftpmod.upload_case_templates(console,self.root),6)
+        private="/data/homebrew/PPSA99386/assets/niak-templates/"
+        self.assertEqual(sum(p.startswith(private) for p in console.files),6)
+        self.assertNotIn(ftpmod.PAYLOAD,console.files)
+        (folder/"ps5-spine.png").write_bytes(b"BAD")
+        with self.assertRaises(ValueError):
+            ftpmod.upload_case_templates(FakeFTP(),self.root)
+
     def test_no_autoload_does_not_touch_pldmgr(self):
         f=FakeFTP()
         ftpmod.install(f,self.root,False)
