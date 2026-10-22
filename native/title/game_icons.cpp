@@ -56,7 +56,10 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     }
     std::vector<unsigned char> response;
     response.reserve(256*1024);
-    std::array<unsigned char,8192> buffer{};
+    // The framing parser rechecks buffered bytes as fragments arrive.
+    // Read in 64 KiB slabs rather than 8 KiB to reduce repeated scans
+    // and receive syscalls for multi-megabyte PNGs (same bounded total size).
+    std::array<unsigned char,65536> buffer{};
     // Complete Content-Length and chunked bodies without waiting for EOF:
     // the local API may legitimately keep its HTTP connection open.
     while(response.size()<kMaximumPng+8192+256*1024) {
