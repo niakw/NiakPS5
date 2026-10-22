@@ -123,7 +123,7 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         for(int frame=0;frame<475;++frame) {
             shell.update(idle,kDt);
             if(frame==90)render("case-00-front");
-            if(frame==210)render("case-01-spine");
+            if(frame==202)render("case-01-spine");
             if(frame==330)render("case-02-back");
             if(frame==445)render("case-03-return");
         }
