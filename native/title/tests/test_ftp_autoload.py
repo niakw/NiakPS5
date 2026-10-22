@@ -115,7 +115,8 @@ class AutoloadTests(unittest.TestCase):
         # private artwork staging helpers, not the app/Payload Manager installer.
         source=SCRIPT.read_text()
         self.assertIn('if args.refresh_art:',source)
-        self.assertIn('fetch_retail_covers(ftp, directory, args.art_limit)',source)
+        self.assertIn('fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)',source)
+        self.assertIn("--force-art",source)
         self.assertIn('indexed_matches',source)
 
     def test_category_from_verified_ps5_param(self):

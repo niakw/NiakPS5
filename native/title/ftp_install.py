@@ -215,7 +215,7 @@ def _decode_retail_image(raw,side):
                 return dst.read_bytes()
     return None
 
-def fetch_retail_covers(ftp, folder, maximum_titles=150):
+def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     """Download LaunchBox regional scans directly to owner's PS5 via FTP.
     Build ZIP ships text index only; third-party scans never enter repository.
     """
@@ -246,7 +246,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150):
         # Metadata fields: ID, description, front, back, spine, logo, sourceID.
         for side,field in (("front",2),("back",3),("spine",4),("logo",5)):
             destination=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
-            if destination in cached:
+            if destination in cached and not force:
                 continue
             choices=columns[field]
             if choices=="-":continue
@@ -410,6 +410,8 @@ def main():
                      help="Vérifier les fichiers sur la PS5 sans rien modifier")
     cli.add_argument("--art-limit", type=int, default=150,
                      help="Limite des titres à enrichir avec les jaquettes (1–300)")
+    cli.add_argument("--force-art", action="store_true",
+                     help="Forcer le remplacement des scans déjà en cache (avec --refresh-art)")
     cli.add_argument("--refresh-art", action="store_true",
                      help="Rechercher les jaquettes des jeux installés sans toucher au titre ni à PLDmgr")
     cli.add_argument("--return-after-game", action="store_true",
@@ -417,6 +419,8 @@ def main():
     args = cli.parse_args()
     if not 1<=args.art_limit<=300:
         cli.error("--art-limit doit être entre 1 et 300")
+    if args.force_art and not args.refresh_art:
+        cli.error("--force-art exige --refresh-art")
     if args.return_after_game and not args.autoload and not args.refresh_art and not args.status:
         cli.error("--return-after-game requires --autoload")
     directory = Path(__file__).resolve().parent.parent
@@ -428,7 +432,7 @@ def main():
             diagnose(ftp)
         elif args.refresh_art:
             upload_local_homebrew_names(ftp)
-            fetch_retail_covers(ftp, directory, args.art_limit)
+            fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
         else:
             install(ftp, directory, args.autoload, args.return_after_game,
                     args.avatar_user_id, args.art_limit)
