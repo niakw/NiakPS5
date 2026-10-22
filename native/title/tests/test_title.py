@@ -162,6 +162,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("icon_endpoint.transport_failed(endpoint_now_ms())", (ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn('"icon_endpoint_policy.hpp"',(ROOT/"title"/"prepare.py").read_text())
         self.assertIn("std::array<unsigned char,65536> buffer{}", (ROOT/"title"/"game_icons.cpp").read_text())
+        self.assertIn("timeval timeout{0, 350000}", (ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn('"http_icon_response.hpp"',(ROOT/"title"/"prepare.py").read_text())
         icons=(ROOT/"title"/"game_icons.cpp").read_text()
         self.assertIn("/mnt/ext0/user/app/%s/sce_sys/icon0.png",icons)

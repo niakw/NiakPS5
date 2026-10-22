@@ -46,7 +46,10 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     // ShadowMountPlus may close its HTTP socket while assets are loading;
     // do not let SIGPIPE kill the entire native title.
     niak_socket_guard(sock);
-    timeval timeout{1, 500000};
+    // This runs during idle-only case streaming on the graphics thread.
+    // A stalled loopback endpoint must not hold a single frame for 1.5s.
+    // 350ms is a per-recv window; healthy multi-chunk downloads can proceed.
+    timeval timeout{0, 350000};
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
     sockaddr_in address{};
