@@ -34,6 +34,24 @@ const char *niak_ps5_user_label()
     return label;
 }
 
+static std::uint32_t niak_load_dds_avatar(
+    hui::gfx::Renderer &renderer,const char *path) {
+    std::FILE *file=std::fopen(path,"rb");
+    if(!file)return 0;
+    if(std::fseek(file,0,SEEK_END)!=0){std::fclose(file);return 0;}
+    const long size=std::ftell(file);
+    if(size<144||size>2*1024*1024||std::fseek(file,0,SEEK_SET)!=0)
+    {std::fclose(file);return 0;}
+    std::vector<std::uint8_t> encoded(static_cast<std::size_t>(size));
+    const bool ok=std::fread(encoded.data(),1,encoded.size(),file)==encoded.size();
+    std::fclose(file);
+    if(!ok)return 0;
+    int width=0,height=0;
+    std::vector<std::uint8_t> rgba;
+    if(!niak_decode_avatar_dds(encoded.data(),encoded.size(),width,height,rgba))
+        return 0;
+    return renderer.create_texture(width,height,rgba.data());
+}
 static std::uint32_t niak_user_avatar=0;
 static int niak_avatar_owner=-1;
 void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
@@ -64,22 +82,24 @@ void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
     if(!niak_user_avatar)
         niak_user_avatar=niak_load_profile_cache_png(renderer,
             static_cast<unsigned>(current));
-    if(niak_user_avatar || !staged_dds)return;
-    std::FILE *file=std::fopen(
-        "/data/homebrew/PPSA99386/assets/niak-profile.dds","rb");
-    if(!file)return;
-    if(std::fseek(file,0,SEEK_END)!=0){std::fclose(file);return;}
-    const long size=std::ftell(file);
-    if(size<144||size>2*1024*1024||std::fseek(file,0,SEEK_SET)!=0)
-    {std::fclose(file);return;}
-    std::vector<std::uint8_t> encoded(static_cast<std::size_t>(size));
-    const bool ok=std::fread(encoded.data(),1,encoded.size(),file)==encoded.size();
-    std::fclose(file);
-    if(!ok)return;
-    int width=0,height=0;
-    std::vector<std::uint8_t> rgba;
-    if(niak_decode_avatar_dds(encoded.data(),encoded.size(),width,height,rgba))
-        niak_user_avatar=renderer.create_texture(width,height,rgba.data());
+    // A manually launched title may not have a staged profile image.
+    // Probe ONLY the current foreground account's local DDS cache. This
+    // is read-only and requires no payload or private image export.
+    if(!niak_user_avatar) {
+        char dds_path[240];
+        for(const char *filename : {"avatar128.dds","avatar260.dds",
+                                    "avatar64.dds"}) {
+            const int count=std::snprintf(dds_path,sizeof(dds_path),
+                "/system_data/priv/cache/profile/0x%08X/%s",
+                static_cast<unsigned>(current),filename);
+            if(count<=0 || count>=static_cast<int>(sizeof(dds_path)))continue;
+            niak_user_avatar=niak_load_dds_avatar(renderer,dds_path);
+            if(niak_user_avatar)break;
+        }
+    }
+    if(!niak_user_avatar && staged_dds)
+        niak_user_avatar=niak_load_dds_avatar(renderer,
+            "/data/homebrew/PPSA99386/assets/niak-profile.dds");
 }
 std::uint32_t niak_profile_avatar() {
     if(!niak_user_avatar || niak_avatar_owner<0)return 0;
