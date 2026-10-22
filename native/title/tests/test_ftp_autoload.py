@@ -184,6 +184,32 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(ftpmod.upload_local_homebrew_names(ftp),0)
         self.assertEqual(ftp.files[path],b"")
 
+    def test_malformed_installed_metadata_cannot_abort_all_title_discovery(self):
+        import json
+        base="/user/app"
+        valid="PPSA12345"
+        malformed={
+            "PPSA23456":{"titleId":"PPSA23456","titleName":"List params",
+                         "localizedParameters":["not","an","object"],
+                         "applicationCategoryType":0},
+            "PPSA34567":{"titleId":{"spoofed":True},"titleName":"Wrong identity",
+                         "applicationCategoryType":0},
+            "PPSA45678":{"titleId":"PPSA45678",
+                         "localizedParameters":True,
+                         "applicationCategoryType":0},
+        }
+        files={f"{base}/{valid}/sce_sys/param.json":
+               json.dumps({"titleId":valid,"titleName":"Jeu valide",
+                           "applicationCategoryType":0}).encode()}
+        for ident,meta in malformed.items():
+            files[f"{base}/{ident}/sce_sys/param.json"]=json.dumps(meta).encode()
+        ftp=FakeFTP(files)
+        self.assertEqual(ftpmod.upload_local_homebrew_names(ftp),2)
+        overlay=ftp.files[f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"].decode()
+        self.assertIn("PPSA12345\\tJeu valide\\tJeu",overlay)
+        self.assertIn("PPSA23456\\tList params\\tJeu",overlay)
+        self.assertNotIn("PPSA34567",overlay)
+
     def test_no_autoload_does_not_touch_pldmgr(self):
         f=FakeFTP()
         ftpmod.install(f,self.root,False)

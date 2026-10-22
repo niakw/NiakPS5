@@ -146,12 +146,13 @@ def upload_local_homebrew_names(ftp):
         except (ValueError,UnicodeDecodeError):continue
         if not isinstance(meta,dict):continue
         declared=meta.get("titleId")
-        if isinstance(declared,str) and declared and declared!=ident:
-            # Ignore copied or stale metadata under the wrong title folder.
+        if declared is not None and declared!=ident:
+            # Ignore copied, malformed or stale metadata under the wrong
+            # title folder, even when the declared ID has a non-string type.
             continue
-        # The shared parsing block continues below at this indentation.
-
-        params=meta.get("localizedParameters") or {}
+        params=meta.get("localizedParameters")
+        if not isinstance(params,dict):
+            params={}
         languages=["fr-FR","en-US",str(params.get("defaultLanguage",""))]
         languages += [k for k in params if isinstance(params[k],dict)]
         title=meta.get("titleName")
