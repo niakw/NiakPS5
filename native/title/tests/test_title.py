@@ -5,6 +5,15 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class NativeTitleTests(unittest.TestCase):
+    def test_superseded_ci_builds_are_cancelled_without_extra_branches(self):
+        base=ROOT.parent/".github/workflows"
+        for name in ("native-title.yml","validate.yml"):
+            workflow=(base/name).read_text()
+            self.assertIn("concurrency:",workflow)
+            self.assertIn("cancel-in-progress: true",workflow)
+            self.assertIn("github.workflow",workflow)
+            self.assertIn("github.ref",workflow)
+
     def test_autostart_is_explicit_and_reversible(self):
         source = (ROOT / "title" / "autostart.c").read_text()
         self.assertIn("niakps5-autostart.enabled", source)
