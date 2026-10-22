@@ -206,8 +206,8 @@ class AutoloadTests(unittest.TestCase):
         ftp=FakeFTP(files)
         self.assertEqual(ftpmod.upload_local_homebrew_names(ftp),2)
         overlay=ftp.files[f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"].decode()
-        self.assertIn("PPSA12345\\tJeu valide\\tJeu",overlay)
-        self.assertIn("PPSA23456\\tList params\\tJeu",overlay)
+        self.assertIn("PPSA12345\tJeu valide\tJeu",overlay)
+        self.assertIn("PPSA23456\tList params\tJeu",overlay)
         self.assertNotIn("PPSA34567",overlay)
 
     def test_no_autoload_does_not_touch_pldmgr(self):
