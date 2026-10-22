@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 enum class NiakHttpState { NeedMore, Complete, Invalid };
@@ -76,7 +77,10 @@ inline NiakHttpState niak_http_icon_body(
     }
     if(other_encoding || (chunked && has_length))return NiakHttpState::Invalid;
     if(chunked) {
-        std::vector<unsigned char> decoded;
+        // Collect only (offset,size) pairs while the frame is incomplete.
+        // Do not allocate/copy decoded image bytes at every TCP fragment.
+        std::vector<std::pair<std::size_t,std::size_t>> spans;
+        std::size_t decoded_size=0;
         std::size_t pos=header_end;
         for(;;) {
             const auto end=std::search(wire.begin()+pos,wire.end(),
@@ -98,7 +102,7 @@ inline NiakHttpState niak_http_icon_body(
                 if(++digits>8)return NiakHttpState::Invalid;
                 n=n*16u+d;
             }
-            if(!digits || n>maximum-decoded.size())return NiakHttpState::Invalid;
+            if(!digits || n>maximum-decoded_size)return NiakHttpState::Invalid;
             pos=end_at+2;
             if(n==0) {
                 // Consume bounded optional trailers, until a blank line.
@@ -110,7 +114,13 @@ inline NiakHttpState niak_http_icon_body(
                     const std::size_t off=std::size_t(e-wire.begin());
                     if(off-pos>kMaxHeader)return NiakHttpState::Invalid;
                     if(off==pos) {
-                        out=std::move(decoded);
+                        out.resize(decoded_size);
+                        std::size_t copied=0;
+                        for(const auto &span:spans) {
+                            std::memcpy(out.data()+copied,
+                                        wire.data()+span.first,span.second);
+                            copied+=span.second;
+                        }
                         return NiakHttpState::Complete;
                     }
                     pos=off+2;
@@ -120,7 +130,11 @@ inline NiakHttpState niak_http_icon_body(
                                                     NiakHttpState::NeedMore;
             if(wire[pos+n]!='\r'||wire[pos+n+1]!='\n')
                 return NiakHttpState::Invalid;
-            decoded.insert(decoded.end(),wire.begin()+pos,wire.begin()+pos+n);
+            // Limit pathological tiny-chunk responses; bounded wire size
+            // alone would still allow hundreds of thousands of allocations.
+            if(spans.size()>=8192)return NiakHttpState::Invalid;
+            spans.emplace_back(pos,n);
+            decoded_size+=n;
             pos+=n+2;
         }
     }
