@@ -3,6 +3,7 @@
 // A sandboxed title must not claim sceSystemServiceLaunchApp works here.
 #include "niak/launch_bridge.hpp"
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
