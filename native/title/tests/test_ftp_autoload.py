@@ -244,6 +244,9 @@ class AutoloadTests(unittest.TestCase):
         with self.assertRaises(error_perm):
             ftpmod.install(f,self.root,True,False)
         self.assertIn(marker,f.files)
+        self.assertNotIn(ftpmod.PAYLOAD,f.files)
+        self.assertNotIn(ftpmod.AUTOLOAD,f.files)
+        self.assertNotIn("/data/niakps5-autostart.enabled",f.files)
 
     def test_autoload_backup_is_never_replaced_if_it_preexists(self):
         initial=b"/data/pldmgr/payloads/shadow/shadow.elf\n"

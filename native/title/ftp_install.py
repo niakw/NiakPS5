@@ -773,18 +773,18 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
             upload(ftp,AUTOLOAD+".niakps5.bak",original)
         if raw is not None and retrieve(ftp,CONFIG+".niakps5.bak") is None:
             upload(ftp,CONFIG+".niakps5.bak",raw)
+    return_flag="/data/niakps5-return-after-game.enabled"
+    if not return_after_game and retrieve(ftp,return_flag) is not None:
+        # A failed opt-out must stop BEFORE the new payload/configuration is
+        # written, rather than leaving a partially reconfigured installation.
+        ftp.delete(return_flag)
     upload(ftp, PAYLOAD, elf.read_bytes())
     upload(ftp, AUTOLOAD, body)
     upload(ftp, CONFIG, config_body)
     # Activate only once both the binary and the autoload configuration exist.
     upload(ftp, "/data/niakps5-autostart.enabled", b"")
-    return_flag="/data/niakps5-return-after-game.enabled"
     if return_after_game:
         upload(ftp, return_flag, b"")
-    elif retrieve(ftp,return_flag) is not None:
-        # Reinstalling without the opt-in must clear a previously enabled
-        # return hook. Otherwise the old flag silently persists forever.
-        ftp.delete(return_flag)
     print("Autoload configure en derniere position. Desactiver via le fichier")
     print("/data/niakps5-autostart.disable ou retirer l'entree du Payload Manager.")
 
