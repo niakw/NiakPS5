@@ -282,6 +282,104 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     return shipped
 
 
+
+def _name_index(ftp,folder):
+    """Use real local PS5 param.json names first, packaged public index second."""
+    result={}
+    for raw in (
+        retrieve(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv"),
+        (folder/"assets/niak-ps-titles.tsv").read_bytes()
+            if (folder/"assets/niak-ps-titles.tsv").is_file() else None):
+        if raw is None:continue
+        for line in raw.decode("utf8","replace").splitlines():
+            parts=line.split("\t")
+            if len(parts)<2:continue
+            ident,name=parts[:2]
+            if re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident) and 2<len(name)<=120:
+                result.setdefault(ident,name)
+    return result
+
+
+def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
+    """Supplement missing private LaunchBox scans with optional API providers.
+
+    Keys are supplied through the calling COMPUTER'S environment only, never
+    saved to PS5, title assets, Git, logs or command-line arguments. Platform
+    checking and image-domain allowlists are enforced by cover_sources.py.
+    """
+    import os,importlib.util,urllib.request
+    tgdb=os.environ.get("NIAK_THEGAMESDB_KEY","").strip()
+    sgdb=os.environ.get("NIAK_STEAMGRIDDB_KEY","").strip()
+    if not (tgdb or sgdb):
+        print("Sources alternatives: inactives (clés API non configurées sur l'ordinateur).")
+        return 0
+    module=Path(__file__).resolve().with_name("cover_sources.py")
+    if not module.is_file():
+        print("Sources alternatives: module cover_sources.py absent du paquet.")
+        return 0
+    spec=importlib.util.spec_from_file_location("niak_cover_sources",module)
+    providers=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(providers)
+    ids=_installed_title_ids(ftp,maximum_titles)
+    names=_name_index(ftp,folder)
+    cached=_listed(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases")
+    cached=cached or set()
+    total=0
+    requests=0
+    used={"thegamesdb":0,"steamgriddb":0}
+    for ident in ids:
+        name=names.get(ident)
+        if not name:continue
+        paths={side:f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
+               for side in ("front","back")}
+        missing={side for side,path in paths.items() if force or path not in cached}
+        if not missing:continue
+        platform="ps5" if ident.startswith("PPSA") else "ps4"
+        candidates=[]
+        if tgdb:
+            requests+=1
+            try:candidates.append(("thegamesdb",providers.tgdb_cover_urls(name,platform,tgdb)))
+            except (OSError,ValueError,KeyError,TypeError) as exc:
+                # Do not print API exception text because query URLs contain keys.
+                candidates.append(("thegamesdb",{}))
+        if sgdb and "front" in missing:
+            requests+=1
+            try:candidates.append(("steamgriddb",providers.steamgriddb_portrait_url(name,sgdb)))
+            except (OSError,ValueError,KeyError,TypeError):
+                candidates.append(("steamgriddb",{}))
+        for source,art in candidates:
+            for side in ("front","back"):
+                if side not in missing:continue
+                url=art.get(side) if isinstance(art,dict) else None
+                if not providers.trusted_image_url(url):continue
+                try:
+                    req=urllib.request.Request(url,headers={
+                        "User-Agent":"NiakPS5-private-FTP-art/1.1"})
+                    with urllib.request.urlopen(req,timeout=12) as response:
+                        # HTTP redirects must not escape the image CDN.
+                        redirected=getattr(response,"geturl",lambda:url)()
+                        if not providers.trusted_image_url(redirected):
+                            continue
+                        raw=response.read(5*1024*1024+1)
+                    if not raw or len(raw)>5*1024*1024:continue
+                    png=_decode_retail_image(raw,side)
+                    if not png or len(png)>3*1024*1024:continue
+                    upload(ftp,paths[side],png)
+                    cached.add(paths[side])
+                    missing.remove(side)
+                    used[source]+=1
+                    total+=1
+                except (OSError,ValueError,TimeoutError):
+                    continue
+    print(f"Sources alternatives : {len(ids)} titres inspectés, "
+          f"{requests} recherches, {used['thegamesdb']} scans TheGamesDB, "
+          f"{used['steamgriddb']} illustrations SteamGridDB copiées en privé.")
+    if sgdb:
+        print("SteamGridDB : illustrations communautaires de face AVANT seulement, "
+              "pas des jaquettes PS5/PS4 physiques garanties.")
+    return total
+
+
 def _listed(ftp,path):
     """An unavailable FTP directory is unknown, never assumed empty."""
     try:
@@ -356,6 +454,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     copy_avatar_for_ftp(ftp,avatar_user_id)
     upload_local_homebrew_names(ftp)
     fetch_retail_covers(ftp,directory,art_limit)
+    fetch_alternative_covers(ftp,directory,art_limit)
     if not autoload:
         print("Titre installe. L'autoload n'est pas active sans --autoload.")
         return
@@ -433,6 +532,7 @@ def main():
         elif args.refresh_art:
             upload_local_homebrew_names(ftp)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
+            fetch_alternative_covers(ftp, directory, args.art_limit, force=args.force_art)
         else:
             install(ftp, directory, args.autoload, args.return_after_game,
                     args.avatar_user_id, args.art_limit)

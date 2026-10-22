@@ -64,6 +64,7 @@ test -x "$sdk/bin/prospero-clang"
   -o "$out/tools/niakps5.elf" "$root/native/title/autostart.c" \
   -lSceSystemService -lSceUserService -lkernel_sys
 cp "$root/native/title/ftp_install.py" "$out/tools/ftp_install.py"
+cp "$root/native/title/cover_sources.py" "$out/tools/cover_sources.py"
 cp "$root/native/title/AUTOSTART.md" "$out/tools/AUTOSTART.md"
 # Only one FTP-ready package, exactly one install folder at the archive root.
 python3 "$root/native/title/pack_ftp.py" --folder "$out" --output "$root/dist/$title.zip"

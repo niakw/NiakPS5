@@ -98,6 +98,20 @@ Le script dépose le dossier dans `/data/homebrew/PPSA99386/`, copie le payload 
 
 Le bouton PS reste géré par le shell Sony. Le déclencheur est one-shot : il ne rétablit pas le titre automatiquement après chaque jeu. Une implémentation sûre du retour à l'accueil et de l'avatar privé nécessite une validation distincte ; le ZIP ne prétend pas les inclure déjà.
 
+### Sources supplémentaires pour les jaquettes
+
+Après LaunchBox, le script FTP sait consulter **TheGamesDB** (scans de boîtiers recto/verso pour plateforme PS4 ou PS5 vérifiée) et **SteamGridDB** (illustrations communautaires verticales pour le recto seulement). Ces deux services demandent une clé personnelle. Elles sont facultatives et restent dans les variables d'environnement de ton ordinateur ; elles ne sont ni copiées sur la PS5 ni intégrées au dépôt ou au ZIP.
+
+Sur ton Mac, avec les clés personnelles que tu as obtenues auprès des services :
+
+```sh
+export NIAK_THEGAMESDB_KEY="votre-cle-thegamesdb"
+export NIAK_STEAMGRIDDB_KEY="votre-cle-steamgriddb"
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --refresh-art
+```
+
+Ordre : **LaunchBox → TheGamesDB (recto/verso) → SteamGridDB (illustration de recto)**. La dernière source est une illustration de bibliothèque communautaire, pas nécessairement une jaquette PS5 physique officielle. Les faces arrière et tranches non trouvées conservent le traitement de secours du boîtier ; une fausse tranche n'est jamais téléchargée. La recherche rejette les noms ambigus et vérifie la plateforme TheGamesDB avant de télécharger. Les images vont uniquement dans le cache privé du titre sur la console ; respecter les droits et limites des fournisseurs. Sans clés, LaunchBox et les visuels de secours fonctionnent comme avant.
+
 ## Diagnostic local et récupération des jaquettes
 
 La simple copie du ZIP par FTP ne télécharge **pas** les images privées LaunchBox et ne configure **pas** l'autoload. Utiliser le script embarqué dans le dossier extrait pour obtenir ces fonctions sans publier les jaquettes :
