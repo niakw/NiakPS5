@@ -109,6 +109,15 @@ void outer_face(DrawList &list,const Camera &camera,
     } else {
         const Pt a=paper(0,0),b0=paper(1,0),c=paper(1,1),d=paper(0,1);
         polygon4(list,a,b0,c,d,Color::rgb(0x1a3558));
+        // No retail scan? Keep a physical box, never stretch a square homebrew
+        // icon into a portrait jacket. Print the actual installed app icon in
+        // a centered square on the generic paper insert.
+        if(!back && item.cover && item.cover_is_image) {
+            auto icon=[&](float u,float v){
+                return paper(0.13f+u*0.74f,0.23f+v*0.55f);
+            };
+            printed(list,item.cover,icon,14,10);
+        }
         const float start=std::min(a.x,b0.x),span=std::fabs(a.x-b0.x);
         if(span>74.f) {
             hui::ui::text(list,fonts.semibold,item.title_id[0]=='C'?"PS4":"PS5",
@@ -176,7 +185,7 @@ void niak_draw_rotating_case(hui::gfx::DrawList &list,const hui::demo::Item &ite
                              const hui::ui::Fonts &fonts) {
     // Homebrew games can have genuine privately supplied front/back scans.
     // If none exists, use the installed app icon rather than invent box art.
-    if(!item.title_id[0] || !item.case_front) {
+    if(!item.title_id[0]) {
         list.image(item.cover,bounds,
                    item.cover_is_image?hui::gfx::kFullUv:hui::gfx::kCanvasUv,
                    Color::rgb(0xffffff),26);
