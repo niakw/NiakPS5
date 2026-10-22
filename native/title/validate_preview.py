@@ -13,9 +13,9 @@ for file in files:
         if sum(ImageStat.Stat(rgb.resize((64,36))).stddev)<10:
             raise SystemExit("Blank UI screenshot")
         digests.add(rgb.resize((48,27)).tobytes())
-# The case must rotate AND open from the free right edge with a left hinge.
+# The retail case only rotates CLOSED: front / spine / back / return.
 required=[Path(sys.argv[1]) / f"case-{i:02d}-{suffix}.png" for i,suffix in
-          enumerate(("front","unlatch","open","close","turn","back","return"))]
+          enumerate(("front","spine","back","return"))]
 if not all(p.exists() for p in required):raise SystemExit("Missing rotating case C++ frames")
 from PIL import ImageChops
 frames=[Image.open(p).convert("RGB").crop((1160,90,1850,760)) for p in required]
@@ -25,8 +25,6 @@ for x,y in zip(frames,frames[1:]):
     changes.append(delta)
 if any(d<5.5 for d in changes):
     raise SystemExit(f"3D case does not visibly rotate in actual GPU capture: {changes}")
-if changes[0]<8 or changes[1]<8:
-    raise SystemExit(f"Right hinge opening not perceptible: {changes}")
 # Fail if daily wallpaper becomes so bright that white UI text is unreadable.
 # Measure the left hero copy zone across the true host OpenGL captures.
 with Image.open(Path(sys.argv[1]) / "01-aurora.png") as _home:

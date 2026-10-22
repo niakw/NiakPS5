@@ -115,21 +115,17 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
     return 0;
 }
 ''',"utf8")
-    # The same selected case is photographed at four real animation angles.
-    # Advance the actual Aurora UI's C++ clock; no synthetic image rotation.
+    # Capture a SEALED case from four real OpenGL angles, never its inside.
     one(main, '    if (const char *strip = std::getenv("HUI_STRIP"))', """    if (std::getenv("NIAK_CASE_TOUR")) {
         hui::InputFrame idle;
         idle.connected = true;
         shell.show(0, false);
-        for(int frame=0;frame<715;++frame) {
+        for(int frame=0;frame<475;++frame) {
             shell.update(idle,kDt);
             if(frame==90)render("case-00-front");
-            if(frame==180)render("case-01-unlatch");
-            if(frame==248)render("case-02-open");
-            if(frame==348)render("case-03-close");
-            if(frame==420)render("case-04-turn");
-            if(frame==540)render("case-05-back");
-            if(frame==690)render("case-06-return");
+            if(frame==210)render("case-01-spine");
+            if(frame==330)render("case-02-back");
+            if(frame==445)render("case-03-return");
         }
         return ok ? 0 : 1;
     }

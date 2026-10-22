@@ -70,7 +70,7 @@ class NativeTitleTests(unittest.TestCase):
         preview=(ROOT / "title" / "validate_preview.py").read_text()
         self.assertIn("Color::rgb(0x081014, 0.68f)", source)
         self.assertIn("Wallpaper washes out NiakPS5", preview)
-        self.assertIn("front_door", (ROOT / "title" / "case_renderer.cpp").read_text())
+        self.assertIn("printed_face", (ROOT / "title" / "case_renderer.cpp").read_text())
 
     def test_final_rendering_contracts(self):
         source=(ROOT / "title" / "polish.py").read_text()
@@ -102,10 +102,19 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('item.case_spine = niak_load_case_art(renderer,item.title_id,"spine")',stage)
         self.assertIn("strip_art(",source)
         self.assertIn("spine_print(",source)
-        self.assertIn("front_door(",source)
-        self.assertIn("disk_tray(",source)
+        self.assertIn("printed_face(",source)
         self.assertIn("hinge(",source)
-        self.assertIn("The free RIGHT edge unlatches",source)
+        self.assertIn("SEALED seam",source)
+        for forbidden in ("disk_tray(", "inside_door(", "front_door(",
+                          "Surface flap(", "Motion {", "motion.opening"):
+            self.assertNotIn(forbidden,source)
+        preview=(ROOT/"title"/"host_preview.py").read_text()
+        for obsolete in ("case-02-open", "case-01-unlatch",
+                         "case-03-close", "case-04-turn"):
+            self.assertNotIn(obsolete,preview)
+        for angle in ("case-00-front","case-01-spine",
+                      "case-02-back","case-03-return"):
+            self.assertIn(angle,preview)
         self.assertIn("cam.project(",source)
         self.assertNotIn("case_wrap",source)
         self.assertIn("spine_print(d,cam,game,L,T,B,F,K,w)",source)
