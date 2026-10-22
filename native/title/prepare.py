@@ -43,7 +43,7 @@ def prepare(kit: Path, project: Path):
         }'''
     new = '''        // Library and verified homebrew apps, without imaginary application cards.
         shelves_.resize(2);
-        shelves_[0].title = "Bibliotheque PS5";
+        shelves_[0].title = "Bibliothèque PS5";
         shelves_[1].title = "Applications et homebrews";
         for (int i = 0; i < static_cast<int>(items.size()); ++i)
         {
@@ -51,6 +51,8 @@ def prepare(kit: Path, project: Path):
             const demo::Item &entry=items[static_cast<std::size_t>(i)];
             (entry.application ? shelves_[1] : shelves_[0]).items.push_back(i);
         }
+        if (shelves_[0].items.empty() && !shelves_[1].items.empty())
+            shelves_[0].items.push_back(shelves_[1].items.front());
         if (shelves_[1].items.empty())
             shelves_.resize(1);'''
     replace_once(aurora, old, new)
@@ -238,6 +240,22 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
             ui::text(list, fonts.semibold, launch_error_, sheet.x + 60,
                      sheet.y + sheet.h - 31, 20, Color::rgb(0xffb8a8));
         // Actions: one highlight that springs between the rows.''')
+    # Two clearly labelled rows; never let an accented label pass through
+    # the upstream ASCII-only upper() conversion.
+    visual = visual.replace(
+        '''            ui::text(list, fonts.semibold, shelf.title, kMargin, y - 62, 24,
+                     kWhite.with_alpha(r == row_ ? 0.95f : 0.6f));''',
+        '''            ui::text(list, fonts.semibold, shelf.title, kMargin, y - 62, 24,
+                     kWhite.with_alpha(r == row_ ? 0.95f : 0.6f));
+            ui::text(list, fonts.regular, r==0 ? "Jeux PS5 · Jeux homebrew" :
+                "Applications PS5 · Applications homebrew", 450, y - 62, 18,
+                kWhite.with_alpha(0.54f));''')
+    # Detail-panel controller legends must stay WITHIN the frosted panel,
+    # not spill past its right or bottom edge.
+    visual = visual.replace(
+        'ui::draw_hints(list, fonts, style, hints, 2, 1824, true);',
+        'ui::draw_hints(list, fonts, style, hints, 2, 1720, true, '
+        'ui::HintLayout{31.0f, 20.0f, 983.0f, 22.0f});',1)
     # The upstream detail sheet has three invented rating/playtime/player tiles.
     # NiakPS5 has none of these facts; show a verified title ID instead.
     sheet_start = visual.find('        // Three stat tiles; the first is a gauge drawn with arcs.')
@@ -387,7 +405,13 @@ Catalog::Catalog()
                          (game.id[0]=='C' ? "PS4" : "PS5");
             // The current scanner has no trusted category for native titles.
             // Homebrew folders are initially classified as applications.
-            item.application = game.is_homebrew != 0;
+            if (known && (meta.genre=="Jeu" || meta.genre=="Game"))
+                item.application=false;
+            else if (known && (meta.genre=="Application" ||
+                               meta.genre=="Utility" || meta.genre=="Outils"))
+                item.application=true;
+            else
+                item.application = game.is_homebrew != 0;
             item.blurb = owned_blurbs_.back().c_str();
             item.homebrew = game.is_homebrew != 0;
             item.year = 0;

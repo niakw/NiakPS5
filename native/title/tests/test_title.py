@@ -150,6 +150,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
         self.assertIn("item.application",source)
+        self.assertIn("Bibliothèque PS5",source)
+        self.assertIn("1720, true",source)
         self.assertNotIn("Jeu ou application installé sur cette console.",source)
         self.assertIn("CATALOGUE INACCESSIBLE", source)
         self.assertIn("Fake clock or rating remains", source)
