@@ -543,6 +543,10 @@ Catalog::Catalog()
             else if (std::strcmp(game.title,"Mes vidéos")==0 ||
                      std::strcmp(game.title,"My Videos")==0)
                 item.application=true;
+            // This launcher is an application even when its packaging metadata
+            // declares the legacy 'game' category for Homebrew Installer.
+            if(std::strcmp(game.id,"PPSA99386")==0)
+                item.application=true;
             else item.application=game.is_homebrew!=0;
             const char *last=game.last_access;
             const char *installed=game.installed_at;
