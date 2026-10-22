@@ -34,9 +34,17 @@ static inline int niak_title_is_launchable(
         // follow arbitrary directories into the system filesystem.
         if(lstat(path,&installed)!=0 || !S_ISDIR(installed.st_mode))continue;
         if(strncmp(id,"NPXS",4)!=0)return 1;
-        char meta_path[256];
+        char meta_dir[240],meta_path[256];
+        const int dir_len=snprintf(meta_dir,sizeof(meta_dir),
+                                   "%s/sce_sys",path);
+        if(dir_len<=0 || (size_t)dir_len>=sizeof(meta_dir))continue;
+        struct stat meta_folder;
+        // Prevent a symlinked metadata folder from authorizing a protected
+        // NPXS service using a JSON file from another installation.
+        if(lstat(meta_dir,&meta_folder)!=0 ||
+           !S_ISDIR(meta_folder.st_mode))continue;
         const int n=snprintf(meta_path,sizeof(meta_path),
-                             "%s/sce_sys/param.json",path);
+                             "%s/param.json",meta_dir);
         if(n<=0 || (size_t)n>=sizeof(meta_path))continue;
         struct stat meta_stat;
         if(lstat(meta_path,&meta_stat)!=0 ||

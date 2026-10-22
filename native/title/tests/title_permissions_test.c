@@ -49,6 +49,14 @@ int main(void) {
     assert(!niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
     file_at(param,"{\"titleId\":\"NPXS00001\",\"applicationCategoryType\":65536}");
     assert(niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
+    // A symlinked sce_sys directory must not spoof the local title's class.
+    char saved_dir[320];
+    snprintf(saved_dir,sizeof(saved_dir),"%s/sce_sys.saved",base);
+    assert(rename(meta_dir,saved_dir)==0);
+    assert(symlink(saved_dir,meta_dir)==0);
+    assert(!niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
+    assert(unlink(meta_dir)==0);
+    assert(rename(saved_dir,meta_dir)==0);
     file_at(param,"{\"applicationCategoryType\":\"65792\","
                   "\"localizedParameters\":{\"en-US\":{\"titleName\":\"Video\"}}}");
     assert(niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
