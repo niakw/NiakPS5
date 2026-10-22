@@ -30,8 +30,7 @@ def patch(kit):
     # splash screen or a new loader. Unfocused tiles remain native flat icons;
     # homebrew titles always retain their app icon.
     s=exactly(s,'list.image(it.cover, ring, gfx::kCanvasUv, kWhite, 26);',
-                 'niak_draw_rotating_case(list, it, ring, '
-                 'context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_, fonts);')
+                 'list.image(it.cover, ring, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 26);')
     # Reset the case's on-card animation on each D-pad/stick focus change.
     s=exactly(s,'                shelf.column = next;',
                  '                shelf.column = next;\n                case_selected_at_ = clock_;')
@@ -44,8 +43,7 @@ def patch(kit):
     # The details sheet displays the same selected-game case in place of the
     # square app icon. No loading page, timer, or launch handoff is introduced.
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 28);',
-                 'niak_draw_rotating_case(list, it, art, '
-                 'context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_, fonts);')
+                 'list.image(it.cover, art, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 28);')
     s=exactly(s,'#include "niak/profile.hpp"', '#include "niak/profile.hpp"\n#include "niak/case_renderer.hpp"')
     # Show the authentic clear logo when LaunchBox provided one, AND the title.
     # Keep the name readable even if the logo scan has transparent margins.
@@ -58,7 +56,7 @@ def patch(kit):
     s=exactly(s,'''ui::text(list, fonts.semibold, it.title_id[0] ? "Jouer" : "Indisponible", play.x + 72,
                  play.cy() + 10, 28, Color::rgb(0x0b0d16));''',
                  '''ui::text(list, fonts.semibold, it.title_id[0] ? "Jouer" : "Indisponible",
-                 play.x + 146, play.cy() + 10, 28, Color::rgb(0x0b0d16),
+                 play.x + 132, play.cy() + 10, 28, Color::rgb(0x0b0d16),
                  gfx::Align::center);''')
     translations={
         '"DETECTE SUR CETTE CONSOLE"':'"DÉTECTÉ SUR CETTE CONSOLE"',

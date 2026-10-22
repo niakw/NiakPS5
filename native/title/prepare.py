@@ -47,9 +47,9 @@ def prepare(kit: Path, project: Path):
         shelves_[1].title = "Applications et homebrews";
         for (int i = 0; i < static_cast<int>(items.size()); ++i)
         {
-            shelves_[0].items.push_back(i);
-            if (items[static_cast<std::size_t>(i)].homebrew)
-                shelves_[1].items.push_back(i);
+            // Use a category property rather than relying on PPSA/CUSA prefixes.
+            const demo::Item &entry=items[static_cast<std::size_t>(i)];
+            (entry.application ? shelves_[1] : shelves_[0]).items.push_back(i);
         }
         if (shelves_[1].items.empty())
             shelves_.resize(1);'''
@@ -90,7 +90,7 @@ def prepare(kit: Path, project: Path):
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
-                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::vector<Item> items_;')
 
@@ -198,11 +198,10 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
         const char *id = it.title_id[0] ? it.title_id : "INDISPONIBLE";
         std::snprintf(text, sizeof(text), "%s  /  %s", it.genre, id);
         ui::text(list, fonts.regular, text, x, 366, 25, kWhite.with_alpha(0.8f));
-        ui::paragraph(list, fonts.regular, it.blurb, x, 432, 27, 820, 40,
-                      kWhite.with_alpha(0.85f), 2);
-        ui::text(list, fonts.regular,
-                 it.title_id[0] ? "DETECTE SUR CETTE CONSOLE" : "ACCES AU CATALOGUE A VERIFIER",
-                 x, 505, 20, it.accent);
+        if (it.blurb && it.blurb[0])
+            ui::paragraph(list, fonts.regular, it.blurb, x, 426, 25, 1020, 36,
+                          kWhite.with_alpha(0.85f), 2);
+        // An installed title needs no redundant detection banner.
 
 """ + visual[end:]
     # The upstream detail sheet has three invented rating/playtime/player tiles.
@@ -233,6 +232,25 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
                             '"Details"},\n                                      {ui::Button::triangle, "Favori (session)"')
     visual = visual.replace('ui::text(list, fonts.semibold, "B", 1800, 91, 22,',
                             'ui::text(list, fonts.semibold, "N", 1800, 91, 22,')
+    # Draw long titles inside the LEFT text column, never over the right-hand jacket.
+    visual = visual.replace(
+        'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',
+        'ui::paragraph(list, fonts.display, it.title, x - 4, 285, '
+        '66, 1110, 73, kWhite, 2);')
+    visual = visual.replace(
+        'ui::text(list, fonts.display, it.title, x - 2, sheet.y + 156, 60, kWhite);',
+        'ui::paragraph(list, fonts.semibold, it.title, x - 2, sheet.y + 130, '
+        '43, 690, 49, kWhite, 2);')
+    visual = visual.replace(
+        'ui::paragraph(list, fonts.regular, it.blurb, x, sheet.y + 208, 25, 700, 36,'
+        '\\n                      kWhite.with_alpha(0.82f), 2);',
+        'if (it.blurb && it.blurb[0])\\n'
+        '            ui::paragraph(list, fonts.regular, it.blurb, x, sheet.y + 221, '
+        '22, 690, 31, kWhite.with_alpha(0.82f), 2);')
+    # Avoid byte-wise ASCII uppercasing: it breaks accented French headings.
+    visual = visual.replace('ui::upper(shelves_[static_cast<std::size_t>(row_)].title)',
+                            'shelves_[static_cast<std::size_t>(row_)].title')
+    visual = visual.replace('ui::upper(it.genre)', 'it.genre')
     visual = visual.replace('it.progress > 0.0f ? "Resume" : "Play"',
                             'it.title_id[0] ? "Jouer" : "Indisponible"')
     extra = visual.find('        const Rect more{x + 240, 540, 64, 64};')
@@ -330,12 +348,16 @@ Catalog::Catalog()
             owned_titles_.emplace_back(has_real_name ? game.title : known ? meta.name : game.id);
             const std::string summary=known ? niak_title_summary(meta) : "";
             const std::string description=niak_title_overview(game.id);
-            owned_blurbs_.emplace_back(!description.empty() ? description :
-               summary.empty() ? "Jeu ou application installé sur cette console." : summary);
+            // Unknown metadata stays empty rather than showing invented prose.
+            owned_blurbs_.emplace_back(!description.empty() ? description : summary);
             Item item{};
             item.title = owned_titles_.back().c_str();
             item.studio = game.is_homebrew ? "Application" : "Jeu installé";
-            item.genre = game.is_homebrew ? "Application" : "PS5 / PS4";
+            item.genre = game.is_homebrew ? "Homebrew" :
+                         (game.id[0]=='C' ? "PS4" : "PS5");
+            // The current scanner has no trusted category for native titles.
+            // Homebrew folders are initially classified as applications.
+            item.application = game.is_homebrew != 0;
             item.blurb = owned_blurbs_.back().c_str();
             item.homebrew = game.is_homebrew != 0;
             item.year = 0;

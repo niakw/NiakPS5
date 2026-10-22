@@ -76,14 +76,15 @@ class NativeTitleTests(unittest.TestCase):
         source=(ROOT / "title" / "polish.py").read_text()
         compile(source,"polish.py","exec")
         for expected in ("cover_is_image ? gfx::kFullUv : gfx::kCanvasUv",
-                         "row_ == 0", "NiakPS5", "DÉTECTÉ", "play.x + 146"):
+                         "row_ == 0", "NiakPS5", "play.x + 132"):
             self.assertIn(expected,source)
 
     def test_focus_case_replaces_selected_tile_and_not_a_loader(self):
         source=(ROOT/"title"/"polish.py").read_text()
         case=(ROOT/"title"/"case_renderer.cpp").read_text()
-        self.assertIn("niak_draw_rotating_case(list, it, ring",source)
-        self.assertIn("niak_draw_rotating_case(list, it, art",source)
+        self.assertIn("niak_draw_rotating_case(list,it,art,",source)
+        self.assertNotIn("niak_draw_rotating_case(list, it, ring",source)
+        self.assertNotIn("niak_draw_rotating_case(list, it, art",source)
         self.assertIn("case_selected_at_",source)
         self.assertIn("clock_ - case_selected_at_",source)
         self.assertIn("shelf.column = next;",source)
@@ -144,6 +145,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-manrope.huifont", source)
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
+        self.assertIn("item.application",source)
+        self.assertNotIn("Jeu ou application installé sur cette console.",source)
         self.assertIn("CATALOGUE INACCESSIBLE", source)
         self.assertIn("Fake clock or rating remains", source)
         self.assertIn("concepts::make_aurora", source)
