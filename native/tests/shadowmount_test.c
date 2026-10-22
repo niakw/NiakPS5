@@ -38,8 +38,8 @@ int main(void){
  assert(niak_shadowmount_http_json(invalid,strlen(invalid),0,&body)==-1);
  char chunked[256]="HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n"
                    "Connection: keep-alive\r\n\r\n"
-                   "8\r\n{\"status\"\r\n"
-                   "F\r\n:0,\"games\":[]}\r\n0\r\n\r\n";
+                   "9\r\n{\"status\"\r\n"
+                   "E\r\n:0,\"games\":[]}\r\n0\r\n\r\n";
  size_t chunk_size=strlen(chunked);
  assert(niak_shadowmount_http_json(chunked,chunk_size-2,0,&body)==0);
  assert(niak_shadowmount_http_json(chunked,chunk_size,0,&body)==1);
