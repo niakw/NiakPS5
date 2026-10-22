@@ -215,7 +215,7 @@ def _decode_retail_image(raw,side):
                 return dst.read_bytes()
     return None
 
-def fetch_retail_covers(ftp, folder, maximum_titles=60):
+def fetch_retail_covers(ftp, folder, maximum_titles=150):
     """Download LaunchBox regional scans directly to owner's PS5 via FTP.
     Build ZIP ships text index only; third-party scans never enter repository.
     """
@@ -228,6 +228,11 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
         print("LaunchBox: aucun titre trouvé par FTP dans les dossiers autorisés.")
         return 0
     import urllib.request
+    cached=set()
+    try:
+        cached={str(path) for path in ftp.nlst(f"/data/homebrew/{TITLE}/assets/niak-cases")}
+    except (error_perm,AttributeError,OSError):
+        pass
     shipped=0
     indexed_matches=0
     attempted=0
@@ -240,6 +245,9 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
         if indexed_matches>maximum_titles:break
         # Metadata fields: ID, description, front, back, spine, logo, sourceID.
         for side,field in (("front",2),("back",3),("spine",4),("logo",5)):
+            destination=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
+            if destination in cached:
+                continue
             choices=columns[field]
             if choices=="-":continue
             for candidate in choices.split(";")[:8]:
@@ -258,7 +266,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
                     if not raw or len(raw)>5*1024*1024:continue
                     png=_decode_retail_image(raw,side)
                     if not png or len(png)>3*1024*1024:continue
-                    upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png",png)
+                    upload(ftp,destination,png)
                     shipped+=1
                     break
                 except (OSError,ValueError,TimeoutError,Exception) as exc:
@@ -274,7 +282,67 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
     return shipped
 
 
-def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None):
+def _listed(ftp,path):
+    """An unavailable FTP directory is unknown, never assumed empty."""
+    try:
+        return {str(x) for x in ftp.nlst(path)}
+    except (error_perm,AttributeError,OSError):
+        return None
+
+
+def diagnose(ftp):
+    """Read-only PS5 deployment report. Never edit system/app databases."""
+    app=f"/data/homebrew/{TITLE}"
+    files=_listed(ftp,app)
+    assets=_listed(ftp,app+"/assets")
+    covers=_listed(ftp,app+"/assets/niak-cases")
+    payloads=_listed(ftp,"/data/pldmgr/payloads/niakps5")
+    def known(state):
+        return "accès refusé / inconnu" if state is None else str(state)
+    print("NiakPS5 — diagnostic local (aucun fichier modifié)")
+    print("Titre eboot.bin :",known(None if files is None else app+"/eboot.bin" in files))
+    print("Index LaunchBox :",known(None if assets is None else app+"/assets/niak-launchbox-cases.tsv" in assets))
+    print("Métadonnées locales :",known(None if assets is None else app+"/assets/niak-local-titles.tsv" in assets))
+    print("Avatar copié :",known(None if assets is None else any(
+        app+"/assets/"+name in assets for name in ("niak-profile.png","niak-profile.dds"))))
+    if covers is None: print("Jaquettes privées : accès refusé / inconnu")
+    else:
+        art={x.rsplit("/",1)[-1] for x in covers}
+        print("Jaquettes privées :",sum(name.endswith("-front.png") for name in art),
+              "rectos,",sum(name.endswith("-back.png") for name in art),"versos,",
+              sum(name.endswith("-spine.png") for name in art),"tranches")
+    print("Payload ELF :",known(None if payloads is None else PAYLOAD in payloads))
+    autoload=retrieve(ftp,AUTOLOAD)
+    config=retrieve(ftp,CONFIG)
+    configured=(autoload is not None and PAYLOAD in
+                [v.strip() for v in autoload.decode("utf8","replace").splitlines()])
+    enabled=config is not None and "AUTOLOAD_ENABLED=1" in config.decode("utf8","replace").splitlines()
+    print("PLDmgr chemin configuré :",configured if autoload is not None else "inconnu")
+    print("PLDmgr AUTOLOAD_ENABLED :",enabled if config is not None else "inconnu")
+    # Markers prove configuration only; not execution. Never call it "working"
+    # unless the user's PS5 log records a successful service call.
+    marker=_listed(ftp,"/data")
+    print("Marqueur activation :",known(None if marker is None else
+                                       "/data/niakps5-autostart.enabled" in marker))
+    print("Marqueur désactivation :",known(None if marker is None else
+                                          "/data/niakps5-autostart.disable" in marker))
+    try: log=_bounded_retrieve(ftp,"/data/niakps5-autostart.log")
+    except (OSError,ValueError): log=None
+    if log:
+        report=log.decode("utf8","replace")
+        last=report.rfind("NiakPS5 optional autostart start")
+        section=report[last:] if last>=0 else ""
+        launches=[line.strip() for line in section.splitlines()
+                  if line.startswith("sceSystemServiceLaunchApp rc=")]
+        print("Dernière exécution PLDmgr :",
+              "succès HISTORIQUE" if launches and launches[-1].endswith("rc=0x00000000")
+              else "échec historique" if launches else "non confirmée")
+    else:
+        print("Dernière exécution PLDmgr : journal absent ou non lisible")
+    print("Un succès historique ne prouve pas le démarrage automatique actuel.")
+
+
+def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None, art_limit=150):
     if directory.name != TITLE or not (directory / "sce_sys/param.json").is_file():
         raise ValueError("Extract PPSA99386/ and run the installer inside that folder")
     for local in sorted(directory.rglob("*")):
@@ -287,7 +355,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
     copy_avatar_for_ftp(ftp,avatar_user_id)
     upload_local_homebrew_names(ftp)
-    fetch_retail_covers(ftp,directory)
+    fetch_retail_covers(ftp,directory,art_limit)
     if not autoload:
         print("Titre installe. L'autoload n'est pas active sans --autoload.")
         return
@@ -338,23 +406,32 @@ def main():
                      help="Installer et activer le démarrage automatique (défaut)")
     cli.add_argument("--no-autoload", dest="autoload", action="store_false",
                      help="Transférer seulement le titre sans modifier Payload Manager")
+    cli.add_argument("--status", action="store_true",
+                     help="Vérifier les fichiers sur la PS5 sans rien modifier")
+    cli.add_argument("--art-limit", type=int, default=150,
+                     help="Limite des titres à enrichir avec les jaquettes (1–300)")
     cli.add_argument("--refresh-art", action="store_true",
                      help="Rechercher les jaquettes des jeux installés sans toucher au titre ni à PLDmgr")
     cli.add_argument("--return-after-game", action="store_true",
                      help="Surveiller uniquement la fermeture d'un jeu, sans intercepter le bouton PS")
     args = cli.parse_args()
-    if args.return_after_game and not args.autoload and not args.refresh_art:
+    if not 1<=args.art_limit<=300:
+        cli.error("--art-limit doit être entre 1 et 300")
+    if args.return_after_game and not args.autoload and not args.refresh_art and not args.status:
         cli.error("--return-after-game requires --autoload")
     directory = Path(__file__).resolve().parent.parent
     password = "" if args.user == "anonymous" else getpass("Mot de passe FTP: ")
     with FTP() as ftp:
         ftp.connect(args.host, args.port, timeout=20)
         ftp.login(args.user, password)
-        if args.refresh_art:
+        if args.status:
+            diagnose(ftp)
+        elif args.refresh_art:
             upload_local_homebrew_names(ftp)
-            fetch_retail_covers(ftp, directory)
+            fetch_retail_covers(ftp, directory, args.art_limit)
         else:
-            install(ftp, directory, args.autoload, args.return_after_game, args.avatar_user_id)
+            install(ftp, directory, args.autoload, args.return_after_game,
+                    args.avatar_user_id, args.art_limit)
 
 if __name__ == "__main__":
     main()
