@@ -149,7 +149,6 @@ void left_spine(DrawList &list,const Camera &camera,const hui::demo::Item &item,
     else {
         // Standard PS4/PS5 blue plastic spine when LaunchBox has no scan.
         // It is a physical case side, not a fabricated game illustration.
-        const auto centre=paper(0.5f,0.06f);
         const auto left=paper(0.f,0.06f),right=paper(1.f,0.06f);
         if(std::fabs(right.x-left.x)>10.f) {
             const char *generation=item.title_id[0]=='C'?"PS4":"PS5";

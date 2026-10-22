@@ -78,7 +78,7 @@ Le titre tente maintenant `POST http://127.0.0.1:10101/api/v1/games` en lecture 
 
 `fetch_daily_games.py` exploite l'API **Steam Store** au moment de la compilation pour trouver des jeux réellement sortis depuis moins de 365 jours, récupérer au maximum sept captures horizontales et les préparer dans les assets de l'application. Aucun identifiant personnel de PS5 n'est envoyé. Une rotation fondée sur la date locale choisit une image par jour ; l'aurore/fumée reste présente et sert de fallback si les ressources n'existent pas. La CI reconstruit le paquet chaque matin.
 
-**Limite actuelle :** la génération du paquet est quotidienne, mais le titre installé n'actualise pas encore ses images en HTTPS depuis la PS5. Il conserve son lot embarqué jusqu'à mise à jour du paquet. Il ne faut pas prétendre à un téléchargement journalier autonome avant l'intégration d'un transport HTTPS fiable et d'un cache atomique dans le stockage privé `/download0`. Les captures appartiennent à leurs éditeurs ; il faut respecter leurs droits.
+**État actuel :** le lot de fonds est renouvelé à la compilation et le client PS5 tente aussi une mise à jour HTTPS quotidienne vers un cache privé dans `/download0`. Le client revient automatiquement aux images embarquées si l'API réseau ou le serveur n'est pas disponible. Ce rafraîchissement n'a pas encore été confirmé sur une véritable console avec le firmware cible ; l'interface ne prétend pas qu'une récupération en ligne a eu lieu quand seul le fond de secours est affiché. Les captures appartiennent à leurs éditeurs ; leurs droits doivent être respectés.
 
 ## Package FTP unique (sans imbriquation)
 
