@@ -107,6 +107,48 @@ class AutoloadTests(unittest.TestCase):
         ftpmod.install(f,self.root,False,avatar_user_id="0x22222222")
         self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
 
+    def test_launchbox_reports_download_and_write_failures_without_secrets(self):
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from contextlib import redirect_stdout
+        from io import StringIO
+        import urllib.request
+        ident="PPSA34015"
+        artwork_id="00000000-0000-0000-0000-000000000001.jpg"
+        (self.root/"assets").mkdir(exist_ok=True)
+        (self.root/"assets/niak-launchbox-cases.tsv").write_text(
+            ident+"\tOverview\tfr:"+artwork_id+"\t-\t-\t-\t42\n")
+        ftp=FakeFTP({f"/user/app/{ident}/eboot.bin":b"installed"})
+        output=StringIO()
+        source="https://images.launchbox-app.com/"+artwork_id
+        with (patch.object(urllib.request,"urlopen",
+                           side_effect=HTTPError(source,403,"denied",None,None)),
+              redirect_stdout(output)):
+            self.assertEqual(ftpmod.fetch_retail_covers(ftp,self.root),0)
+        report=output.getvalue()
+        self.assertIn("HTTP [403: 1]",report)
+        self.assertNotIn(artwork_id,report)
+        self.assertIn("source distante restreinte",report)
+        class Reply:
+            def __enter__(self): return self
+            def __exit__(self,*args): pass
+            def read(self,n): return b"not an image"
+        output=StringIO()
+        with (patch.object(urllib.request,"urlopen",return_value=Reply()),
+              patch.object(ftpmod,"_decode_retail_image",
+                           side_effect=ValueError("malformed")),
+              redirect_stdout(output)):
+            self.assertEqual(ftpmod.fetch_retail_covers(ftp,self.root),0)
+        self.assertIn("images rejetées=1",output.getvalue())
+        output=StringIO()
+        with (patch.object(urllib.request,"urlopen",return_value=Reply()),
+              patch.object(ftpmod,"_decode_retail_image",
+                           return_value=b"valid png fixture"),
+              patch.object(ftpmod,"upload",side_effect=OSError("FTP 550")),
+              redirect_stdout(output)):
+            self.assertEqual(ftpmod.fetch_retail_covers(ftp,self.root),0)
+        self.assertIn("FTP refusé=1",output.getvalue())
+
     def test_launchbox_installs_only_games_present_on_console(self):
         from unittest.mock import patch
         import io
