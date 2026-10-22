@@ -25,6 +25,27 @@ for x,y in zip(frames,frames[1:]):
     changes.append(delta)
 if any(d<5.5 for d in changes):
     raise SystemExit(f"3D case does not visibly rotate in actual GPU capture: {changes}")
+# A 90-degree side view MUST be much narrower than the face. Pixel-level
+# verification catches wrong painter order, a wide blue face hiding the spine,
+# and accidentally capturing the back instead of the edge.
+def vivid_blue_width(path):
+    with Image.open(path) as image:
+        band=image.convert("RGB").crop((1280,100,1780,540))
+        pixels=band.load()
+        xs=[]
+        for y in range(band.height):
+            for x in range(band.width):
+                red,green,blue=pixels[x,y]
+                if blue>125 and red<155 and blue>red*1.4 and blue>green*1.05:
+                    xs.append(x)
+        return max(xs)-min(xs)+1 if xs else 0
+front_width=vivid_blue_width(required[0])
+spine_width=vivid_blue_width(required[1])
+back_width=vivid_blue_width(required[2])
+if front_width<150 or back_width<150 or not 8<=spine_width<front_width*0.45:
+    raise SystemExit(
+        f"Incorrect closed-case silhouette: front={front_width}, "
+        f"spine={spine_width}, back={back_width}")
 # Fail if daily wallpaper becomes so bright that white UI text is unreadable.
 # Measure the left hero copy zone across the true host OpenGL captures.
 with Image.open(Path(sys.argv[1]) / "01-aurora.png") as _home:
