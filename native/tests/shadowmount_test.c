@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#define _POSIX_C_SOURCE 200809L
 #include "../shadowmount_api.h"
 #include "../shadowmount_http.h"
 #include <stdlib.h>
