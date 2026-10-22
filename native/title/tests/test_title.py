@@ -11,6 +11,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niakps5-autostart.disable", source)
         self.assertIn("sceSystemServiceLaunchApp", source)
         self.assertIn("GetAppIdOfRunningBigApp", source)
+        self.assertIn("niak_redirect_arm_after_launch(",source)
+        self.assertNotIn("current_niak=running",source)
         self.assertNotIn("ptrace(", source)
         self.assertNotIn("mount(", source)
 

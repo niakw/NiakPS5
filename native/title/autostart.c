@@ -195,7 +195,7 @@ static void serve_launch_requests(int launcher_started) {
     }
     report("Local launch broker ready (127.0.0.1 only)",0);
     NiakRedirectGate gate;
-    int current_niak=-1, gate_ready=0;
+    int gate_ready=0;
     // The original 21,600 two-second iterations silently stopped the
     // launch service after roughly twelve hours. Keep the opt-in broker
     // alive until the user disables it or the console shuts down.
@@ -235,8 +235,16 @@ static void serve_launch_requests(int launcher_started) {
                     if(permitted_title(title)) {
                         int user=-1;
                         if(sceUserServiceGetForegroundUser(&user)==0&&user>=0) {
+                            const int source_app=sceSystemServiceGetAppIdOfRunningBigApp();
                             result=sceSystemServiceLaunchApp(title,NULL,NULL);
                             report("Local title launch request",result);
+                            // The return gate is opt-in, and only the launch
+                            // we explicitly requested may arm it. Merely
+                            // seeing some other bigapp never arms a redirect.
+                            gate_ready=niak_redirect_arm_after_launch(
+                                &gate,launcher_started,
+                                is_regular_file(NIAK_RESUME),
+                                source_app,result);
                         }
                     }
                 }
@@ -248,22 +256,18 @@ static void serve_launch_requests(int launcher_started) {
                 close(client);
             }
         }
-        if(!launcher_started || !is_regular_file(NIAK_RESUME))continue;
-        const int running=sceSystemServiceGetAppIdOfRunningBigApp();
-        if(!gate_ready) {
-            if(running>0) {
-                current_niak=running;
-                niak_redirect_init(&gate,current_niak);
-                gate_ready=1;
-            }
+        if(!launcher_started || !is_regular_file(NIAK_RESUME)) {
+            gate_ready=0;
             continue;
         }
+        if(!gate_ready)continue;
+        const int running=sceSystemServiceGetAppIdOfRunningBigApp();
         if(!niak_redirect_tick(&gate,running))continue;
         int user=-1;
         if(sceUserServiceGetForegroundUser(&user)==0 && user>=0) {
             const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
             report("Optional game-exit return",rc);
-            gate_ready=0;current_niak=-1;
+            gate_ready=0;
         }
     }
     close(fd);

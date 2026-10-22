@@ -2,7 +2,11 @@
 #include <assert.h>
 int main(void){
  NiakRedirectGate g;
- niak_redirect_init(&g,314);
+ assert(!niak_redirect_arm_after_launch(&g,0,1,314,0));
+ assert(!niak_redirect_arm_after_launch(&g,1,0,314,0));
+ assert(!niak_redirect_arm_after_launch(&g,1,1,-1,0));
+ assert(!niak_redirect_arm_after_launch(&g,1,1,314,-2));
+ assert(niak_redirect_arm_after_launch(&g,1,1,314,0));
  // First launcher, Sony dashboard, no game: never redirect/loop.
  for(int i=0;i<50;++i)assert(!niak_redirect_tick(&g,0));
  assert(!niak_redirect_tick(&g,314));
@@ -14,7 +18,7 @@ int main(void){
  for(int i=0;i<4;++i)assert(!niak_redirect_tick(&g,0));
  assert(niak_redirect_tick(&g,0));
  for(int i=0;i<30;++i)assert(!niak_redirect_tick(&g,0));
- niak_redirect_init(&g,314);
+ assert(niak_redirect_arm_after_launch(&g,1,1,314,0));
  niak_redirect_tick(&g,18);
  niak_redirect_tick(&g,0);
  niak_redirect_tick(&g,0);
