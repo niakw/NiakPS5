@@ -93,6 +93,24 @@ def prepare(kit: Path, project: Path):
                 }
             }'''
     replace_once(aurora, old_launch, new_launch)
+    # Private favorites are reloaded and sorted before the first screen draw.
+    replace_once(aurora, '        favorite_.assign(items.size(), false);',
+    """        favorite_.assign(items.size(), false);
+        if (std::FILE *saved=std::fopen("/download0/niak-favorites.tsv","rb"))
+        {
+            char line[24]{};
+            while (std::fgets(line,sizeof(line),saved))
+            {
+                line[std::strcspn(line,"\\r\\n")]=0;
+                for (std::size_t k=0;k<items.size();++k)
+                    if (std::strcmp(items[k].title_id,line)==0)
+                        favorite_[k]=true;
+            }
+            std::fclose(saved);
+            for (Shelf &shelf:shelves_)
+                std::stable_partition(shelf.items.begin(),shelf.items.end(),
+                    [this](int i){return favorite_[static_cast<std::size_t>(i)];});
+        }""")
     # Failed launch must remain visible in the detail panel rather than
     # closing as if it had succeeded; the PS5 return code is diagnostic.
     replace_once(aurora, '    int action_ = 0;', 
@@ -112,6 +130,26 @@ def prepare(kit: Path, project: Path):
                     shelf.column=static_cast<int>(pos);
                     break;
                 }
+        }""")
+    replace_once(aurora,
+        '        if (favorite_[index])\n            star_.trigger();',
+        """        if (favorite_[index])
+            star_.trigger();
+        // Atomic private storage. No writes to Sony's system databases.
+        if(std::FILE *out=std::fopen("/download0/niak-favorites.tsv.tmp","wb"))
+        {
+            bool success=true;
+            for(std::size_t i=0;i<favorite_.size();++i)
+                if(favorite_[i] && item(static_cast<int>(i)).title_id[0])
+                    if(std::fprintf(out,"%s\\n",item(static_cast<int>(i)).title_id)<0)
+                        success=false;
+            if(std::fflush(out)!=0)success=false;
+            if(std::fclose(out)!=0)success=false;
+            if(success)
+                std::rename("/download0/niak-favorites.tsv.tmp",
+                            "/download0/niak-favorites.tsv");
+            else
+                std::remove("/download0/niak-favorites.tsv.tmp");
         }""")
     # The single-design title does not display the UI Lab tour banner.
     shell = kit / "src/app/shell.cpp"
@@ -217,7 +255,7 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
     replace_once(app_main, '"montserrat-medium.huifont"', '"niak-instrument-serif.huifont"')
 
     # Never report invented ratings, playtime, progress, or a fixed clock.
-    replace_once(aurora, '#include <cstdio>', '#include <cstdio>\n#include <ctime>')
+    replace_once(aurora, '#include <cstdio>', '#include <cstdio>\n#include <ctime>\n#include <cstring>')
     visual = aurora.read_text(encoding="utf-8")
     start = visual.find('        std::snprintf(text, sizeof(text), "%s  ')
     end = visual.find('        const Rect play{x, 540, 220, 64};', start)

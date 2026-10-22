@@ -154,6 +154,14 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     return 0;
 }
 
+std::uint32_t niak_load_profile_cache_png(hui::gfx::Renderer &renderer,unsigned user) {
+    char path[160];
+    std::snprintf(path,sizeof(path),
+        "/system_data/priv/cache/profile/0x%08X/avatar.png",user);
+    std::vector<unsigned char> png;
+    return read_local_png(path,png)?decode_upload(renderer,png):0;
+}
+
 std::uint32_t niak_load_local_png(hui::gfx::Renderer &renderer, const char *path)
 {
     if(!path || (std::strcmp(path,"/app0/assets/niak-profile.png") != 0 &&

@@ -38,6 +38,12 @@ void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
     if(!niak_user_avatar)
         niak_user_avatar=niak_load_local_png(renderer,
             "/data/homebrew/PPSA99386/assets/niak-profile.png");
+    if(!niak_user_avatar) {
+        int current=-1;
+        if(sceUserServiceGetForegroundUser(&current)==0 && current>=0)
+            niak_user_avatar=niak_load_profile_cache_png(renderer,
+                static_cast<unsigned>(current));
+    }
     if(niak_user_avatar) return;
     // Fallback: the PS5 avatar cache commonly stores 128x128 DDS (DXT5).
     // Read only our own staged copy inside /app0, never a system path.
