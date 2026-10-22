@@ -49,6 +49,26 @@ void quad(DrawList &list,Point a,Point b,Point c,Point d,Color fill) {
     const float xy[]={a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y};
     list.polygon(xy,4,fill);
 }
+// Rounded corners are part of the case mesh, not an extra floating outline.
+void molded_face(DrawList &list,const Camera &cam,float left,float right,
+                 float top,float bottom,float z,float radius,Color fill) {
+    constexpr float pi=3.14159265359f;
+    const float centers[4][2]={
+        {right-radius,top+radius},{right-radius,bottom-radius},
+        {left+radius,bottom-radius},{left+radius,top+radius}};
+    const float first[4]={-pi*0.5f,0.0f,pi*0.5f,pi};
+    float xy[2*28];int count=0;
+    for(int corner=0;corner<4;++corner) {
+        for(int step=0;step<=6;++step) {
+            const float angle=first[corner]+pi*0.5f*float(step)/6.0f;
+            const Point p=cam.project({
+                centers[corner][0]+radius*std::cos(angle),
+                centers[corner][1]+radius*std::sin(angle),z});
+            xy[2*count]=p.x;xy[2*count+1]=p.y;++count;
+        }
+    }
+    list.polygon(xy,count,fill);
+}
 void textured_face(DrawList &list,const Camera &cam,std::uint32_t texture,
                    float x_left,float x_right,float top,float bottom,float z,
                    Color tint,int slices) {
@@ -94,11 +114,10 @@ void framed_face(DrawList &list,const Camera &cam,float w,float h,float z,
                  const hui::demo::Item &game,const hui::ui::Fonts &fonts) {
     const float left=-w*0.5f,right=w*0.5f;
     const float top=-h*0.5f,bottom=h*0.5f;
-    const float lip=w*0.025f;
+    const float lip=w*0.032f;
     const Color shell=Color::rgb(ps4?0x2856b5:0x377acb);
     const Color rim=Color::rgb(ps4?0x7196e7:0xa7d3ed);
-    quad(list,cam.project({left,top,z}),cam.project({right,top,z}),
-         cam.project({right,bottom,z}),cam.project({left,bottom,z}),shell);
+    molded_face(list,cam,left,right,top,bottom,z,w*0.038f,shell);
     const float uleft=front?left+lip:right-lip;
     const float uright=front?right-lip:left+lip;
     if(image && std::fabs(cam.cosine)>0.08f) {
@@ -132,6 +151,15 @@ void framed_face(DrawList &list,const Camera &cam,float w,float h,float z,
             }
         }
     }
+    // Thin transparent overwrap catches light on the PRINT, without replacing
+    // the scanned face or laying a second full-sized plastic case over it.
+    const float x0=front?left+lip:right-lip;
+    const float x1=front?right-lip:left+lip;
+    quad(list,cam.project({x0,top+lip,z}),
+         cam.project({x0+(x1-x0)*0.045f,top+lip,z}),
+         cam.project({x0+(x1-x0)*0.18f,bottom-lip,z}),
+         cam.project({x0+(x1-x0)*0.13f,bottom-lip,z}),
+         Color::rgb(0xf6fcff,0.085f));
     // Separate transparent molded rim; this is the same case, not a
     // duplicate transparent rectangle behind a fictional second case.
     quad(list,cam.project({left,top,z}),cam.project({right,top,z}),
@@ -142,6 +170,10 @@ void framed_face(DrawList &list,const Camera &cam,float w,float h,float z,
          cam.project({left+lip,bottom,z}),cam.project({left,bottom,z}),rim.with_alpha(0.42f));
     quad(list,cam.project({right-lip,top,z}),cam.project({right,top,z}),
          cam.project({right,bottom,z}),cam.project({right-lip,bottom,z}),rim.with_alpha(0.58f));
+    const auto cap_left=cam.project({left+w*0.042f,top,z});
+    const auto cap_right=cam.project({right-w*0.042f,top,z});
+    list.line(cap_left.x,cap_left.y,cap_right.x,cap_right.y,
+              1.25f,Color::rgb(0xffffff,0.47f));
     const Point hi=cam.project({left+lip,top+lip,z});
     const Point lo=cam.project({left+lip,bottom-lip,z});
     list.line(hi.x,hi.y,lo.x,lo.y,0.8f,Color::rgb(0xf0fbff,0.30f));

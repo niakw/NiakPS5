@@ -102,6 +102,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('item.case_spine = niak_load_case_art(renderer,item.title_id,"spine")',stage)
         self.assertIn("textured_face(",source)
         self.assertIn("spine_texture(",source)
+        self.assertIn("molded_face(",source)
+        self.assertIn("transparent overwrap",source)
         self.assertIn("cam.project(",source)
         host=(ROOT/"title"/"host_preview.py").read_text()
         self.assertIn("make_case_art_fixtures",host)
