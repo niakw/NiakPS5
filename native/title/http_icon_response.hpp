@@ -26,7 +26,8 @@ inline NiakHttpState niak_http_icon_body(
     if(!header_end)return wire.size()>kMaxHeader||eof?
         NiakHttpState::Invalid:NiakHttpState::NeedMore;
     if(header_end<16 || (std::memcmp(wire.data(),"HTTP/1.1 200",12)!=0 &&
-                         std::memcmp(wire.data(),"HTTP/1.0 200",12)!=0))
+                         std::memcmp(wire.data(),"HTTP/1.0 200",12)!=0) ||
+                         (wire[12]!=' ' && wire[12]!='\r'))
         return NiakHttpState::Invalid;
     std::string header(reinterpret_cast<const char*>(wire.data()),header_end);
     if(header.find('\0')!=std::string::npos)return NiakHttpState::Invalid;
@@ -58,8 +59,12 @@ inline NiakHttpState niak_http_icon_body(
             std::size_t n=0;
             for(const char digit:value) {
                 if(digit<'0'||digit>'9')return NiakHttpState::Invalid;
-                n=n*10u+std::size_t(digit-'0');
-                if(n>maximum)return NiakHttpState::Invalid;
+                const auto d=std::size_t(digit-'0');
+                // Check before multiplication; oversized decimal strings
+                // must not wrap back into a seemingly valid image size.
+                if(d>maximum || n>(maximum-d)/10u)
+                    return NiakHttpState::Invalid;
+                n=n*10u+d;
             }
             if(has_length && n!=length)return NiakHttpState::Invalid;
             length=n;has_length=true;

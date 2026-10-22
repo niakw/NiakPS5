@@ -27,6 +27,10 @@ int main() {
     assert(niak_http_icon_body(bytes,true,limit,out)==NiakHttpState::Invalid);
     bytes=wire("HTTP/1.1 200 OK\r\nContent-Length: 999999\r\n\r\n");
     assert(niak_http_icon_body(bytes,false,limit,out)==NiakHttpState::Invalid);
+    bytes=wire("HTTP/1.1 200 OK\r\nContent-Length: 99999999999999999999999999999999\r\n\r\n");
+    assert(niak_http_icon_body(bytes,false,limit,out)==NiakHttpState::Invalid);
+    bytes=wire("HTTP/1.1 200X\r\nContent-Length: 2\r\n\r\nAB");
+    assert(niak_http_icon_body(bytes,false,limit,out)==NiakHttpState::Invalid);
     bytes=wire("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
                "Content-Length: 3\r\n\r\nABC");
     assert(niak_http_icon_body(bytes,false,limit,out)==NiakHttpState::Invalid);
