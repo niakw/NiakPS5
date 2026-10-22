@@ -6,6 +6,7 @@ extern "C" {
 #include "niak/catalog.h"
 }
 #include "niak/lodepng.h"
+#include "niak/socket_guard.h"
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
 
@@ -28,6 +29,9 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
 {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return false;
+    // ShadowMountPlus may close its HTTP socket while assets are loading;
+    // do not let SIGPIPE kill the entire native title.
+    niak_socket_guard(sock);
     timeval timeout{1, 500000};
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
@@ -45,7 +49,7 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     std::size_t sent = 0;
     while (sent < request.size())
     {
-        const ssize_t n = send(sock, request.data() + sent, request.size() - sent, 0);
+        const ssize_t n = niak_socket_send(sock, request.data() + sent, request.size() - sent);
         if (n <= 0) { close(sock); return false; }
         sent += static_cast<std::size_t>(n);
     }
