@@ -103,6 +103,16 @@ def prepare(kit: Path, project: Path):
     replace_once(aurora, old_launch, new_launch)
     replace_once(aurora, '            sheet_open_ = true;',
                  '            launch_error_[0] = 0;\n            sheet_open_ = true;')
+    # The DualSense touchpad click is an explicit details shortcut, while
+    # Cross keeps the normal confirm action. The same sheet opens either way.
+    replace_once(aurora,
+        '        if (input.is_pressed(Action::confirm))\n'
+        '        {\n'
+        '            launch_error_[0] = 0;',
+        '        if (input.is_pressed(Action::confirm) || '
+        'input.is_pressed(Action::touch))\n'
+        '        {\n'
+        '            launch_error_[0] = 0;')
     # Private favorites are reloaded and sorted before the first screen draw.
     replace_once(aurora, '        favorite_.assign(items.size(), false);',
     """        favorite_.assign(items.size(), false);

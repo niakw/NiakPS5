@@ -158,6 +158,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
         self.assertIn("item.application",source)
+        self.assertIn("Action::touch",source)
         self.assertIn('meta.category=="Application"',source)
         self.assertIn("data.genre.clear()",
                       (ROOT/"title"/"title_meta.cpp").read_text())
