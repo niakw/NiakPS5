@@ -202,6 +202,7 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(ftp.files,files)
         report=output.getvalue()
         self.assertIn("Couverture des 1 titres visibles : 1 rectos, 0 versos, 0 tranches.",report)
+        self.assertNotIn(ftpmod.TITLE,ftpmod._installed_title_ids(ftp,300))
         self.assertNotIn("Sans recto privé",report)
 
     def test_art_cache_handles_absolute_and_basename_ftp_listings(self):

@@ -179,7 +179,8 @@ def _installed_title_ids(ftp, limit=150):
         except (error_perm,AttributeError,OSError):continue
         for entry in entries[:300]:
             ident=posixpath.basename(str(entry).rstrip("/"))
-            if re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE)[0-9]{5}",ident):found.add(ident)
+            if ident!=TITLE and re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE)[0-9]{5}",ident):
+                found.add(ident)
         if len(found)>=limit:break
     return sorted(found)[:limit]
 
