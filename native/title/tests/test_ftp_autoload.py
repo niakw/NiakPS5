@@ -189,6 +189,35 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("PLDmgr AUTOLOAD_ENABLED : True",out.getvalue())
         self.assertIn("installed_binary_matches",SCRIPT.read_text())
 
+    def test_art_cache_handles_absolute_and_basename_ftp_listings(self):
+        from unittest.mock import patch
+        import urllib.request
+        for mode in ("absolute","basename","relative"):
+            with self.subTest(mode=mode):
+                ident="PPSA34015"
+                stored=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{ident}-front.png"
+                ftp=FakeFTP({stored:b"cached",
+                             f"/user/app/{ident}/eboot.bin":b"game"})
+                (self.root/"assets").mkdir(exist_ok=True)
+                (self.root/"assets/niak-launchbox-cases.tsv").write_text(
+                    ident+"\\t-\\tfr:00000000-0000-0000-0000-000000000001.jpg"
+                    +"\\t-\\t-\\t-\\t4\\n")
+                original=ftp.nlst
+                def alternate_listing(path):
+                    returned=original(path)
+                    if path.endswith("/niak-cases"):
+                        if mode=="basename":
+                            return [entry.rsplit("/",1)[-1] for entry in returned]
+                        if mode=="relative":
+                            return ["niak-cases/"+entry.rsplit("/",1)[-1]
+                                    for entry in returned]
+                    return returned
+                with (patch.object(ftp,"nlst",side_effect=alternate_listing),
+                      patch.object(urllib.request,"urlopen") as net):
+                    self.assertEqual(ftpmod.fetch_retail_covers(ftp,self.root),0)
+                    net.assert_not_called()
+                self.assertEqual(ftp.files[stored],b"cached")
+
     def test_art_cache_does_not_refetch_installed_front(self):
         from unittest.mock import patch
         import urllib.request
