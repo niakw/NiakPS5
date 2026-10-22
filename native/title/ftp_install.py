@@ -235,11 +235,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
         print("LaunchBox: aucun titre trouvé par FTP dans les dossiers autorisés.")
         return 0
     import urllib.request
-    cached=set()
-    try:
-        cached={str(path) for path in ftp.nlst(f"/data/homebrew/{TITLE}/assets/niak-cases")}
-    except (error_perm,AttributeError,OSError):
-        pass
+    cached=_remote_filenames(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases") or set()
     shipped=0
     indexed_matches=0
     attempted=0
@@ -253,7 +249,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
         # Metadata fields: ID, description, front, back, spine, logo, sourceID.
         for side,field in (("front",2),("back",3),("spine",4),("logo",5)):
             destination=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
-            if destination in cached and not force:
+            if posixpath.basename(destination) in cached and not force:
                 continue
             choices=columns[field]
             if choices=="-":continue
@@ -329,8 +325,7 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
     spec.loader.exec_module(providers)
     ids=_installed_title_ids(ftp,maximum_titles)
     names=_name_index(ftp,folder)
-    cached=_listed(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases")
-    cached=cached or set()
+    cached=_remote_filenames(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases") or set()
     total=0
     requests=0
     used={"thegamesdb":0,"steamgriddb":0}
@@ -339,7 +334,8 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
         if not name:continue
         paths={side:f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
                for side in ("front","back")}
-        missing={side for side,path in paths.items() if force or path not in cached}
+        missing={side for side,path in paths.items()
+                 if force or posixpath.basename(path) not in cached}
         if not missing:continue
         platform="ps5" if ident.startswith("PPSA") else "ps4"
         def candidate_sources():
@@ -377,7 +373,7 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
                     png=_decode_retail_image(raw,side)
                     if not png or len(png)>3*1024*1024:continue
                     upload(ftp,paths[side],png)
-                    cached.add(paths[side])
+                    cached.add(posixpath.basename(paths[side]))
                     missing.remove(side)
                     used[source]+=1
                     total+=1
@@ -398,6 +394,20 @@ def _listed(ftp,path):
         return {str(x) for x in ftp.nlst(path)}
     except (error_perm,AttributeError,OSError):
         return None
+
+
+def _remote_filenames(ftp,path):
+    """Normalize both absolute and basename-only LIST replies, read-only.
+
+    FTP daemons may return /data/foo/image.png, image.png, or foo/image.png.
+    Compare by basename only INSIDE the already scoped artwork directory.
+    None means the listing could not be read; it does not mean the directory
+    contains no media.
+    """
+    entries=_listed(ftp,path)
+    if entries is None:return None
+    return {posixpath.basename(name.rstrip("/")) for raw in entries
+            if (name:=str(raw)) and name not in (".","..")}
 
 
 def installed_binary_matches(ftp,local_binary,remote_path=None,maximum=150*1024*1024):
