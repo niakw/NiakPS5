@@ -19,6 +19,10 @@ required=[Path(sys.argv[1]) / f"case-{i:02d}-{suffix}.png" for i,suffix in
 if not all(p.exists() for p in required):raise SystemExit("Missing rotating case C++ frames")
 from PIL import ImageChops
 fallback=Path(sys.argv[1])/"case-04-homebrew-fallback.png"
+ps4_front=Path(sys.argv[1])/"case-07-ps4-template-front.png"
+ps4_back=Path(sys.argv[1])/"case-08-ps4-template-back.png"
+if not ps4_front.exists() or not ps4_back.exists():
+    raise SystemExit("Missing platform-specific PS4 fallback case captures")
 wallpaper=Path(sys.argv[1])/"case-05-wallpaper-r1.png"
 if not wallpaper.exists():raise SystemExit("Missing R1 wallpaper capture")
 detail=Path(sys.argv[1])/"case-06-touchpad-details.png"
@@ -45,6 +49,12 @@ with Image.open(detail) as touch,Image.open(fallback) as before_touch:
         touch.convert("RGB").crop(region),
         before_touch.convert("RGB").crop(region))).mean)
     if change<11:raise SystemExit("Touchpad click did not open NiakPS5 details")
+# PS4 front and back overlays must be distinguishable in genuine OpenGL.
+with Image.open(ps4_front) as a, Image.open(ps4_back) as b:
+    left=a.convert("RGB").crop((1200,120,1800,580))
+    right=b.convert("RGB").crop((1200,120,1800,580))
+    diff=sum(ImageStat.Stat(ImageChops.difference(left,right)).mean)
+    if diff<6:raise SystemExit("PS4 front and back overlays rendered identically")
 # A fallback case must be distinguishable from the commercial scan.
 with Image.open(fallback) as _fallback:
     _box=_fallback.convert("RGB").crop((1160,90,1850,760))

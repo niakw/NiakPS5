@@ -147,6 +147,10 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case-04-homebrew-fallback",host)
         self.assertIn("case-05-wallpaper-r1",host)
         self.assertIn("case-06-touchpad-details",host)
+        self.assertIn("case-07-ps4-template-front",host)
+        self.assertIn("case-08-ps4-template-back",host)
+        self.assertIn("PS4 front and back overlays rendered identically",
+                      (ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("Touchpad click did not open",(ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("R1 did not visibly switch",(ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("item.application=n==4",host)

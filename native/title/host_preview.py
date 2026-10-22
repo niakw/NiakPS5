@@ -148,9 +148,9 @@ def patch(kit):
 {
 #ifdef __linux__
     // Offline host preview only. Never packaged in the native PS5 title.
-    const char *names[]={"EA SPORTS FC 27","Humankind","Tropico 6",
+    const char *names[]={"EA SPORTS FC 27","Humankind","ZZZ PS4 boxed demo",
                          "Anno 1800 Console Edition","NiakPS5"};
-    const char *ids[]={"PPSA34015","PPSA06186","PPSA05683","PPSA04716","PPSA99386"};
+    const char *ids[]={"PPSA34015","PPSA06186","CUSA00053","PPSA04716","PPSA99386"};
     for(int n=0;n<5;++n) {
         owned_titles_.emplace_back(names[n]);
         Item item{};
@@ -209,6 +209,28 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         shell.update(next,kDt);
         for(int frame=0;frame<100;++frame) shell.update(idle,kDt);
         render("case-04-homebrew-fallback");
+        // Visit PS4 first-shelf item with no scans; real platform header and
+        // private back footer must be mapped in the same renderer.
+        hui::InputFrame up;
+        up.connected=true;
+        up.nav=hui::Direction::up;
+        shell.update(up,kDt);
+        for(int frame=0;frame<20;++frame)shell.update(idle,kDt);
+        hui::InputFrame right;
+        right.connected=true;
+        right.nav=hui::Direction::right;
+        for(int move=0;move<4;++move) {
+            shell.update(right,kDt);
+            for(int frame=0;frame<20;++frame)shell.update(idle,kDt);
+        }
+        render("case-07-ps4-template-front");
+        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
+        render("case-08-ps4-template-back");
+        hui::InputFrame down;
+        down.connected=true;
+        down.nav=hui::Direction::down;
+        shell.update(down,kDt);
+        for(int frame=0;frame<25;++frame)shell.update(idle,kDt);
         hui::InputFrame touchpad;
         touchpad.connected=true;
         touchpad.pressed=hui::action_bit(hui::Action::touch);
