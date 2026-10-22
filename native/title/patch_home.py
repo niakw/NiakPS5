@@ -235,15 +235,16 @@ def patch(kit):
                     ? "Dernier lancement OK (journal historique)"
                     : "Dernier lancement en erreur (journal)";
         }();
+        static const bool live_broker=niak_launch_broker_ready();
         ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
         ui::text(list, fonts.regular,
                  disabled ? "Désactivé" :
-                 enabled ? "Configuré (pas nécessairement exécuté)" :
-                           "Non détecté / accès limité",
+                 live_broker ? "Payload actif (service local joignable)" :
+                 enabled ? "Configuré (exécution non confirmée)" :
+                           "Non confirmé : fichiers inaccessibles ou absents",
                  500, 882, 20, kWhite.with_alpha(0.78f));
         ui::text(list, fonts.regular, journal_status, 500, 910, 18,
                  kWhite.with_alpha(0.66f));
-        static const bool live_broker=niak_launch_broker_ready();
         ui::text(list, fonts.regular,
                  live_broker ? "Service Jouer : actif (PLDmgr)" :
                                "Service Jouer : absent ou inaccessible",
