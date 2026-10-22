@@ -19,6 +19,7 @@
 #include <sys/time.h>
 #include "redirect_gate.h"
 #include "title_category.h"
+#include "socket_guard.h"
 
 #define NIAK_TITLE "PPSA99386"
 #define NIAK_ENABLED "/data/niakps5-autostart.enabled"
@@ -185,6 +186,7 @@ static int permitted_title(const char *id) {
 static void serve_launch_requests(int launcher_started) {
     const int fd=socket(AF_INET,SOCK_STREAM,0);
     if(fd<0){report("Local launch broker socket unavailable",fd);return;}
+    niak_socket_guard(fd);
     int yes=1;(void)setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));
     struct sockaddr_in addr={0};
     addr.sin_family=AF_INET;
@@ -207,6 +209,7 @@ static void serve_launch_requests(int launcher_started) {
         if(available>0 && FD_ISSET(fd,&pending)) {
             int client=accept(fd,NULL,NULL);
             if(client>=0) {
+                niak_socket_guard(client);
                 struct timeval client_timeout={2,0};
                 (void)setsockopt(client,SOL_SOCKET,SO_RCVTIMEO,
                                  &client_timeout,sizeof(client_timeout));
@@ -223,7 +226,7 @@ static void serve_launch_requests(int launcher_started) {
                 // A read-only PING makes actual PLDmgr residency testable
                 // without launching anything or depending on historical logs.
                 if(count==5 && memcmp(request,"PING\n",5)==0) {
-                    (void)send(client,"PONG\n",5,0);
+                    (void)niak_socket_send(client,"PONG\n",5);
                     close(client);
                     continue;
                 }
@@ -253,7 +256,7 @@ static void serve_launch_requests(int launcher_started) {
                 int n=snprintf(response,sizeof(response),
                                "RC %08X\n",(unsigned)result);
                 if(n>0&&n<(int)sizeof(response))
-                    (void)send(client,response,(size_t)n,0);
+                    (void)niak_socket_send(client,response,(size_t)n);
                 close(client);
             }
         }

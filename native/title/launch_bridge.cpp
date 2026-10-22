@@ -3,6 +3,7 @@
 // Connect only to NiakPS5's opt-in PLDmgr local launch broker.
 // A sandboxed title must not claim sceSystemServiceLaunchApp works here.
 #include "niak/launch_bridge.hpp"
+#include "niak/socket_guard.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <cerrno>
@@ -29,6 +30,7 @@ int niak_launch_registered_title(const char *title_id) {
     if(!valid(title_id))return -3;
     int fd=::socket(AF_INET,SOCK_STREAM,0);
     if(fd<0)return -2;
+    niak_socket_guard(fd);
     timeval tv{2,0};
     ::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
     ::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
@@ -44,7 +46,7 @@ int niak_launch_registered_title(const char *title_id) {
     if(len<=0 || len>=int(sizeof(request))) {::close(fd);return -3;}
     int sent=0;
     while(sent<len) {
-        const ssize_t n=::send(fd,request+sent,std::size_t(len-sent),0);
+        const ssize_t n=niak_socket_send(fd,request+sent,std::size_t(len-sent));
         if(n<=0){::close(fd);return -2;}
         sent+=int(n);
     }
@@ -74,6 +76,7 @@ bool niak_launch_broker_ready() {
     // broker must never stall the UI for the previous one-second timeout.
     int fd=::socket(AF_INET,SOCK_STREAM,0);
     if(fd<0)return false;
+    niak_socket_guard(fd);
     const int flags=::fcntl(fd,F_GETFL,0);
     if(flags<0 || ::fcntl(fd,F_SETFL,flags|O_NONBLOCK)<0) {
         ::close(fd);
@@ -103,7 +106,7 @@ bool niak_launch_broker_ready() {
     (void)::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&io_timeout,sizeof(io_timeout));
     char answer[5]{};
     std::size_t received=0;
-    if(::send(fd,"PING\n",5,0)==5) {
+    if(niak_socket_send(fd,"PING\n",5)==5) {
         while(received<sizeof(answer)) {
             const ssize_t n=::recv(fd,answer+received,
                                    sizeof(answer)-received,0);
