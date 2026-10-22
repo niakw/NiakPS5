@@ -66,3 +66,65 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
     pixels.size()!=std::size_t(w)*h*4)return 0;
  return renderer.create_texture(int(w),int(h),pixels.data());
 }
+
+std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
+                                      const char *platform,const char *part) {
+ // Exactly six static, user-supplied files. Never form untrusted paths.
+ const char *platforms[]={"ps4","ps5"};
+ const char *parts[]={"front","back","spine"};
+ int generation=-1,side=-1;
+ for(int i=0;i<2;++i)
+     if(platform && std::strcmp(platform,platforms[i])==0)generation=i;
+ for(int i=0;i<3;++i)
+     if(part && std::strcmp(part,parts[i])==0)side=i;
+ if(generation<0||side<0)return 0;
+ const int index=generation*3+side;
+ static bool attempted[6]={};
+ static std::uint32_t texture[6]={};
+ if(attempted[index])return texture[index];
+ attempted[index]=true;
+ char file[512]{};
+ FILE *fp=nullptr;
+#if defined(__linux__)
+ const char *fixture=std::getenv("NIAK_CASE_TEMPLATE_ASSETS");
+ if(fixture && fixture[0]) {
+     std::snprintf(file,sizeof(file),"%s/%s-%s.png",fixture,platform,part);
+     fp=std::fopen(file,"rb");
+ }
+#endif
+ if(!fp) {
+     std::snprintf(file,sizeof(file),
+        "/data/homebrew/PPSA99386/assets/niak-templates/%s-%s.png",platform,part);
+     fp=std::fopen(file,"rb");
+ }
+ if(!fp) {
+     std::snprintf(file,sizeof(file),
+        "/app0/assets/niak-templates/%s-%s.png",platform,part);
+     fp=std::fopen(file,"rb");
+ }
+ if(!fp)return 0; // Offline installations still use the procedural fallback.
+ if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
+ const long size=std::ftell(fp);
+ if(size<33 || size>3*1024*1024 || std::fseek(fp,0,SEEK_SET)!=0)
+     {std::fclose(fp);return 0;}
+ std::vector<unsigned char> bytes(static_cast<std::size_t>(size));
+ const bool complete=std::fread(bytes.data(),1,bytes.size(),fp)==bytes.size();
+ std::fclose(fp);if(!complete)return 0;
+ if(bytes.size()<24||std::memcmp(bytes.data(),"\x89PNG\r\n\x1a\n",8)!=0)return 0;
+ const unsigned width=(unsigned(bytes[16])<<24)|(unsigned(bytes[17])<<16)|
+                      (unsigned(bytes[18])<<8)|bytes[19];
+ const unsigned height=(unsigned(bytes[20])<<24)|(unsigned(bytes[21])<<16)|
+                       (unsigned(bytes[22])<<8)|bytes[23];
+ // Wide brand header/back legal strip or narrow tall spine; do not decode
+ // accidentally swapped art, malicious PNG dimensions or an icon.
+ const bool valid=side==2?(width>=40 && width<=200 && height>=350 && height<=1600):
+                  side==0?(width>=450 && width<=2000 && height>=60 && height<=400):
+                          (width>=450 && width<=1600 && height>=220 && height<=900);
+ if(!valid || std::size_t(width)*height>2500000u)return 0;
+ std::vector<unsigned char> pixels;
+ unsigned w=0,h=0;
+ if(lodepng::decode(pixels,w,h,bytes)!=0||w!=width||h!=height||
+    pixels.size()!=std::size_t(w)*h*4)return 0;
+ texture[index]=renderer.create_texture(int(w),int(h),pixels.data());
+ return texture[index];
+}
