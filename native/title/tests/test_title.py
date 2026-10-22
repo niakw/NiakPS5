@@ -104,6 +104,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('item.case_spine = niak_load_case_art(renderer,item.title_id,"spine")',stage)
         self.assertIn("printed(",source)
         self.assertIn("left_spine(",source)
+        self.assertIn("if(item.case_spine)",source)
+        self.assertIn("PS4\":\"PS5",source)
         self.assertIn("outer_face(",source)
         self.assertIn("right_seal(",source)
         self.assertIn("Positive sin means",source)

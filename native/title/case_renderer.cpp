@@ -127,6 +127,7 @@ void outer_face(DrawList &list,const Camera &camera,
     list.line(topR.x,topR.y,botR.x,botR.y,1.3f,Color::rgb(0x0d45ab,0.79f));
 }
 void left_spine(DrawList &list,const Camera &camera,const hui::demo::Item &item,
+                const hui::ui::Fonts &fonts,
                 float L,float T,float B,float K,float F,float width) {
     const auto at=[&](float z,float y){return camera({L,y,z});};
     polygon4(list,at(K,T),at(F,T),at(F,B),at(K,B),
@@ -136,6 +137,21 @@ void left_spine(DrawList &list,const Camera &camera,const hui::demo::Item &item,
         return at(K+(F-K)*u,T+b+(B-T-2*b)*v);
     };
     if(item.case_spine)printed(list,item.case_spine,paper,10,9);
+    else {
+        // Standard PS4/PS5 blue plastic spine when LaunchBox has no scan.
+        // It is a physical case side, not a fabricated game illustration.
+        const auto centre=paper(0.5f,0.06f);
+        const auto left=paper(0.f,0.06f),right=paper(1.f,0.06f);
+        if(std::fabs(right.x-left.x)>10.f) {
+            const char *generation=item.title_id[0]=='C'?"PS4":"PS5";
+            for(int i=0;i<3;++i) {
+                const auto pos=paper(0.5f,0.08f+0.067f*i);
+                const char glyph[2]={generation[i],0};
+                hui::ui::text(list,fonts.semibold,glyph,pos.x,pos.y,14.f,
+                   Color::rgb(0xf5faff),hui::gfx::Align::center);
+            }
+        }
+    }
     // Small molded seam detail (NOT a thick series of projecting blocks).
     for(float rel:{0.08f,0.86f}) {
         const float y=T+(B-T)*rel;
@@ -196,7 +212,7 @@ void niak_draw_rotating_case(hui::gfx::DrawList &list,const hui::demo::Item &ite
     if(back&&show_face)
         outer_face(list,camera,item,fonts,L,R,T,B,K,width,true);
     if(show_spine)
-        left_spine(list,camera,item,L,T,B,K,F,width);
+        left_spine(list,camera,item,fonts,L,T,B,K,F,width);
     if(show_seal)
         right_seal(list,camera,R,T,B,K,F,width);
     if(!back&&show_face)

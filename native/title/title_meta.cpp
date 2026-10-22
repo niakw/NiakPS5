@@ -5,6 +5,9 @@
 #include <string>
 #include <initializer_list>
 #include <unordered_map>
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 using Index=std::unordered_map<std::string,NiakTitleMetadata>;
 static Index read_titles(){
  Index index;
@@ -38,11 +41,66 @@ bool niak_title_metadata(const char *id,NiakTitleMetadata &out){
  const auto it=index.find(id);if(it==index.end())return false;
  out=it->second;return true;
 }
+namespace {
+std::string trimmed(std::string v) {
+ const auto a=v.find_first_not_of(" \t\r\n");
+ if(a==std::string::npos)return {};
+ const auto b=v.find_last_not_of(" \t\r\n");
+ return v.substr(a,b-a+1);
+}
+std::string translated_genre(std::string genre) {
+ static const std::unordered_map<std::string,std::string> vocabulary={
+  {"strategy","Stratégie"},{"real time strategy","Stratégie en temps réel"},
+  {"rpg","Jeu de rôle"},{"role playing","Jeu de rôle"},
+  {"action","Action"},{"action adventure","Action-aventure"},
+  {"adventure","Aventure"},{"simulation","Simulation"},
+  {"sports","Sport"},{"sport","Sport"},{"racing","Course"},
+  {"puzzle","Réflexion"},{"platformer","Plateforme"},
+  {"platform","Plateforme"},{"fighting","Combat"},
+  {"shooter","Tir"},{"first person shooter","Tir à la première personne"},
+  {"sandbox","Bac à sable"},{"survival","Survie"},
+  {"horror","Horreur"},{"indie","Indépendant"},
+  {"casual","Occasionnel"},{"arcade","Arcade"},
+  {"multiplayer","Multijoueur"},{"party","Jeu de groupe"},
+  {"educational","Éducatif"},{"visual novel","Roman visuel"},
+  {"music","Musique"},{"rhythm","Rythme"},
+  {"city builder","Construction de villes"},{"management","Gestion"},
+  {"building","Construction"},{"other","Autre"}};
+ std::string result;
+ std::size_t begin=0;
+ while(begin<genre.size()) {
+  const auto end=genre.find_first_of(",;|",begin);
+  std::string word=trimmed(genre.substr(begin,end==std::string::npos ?
+      std::string::npos:end-begin));
+  std::string lower=word;
+  std::transform(lower.begin(),lower.end(),lower.begin(),[](unsigned char c) {
+   return char(c<128 ? std::tolower(c) : c);
+  });
+  const auto it=vocabulary.find(lower);
+  if(!result.empty())result+=", ";
+  result+=it!=vocabulary.end()?it->second:word;
+  if(end==std::string::npos)break;
+  begin=end+1;
+ }
+ return result;
+}
+std::string french_date(const std::string &date) {
+ // Locale FR: YYYY-MM-DD -> D/M/YYYY (no invented day if month-only).
+ if(date.size()>=10 && date[4]=='-' && date[7]=='-' &&
+    std::all_of(date.begin(),date.begin()+4,[](unsigned char c){return c>='0'&&c<='9';})) {
+  const int m=std::atoi(date.substr(5,2).c_str());
+  const int d=std::atoi(date.substr(8,2).c_str());
+  if(m>=1&&m<=12&&d>=1&&d<=31)
+   return std::to_string(d)+"/"+std::to_string(m)+"/"+date.substr(0,4);
+ }
+ return date;
+}
+}
 std::string niak_title_summary(const NiakTitleMetadata &v){
  std::string text;
- if(!v.genre.empty())text="Genre : "+v.genre;
+ if(!v.genre.empty())text="Genre : "+translated_genre(v.genre);
  if(!v.publisher.empty()){if(!text.empty())text+=" · ";text+="Éditeur : "+v.publisher;}
- if(!v.released.empty()){if(!text.empty())text+=" · ";text+="Sortie : "+v.released;}
+ if(!v.released.empty()){if(!text.empty())text+=" · ";text+="Sortie : "+french_date(v.released);}
  return text;
 }
 
