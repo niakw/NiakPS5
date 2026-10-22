@@ -19,7 +19,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include "redirect_gate.h"
-#include "title_category.h"
+#include "title_permissions.h"
 #include "socket_guard.h"
 
 #define NIAK_TITLE "PPSA99386"
@@ -154,35 +154,12 @@ static void copy_current_avatar_png(int user) {
  * This is not an exploit, ShellUI hook or remote control service.
  */
 static int permitted_title(const char *id) {
-    if(!id||strlen(id)!=9||
-       (strncmp(id,"PPSA",4)!=0 && strncmp(id,"CUSA",4)!=0 &&
-        strncmp(id,"LAPY",4)!=0 && strncmp(id,"FAKE",4)!=0 &&
-        strncmp(id,"NPXS",4)!=0)||
-       strcmp(id,NIAK_TITLE)==0)return 0;
-    for(int i=4;i<9;++i)if(id[i]<'0'||id[i]>'9')return 0;
-    const char *roots[]={"/user/app/","/system_ex/app/","/data/homebrew/",
-                         "/mnt/ext0/user/app/","/mnt/ext1/user/app/"};
-    char path[192];struct stat st;
-    for(size_t i=0;i<sizeof(roots)/sizeof(roots[0]);++i) {
-        int n=snprintf(path,sizeof(path),"%s%s",roots[i],id);
-        if(n>0&&n<(int)sizeof(path) && stat(path,&st)==0 && S_ISDIR(st.st_mode)) {
-            if(strncmp(id,"NPXS",4)!=0)return 1;
-            char meta_path[256];
-            int k=snprintf(meta_path,sizeof(meta_path),"%s/sce_sys/param.json",path);
-            if(k<=0||k>=(int)sizeof(meta_path))continue;
-            FILE *meta=fopen(meta_path,"rb");if(!meta)continue;
-            char data[32769]={0};
-            const size_t size=fread(data,1,sizeof(data)-1,meta);
-            // Refuse partial/truncated JSON instead of authorizing a system
-            // title from an incomplete prefix of param.json.
-            const int complete=feof(meta)!=0;
-            fclose(meta);
-            if(size<30 || !complete)continue;
-            if(niak_is_installed_media_category(data))
-                return 1;
-        }
-    }
-    return 0;
+    static const char *const roots[]={
+        "/user/app/","/system_ex/app/","/data/homebrew/",
+        "/mnt/ext0/user/app/","/mnt/ext1/user/app/"
+    };
+    return niak_title_is_launchable(
+        id,NIAK_TITLE,roots,sizeof(roots)/sizeof(roots[0]));
 }
 static uint64_t niak_monotonic_ms(void) {
     struct timespec clock_time;
