@@ -2,7 +2,7 @@
 #ifndef NIAKPS5_CATALOG_H
 #define NIAKPS5_CATALOG_H
 #include <stddef.h>
-#define NIAKPS5_MAX_GAMES 256
+#define NIAKPS5_MAX_GAMES 512
 typedef struct {
   char id[16];
   char title[192];
@@ -20,4 +20,7 @@ int niak_scan_games(const char *database_path, const char *filesystem_root,
 int niak_valid_title_id(const char *id);
 /* Read-only /data/homebrew discovery; missing/denied root => -1, empty => 0. */
 int niak_scan_homebrews(const char *filesystem_root, NiakGame *games, size_t capacity);
+/* Read-only folder fallback when Sony app.db is inaccessible from title sandbox.
+ * Includes media apps only when their actual param category confirms that. */
+int niak_scan_installed_folders(const char *root, NiakGame *games, size_t capacity);
 #endif

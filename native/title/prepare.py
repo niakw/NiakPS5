@@ -447,6 +447,25 @@ Catalog::Catalog()
                         "%s",candidate.title);
         }
     }
+    // A sandbox may deny app.db. Independently walk available installed
+    // title folders, including user-installed PS5 streaming/media applications.
+    std::vector<NiakGame> folders(NIAKPS5_MAX_GAMES);
+    const int folder_count=niak_scan_installed_folders(
+        "",folders.data(),folders.size());
+    if(folder_count>0)
+        for(int n=0;n<folder_count && count<games.size();++n) {
+            const NiakGame &found=folders[static_cast<std::size_t>(n)];
+            std::size_t i=0;
+            for(;i<count;++i)if(std::strcmp(games[i].id,found.id)==0)break;
+            if(i==count)games[count++]=found;
+            else {
+                if(found.application_category)
+                    games[i].application_category=found.application_category;
+                if(!games[i].installed_at[0])
+                    std::snprintf(games[i].installed_at,sizeof(games[i].installed_at),
+                                  "%s",found.installed_at);
+            }
+        }
     std::vector<NiakGame> homebrews(NIAKPS5_MAX_GAMES);
     const int home_count = niak_scan_homebrews("", homebrews.data(), homebrews.size());
     if (home_count > 0)
@@ -472,8 +491,8 @@ Catalog::Catalog()
             }
         }
     }
-    sys::log("[NiakPS5] read-only catalog: app.db=%d, homebrew folders=%d, api=%d, unique=%zu",
-             db_count, home_count, api_count, count);
+    sys::log("[NiakPS5] catalog: db=%d, folders=%d, homebrew=%d, api=%d, unique=%zu",
+             db_count, folder_count, home_count, api_count, count);
     if (count > 0)
     {
         for (std::size_t n = 0; n < count; ++n)

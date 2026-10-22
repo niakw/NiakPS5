@@ -43,6 +43,8 @@ int main(void){
   assert(strcmp(games[0].title,"Titre installé")==0);
   assert(strstr(games[0].icon,"icon0.png")!=NULL);
   assert(niak_scan_games("/file/that/does/not/exist",root,games,5)==-1);
+  NiakGame from_folders[5]={0};
+  assert(niak_scan_installed_folders(root,from_folders,5)==0);
 
   /* A verified media-category NPXS app belongs in Applications, not Games.
    * app.db's refreshed AppInfoJson overrides stale install timestamps. */
@@ -64,6 +66,8 @@ int main(void){
       "'NPXS50001','Media App','2026-10-21','2026-10-01','{}');",
       NULL,NULL,NULL)==SQLITE_OK);
   sqlite3_close(db);
+  assert(niak_scan_installed_folders(root,from_folders,5)==1);
+  assert(from_folders[0].application_category==2);
   NiakGame mixed[5]={0};
   assert(niak_scan_games(database,root,mixed,5)==2);
   int seen_game=0,seen_media=0;

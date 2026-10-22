@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 static void copy_text(char *dst, size_t cap, const char *src) {
   if (!cap) return;
   if (!src) src="";
@@ -206,4 +207,61 @@ int niak_scan_homebrews(const char *filesystem_root,NiakGame *games,size_t capac
   closedir(dir);
   qsort(games,count,sizeof(*games),compare_games);
   return (int)count;
+}
+
+
+/* Read-only fallback for user-installed native games AND multimedia apps.
+ * Never promote built-in shell NPXS services without an explicit media type.
+ */
+int niak_scan_installed_folders(const char *root,NiakGame *games,size_t capacity) {
+ if(!root||!games||capacity==0)return -1;
+ const char *dirs[]={"/user/app","/system_ex/app",
+                      "/mnt/ext0/user/app","/mnt/ext1/user/app"};
+ size_t count=0;int visible=0;
+ for(size_t r=0;r<sizeof(dirs)/sizeof(dirs[0]);++r) {
+  char base[640];int n=snprintf(base,sizeof(base),"%s%s",root,dirs[r]);
+  if(n<=0||n>=(int)sizeof(base))continue;
+  DIR *dir=opendir(base);if(!dir)continue;
+  visible=1;
+  struct dirent *entry;
+  while((entry=readdir(dir))!=NULL && count<capacity) {
+   const char *id=entry->d_name;
+   if((!niak_valid_title_id(id) && !valid_media_id(id)) ||
+       find_index(games,count,id)>=0)continue;
+   char folder[768],manifest[850],pkg[850],eboot[850];
+   n=snprintf(folder,sizeof(folder),"%s/%s",base,id);
+   if(n<=0||n>=(int)sizeof(folder)||!is_plain_dir(folder))continue;
+   snprintf(manifest,sizeof(manifest),"%s/sce_sys/param.json",folder);
+   snprintf(pkg,sizeof(pkg),"%s/app.pkg",folder);
+   snprintf(eboot,sizeof(eboot),"%s/eboot.bin",folder);
+   if(!is_plain_file(manifest) && !is_plain_file(pkg) &&
+      !is_plain_file(eboot))continue;
+   const int category=category_from_param(root,id);
+   if(valid_media_id(id) && category!=2)continue;
+   NiakGame *game=&games[count++];
+   memset(game,0,sizeof(*game));
+   copy_text(game->id,sizeof(game->id),id);
+   copy_text(game->title,sizeof(game->title),id);
+   game->application_category=(unsigned char)category;
+   struct stat st;
+   if(stat(folder,&st)==0) {
+    struct tm *local=localtime(&st.st_mtime);
+    if(local)strftime(game->installed_at,sizeof(game->installed_at),
+                      "%Y-%m-%dT%H:%M:%S",local);
+   }
+   FILE *f=fopen(manifest,"rb");
+   if(f) {
+    char content[32769]={0};
+    size_t len=fread(content,1,sizeof(content)-1,f);
+    fclose(f);
+    if(len>10 && len<sizeof(content)-1)
+     read_json_value(content,"titleName",game->title,sizeof(game->title));
+   }
+   artwork(root,id,"icon0.png",game->icon,sizeof(game->icon));
+   artwork(root,id,"pic1.png",game->background,sizeof(game->background));
+  }
+  closedir(dir);
+ }
+ qsort(games,count,sizeof(*games),compare_games);
+ return visible?(int)count:-1;
 }
