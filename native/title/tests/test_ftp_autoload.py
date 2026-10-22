@@ -152,6 +152,24 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("Payload ELF : True",report)
         self.assertIn("Marqueur activation : True",report)
 
+    def test_empty_catalog_scan_clears_stale_private_overlay(self):
+        path=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"
+        old=b"NPXS12345\\tAncien media\\tApplication\\t\\t\\n"
+        ftp=FakeFTP({path:old})
+        count=ftpmod.upload_local_homebrew_names(ftp)
+        self.assertEqual(count,0)
+        self.assertEqual(ftp.files[path],b"")
+        self.assertEqual(ftpmod._verified_media_ids(ftp),[])
+
+    def test_installed_metadata_rejects_inconsistent_title_identity(self):
+        # The folder and an explicit titleId must represent the same title;
+        # otherwise stale/copied param.json can mislabel a title in the UI.
+        root="/user/app/PPSA12345/sce_sys/param.json"
+        path=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"
+        ftp=FakeFTP({root:b'{"titleId":"PPSA99999","titleName":"Wrong Game","applicationCategoryType":0}'})
+        self.assertEqual(ftpmod.upload_local_homebrew_names(ftp),0)
+        self.assertEqual(ftp.files[path],b"")
+
     def test_no_autoload_does_not_touch_pldmgr(self):
         f=FakeFTP()
         ftpmod.install(f,self.root,False)

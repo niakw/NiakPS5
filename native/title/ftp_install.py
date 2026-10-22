@@ -143,6 +143,10 @@ def upload_local_homebrew_names(ftp):
         try: meta=json.loads(body)
         except (ValueError,UnicodeDecodeError):continue
         if not isinstance(meta,dict):continue
+        declared=meta.get("titleId")
+        if isinstance(declared,str) and declared and declared!=ident:
+            # Ignore copied or stale metadata under the wrong title folder.
+            continue
         # The shared parsing block continues below at this indentation.
 
         params=meta.get("localizedParameters") or {}
@@ -169,11 +173,13 @@ def upload_local_homebrew_names(ftp):
                 continue
             if title and "\t" not in title:
                 records[ident]=(title,genre)
-    if records:
-        contents="".join(f"{id}\t{name}\t{kind}\t\t\n"
-                         for id,(name,kind) in sorted(records.items()))
-        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",
-               contents.encode("utf-8"))
+    # Always replace the private overlay, including when it is empty.
+    # Otherwise an uninstall or changed permissions retain stale game names
+    # and NPXS media authorization from an earlier installation.
+    contents="".join(f"{id}\t{name}\t{kind}\t\t\n"
+                     for id,(name,kind) in sorted(records.items()))
+    upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",
+           contents.encode("utf-8"))
     print(f"Titles: {len(records)} installed PS4/PS5 title/category records resolved locally.")
     return len(records)
 
