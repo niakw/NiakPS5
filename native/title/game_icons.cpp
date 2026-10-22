@@ -118,7 +118,12 @@ std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
     if (lodepng::decode(rgba,w,h,png) != 0 || w != initial_w || h != initial_h)
         return 0;
     if (rgba.size() != static_cast<std::size_t>(w)*h*4) return 0;
-    // CPU downsample/upsample with four-pixel interpolation, bounded GPU allocation.
+    // Most installed icon0.png files are already 512x512. Upload these
+    // directly: avoid another 1 MiB buffer and 262,144 CPU pixel copies
+    // per game during the initial catalogue render.
+    if(w==kTarget && h==kTarget)
+        return renderer.create_texture(kTarget,kTarget,rgba.data());
+    // Other dimensions are still scaled to a predictable GPU allocation.
     std::vector<unsigned char> scaled(static_cast<std::size_t>(kTarget)*kTarget*4);
     for (int y=0;y<kTarget;++y)
     {

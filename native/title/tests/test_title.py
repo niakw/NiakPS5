@@ -114,6 +114,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case_scene",source)
         self.assertIn("sce_sys/pic1.png",(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_socket_guard(sock)",(ROOT/"title"/"game_icons.cpp").read_text())
+        self.assertIn("if(w==kTarget && h==kTarget)",(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_socket_send(sock,", (ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_http_icon_body(response,false", (ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("std::array<unsigned char,65536> buffer{}", (ROOT/"title"/"game_icons.cpp").read_text())
