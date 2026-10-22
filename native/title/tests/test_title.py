@@ -197,6 +197,8 @@ class NativeTitleTests(unittest.TestCase):
         start=source.index("if(std::strcmp(game.id,\"PPSA99386\")==0)")
         end=source.index("item.blurb = owned_blurbs_",start)
         classification=source[start:end]
+        self.assertLess(classification.index('std::strcmp(game.title,"Mes vidéos")==0'),
+                        classification.index("game.application_category==1"))
         self.assertLess(classification.index("game.application_category==2"),
                         classification.index("game.application_category==1"))
         self.assertLess(classification.index('meta.category=="Application"'),
