@@ -209,7 +209,12 @@ def prepare(kit: Path, project: Path, revision: str):
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::size_t next_cover_to_stream_=0;\n    std::vector<Item> items_;')
+    replace_once(catalog_h,
+        '    bool build_covers(gfx::Renderer &renderer, const ui::Fonts &fonts);',
+        '    bool build_covers(gfx::Renderer &renderer, const ui::Fonts &fonts);\n'
+        '    bool stream_next_covers(gfx::Renderer &renderer, const ui::Fonts &fonts,\n'
+        '                            std::size_t budget);')
 
     src_niak = kit / "src/niak"
     src_niak.mkdir(parents=True, exist_ok=True)
@@ -297,6 +302,39 @@ def prepare(kit: Path, project: Path, revision: str):
             continue;
         }
         gfx::BackdropSpec spec;""")
+    # Only the first, focused title is decoded before the first displayed
+    # frame. Subsequent titles are streamed on the graphics thread in small
+    # increments; native GL texture creation must never run on a CPU worker.
+    replace_once(art_file,
+        '    release_covers(renderer);\n    niak::case_media_stats={};\n    constexpr float kSize',
+        '''    release_covers(renderer);
+    niak::case_media_stats={};
+    next_cover_to_stream_=0;
+    return stream_next_covers(renderer,fonts,1);
+}
+
+bool Catalog::stream_next_covers(gfx::Renderer &renderer,
+                                 const ui::Fonts &fonts,std::size_t budget)
+{
+    constexpr float kSize''')
+    replace_once(art_file,
+        '    int index = 0;\n    for (Item &item : items_)\n    {\n        // Prefer the true installed app icon',
+        '''    int index = static_cast<int>(next_cover_to_stream_);
+    budget=std::min(budget,items_.size()-next_cover_to_stream_);
+    const std::size_t stop=next_cover_to_stream_+budget;
+    for(;next_cover_to_stream_<stop;++next_cover_to_stream_)
+    {
+        Item &item=items_[next_cover_to_stream_];
+        // Prefer the true installed app icon''')
+    # Do not eagerly decode hundreds of cases at startup. Stream at most
+    # one additional title per four already-presented frames. A single slow
+    # title can still incur an IO delay, but no longer postpones first paint
+    # for every remaining installed game.
+    replace_once(kit / "src/main.cpp",
+        '        shell.update(input, dt);',
+        '''        shell.update(input, dt);
+        if(frames>0 && frames%4u==0)
+            (void)catalog.stream_next_covers(renderer,fonts,1);''')
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
                  '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"')
     replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',
@@ -636,6 +674,16 @@ Catalog::Catalog()
         item.accent = gfx::Color::rgb(0x91f5df);
         items_.push_back(item);
     }
+    // The first streamed cover must match the first focused game shelf
+    // (most recently played or installed), not an arbitrary SQLite row.
+    // Item pointers refer to stable string storage in owned_* deques.
+    std::stable_sort(items_.begin(),items_.end(),
+        [](const Item &a,const Item &b) {
+            if(a.application!=b.application)return !a.application;
+            const int recent=std::strcmp(a.recently_used,b.recently_used);
+            if(recent!=0)return recent>0;
+            return std::strcmp(a.title,b.title)<0;
+        });
 }
 } // namespace hui::demo
 '''

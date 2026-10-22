@@ -113,6 +113,18 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("loading_percent",case)
         self.assertNotIn("progress_percent",case)
 
+    def test_streamed_catalog_does_not_block_first_visible_frame(self):
+        source=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn("bool Catalog::stream_next_covers",source)
+        self.assertIn("return stream_next_covers(renderer,fonts,1)",source)
+        self.assertIn("next_cover_to_stream_<stop",source)
+        self.assertIn("frames>0 && frames%4u==0",source)
+        self.assertIn("std::stable_sort(items_.begin(),items_.end()",source)
+        self.assertIn("std::size_t next_cover_to_stream_=0",source)
+        self.assertIn("Item &item=items_[next_cover_to_stream_]",source)
+        # No background thread invokes OpenGL texture uploads.
+        self.assertNotIn("std::thread",source)
+
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
         for name in ("case_front","case_back","case_spine","PS4","PS5","yaw_at",
