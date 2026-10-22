@@ -80,19 +80,19 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
         const ssize_t count=recv(sock,buffer.data(),buffer.size(),0);
         if(count>0) {
             response.insert(response.end(),buffer.begin(),buffer.begin()+count);
-            // Any genuine HTTP response (including 404 for missing art)
-            // proves the API is alive. Never disable all other game art.
-            static constexpr unsigned char header_end[4]={'\r','\n','\r','\n'};
-            // An incomplete header may itself be from a stalled server;
-            // only a COMPLETE HTTP header proves a responsive endpoint.
-            if(response.size()>=17 &&
-               (std::memcmp(response.data(),"HTTP/1.1 ",9)==0 ||
-                std::memcmp(response.data(),"HTTP/1.0 ",9)==0) &&
-               std::search(response.begin(),response.end(),
-                           header_end,header_end+4)!=response.end())
+            // 404 is a complete and valid refusal for THIS icon, not an
+            // endpoint failure. A 200 header alone is not enough: a server
+            // can stall before delivering any body data.
+            const auto reply=niak_icon_reply(response.data(),response.size());
+            if(reply==NiakIconReply::OtherStatus) {
                 icon_endpoint.responded();
+                close(sock);
+                return false;
+            }
+            if(reply==NiakIconReply::Invalid)break;
             const auto state=niak_http_icon_body(response,false,kMaximumPng,out);
             if(state==NiakHttpState::Complete) {
+                icon_endpoint.responded();
                 close(sock);
                 return out.size()>=24 && out.size()<=kMaximumPng;
             }
@@ -100,13 +100,14 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
             continue;
         }
         if(count==0) {
-            if(response.empty())icon_endpoint.transport_failed(endpoint_now_ms());
             const auto state=niak_http_icon_body(response,true,kMaximumPng,out);
+            if(state==NiakHttpState::Complete)icon_endpoint.responded();
+            else icon_endpoint.transport_failed(endpoint_now_ms());
             close(sock);
             return state==NiakHttpState::Complete &&
                    out.size()>=24 && out.size()<=kMaximumPng;
         }
-        if(count<0)icon_endpoint.transport_failed(endpoint_now_ms());
+        icon_endpoint.transport_failed(endpoint_now_ms());
         break;
     }
     close(sock);
