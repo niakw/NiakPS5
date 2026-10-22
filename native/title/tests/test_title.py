@@ -88,7 +88,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("clock_ - case_selected_at_",source)
         self.assertIn("shelf.column = next;",source)
         self.assertIn("row_ = next;",source)
-        self.assertIn("game.homebrew",case)
+        self.assertIn("item.homebrew",case)
         self.assertNotIn("loading_percent",case)
         self.assertNotIn("progress_percent",case)
 
