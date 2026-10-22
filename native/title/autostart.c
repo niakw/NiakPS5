@@ -17,6 +17,7 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include "redirect_gate.h"
+#include "title_category.h"
 
 #define NIAK_TITLE "PPSA99386"
 #define NIAK_ENABLED "/data/niakps5-autostart.enabled"
@@ -122,14 +123,13 @@ static int permitted_title(const char *id) {
             if(k<=0||k>=(int)sizeof(meta_path))continue;
             FILE *meta=fopen(meta_path,"rb");if(!meta)continue;
             char data[32769]={0};
-            size_t size=fread(data,1,sizeof(data)-1,meta);
+            const size_t size=fread(data,1,sizeof(data)-1,meta);
+            // Refuse partial/truncated JSON instead of authorizing a system
+            // title from an incomplete prefix of param.json.
+            const int complete=feof(meta)!=0;
             fclose(meta);
-            if(size<30)continue;
-            // Only media apps. Internal system/services use different values.
-            const char *v=strstr(data,"applicationCategoryType");
-            if(!v || !(v=strchr(v,':')))continue;
-            const long category=strtol(v+1,NULL,10);
-            if(category==65536||category==65792||category==66048)
+            if(size<30 || !complete)continue;
+            if(niak_is_installed_media_category(data))
                 return 1;
         }
     }
