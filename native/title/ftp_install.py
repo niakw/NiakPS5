@@ -223,7 +223,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     if not index.is_file():
         print("LaunchBox: index absent du paquet. Aucun téléchargement possible.")
         return 0
-    installed=set(_installed_title_ids(ftp))
+    installed=set(_installed_title_ids(ftp,maximum_titles))
     if not installed:
         print("LaunchBox: aucun titre trouvé par FTP dans les dossiers autorisés.")
         return 0
@@ -287,7 +287,7 @@ def _name_index(ftp,folder):
     """Use real local PS5 param.json names first, packaged public index second."""
     result={}
     for raw in (
-        retrieve(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv"),
+        _bounded_retrieve(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv"),
         (folder/"assets/niak-ps-titles.tsv").read_bytes()
             if (folder/"assets/niak-ps-titles.tsv").is_file() else None):
         if raw is None:continue
@@ -532,7 +532,9 @@ def main():
         elif args.refresh_art:
             upload_local_homebrew_names(ftp)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
-            fetch_alternative_covers(ftp, directory, args.art_limit, force=args.force_art)
+            # A forced LaunchBox repair must NOT overwrite its valid scans
+            # with a community grid or another provider.
+            fetch_alternative_covers(ftp, directory, args.art_limit)
         else:
             install(ftp, directory, args.autoload, args.return_after_game,
                     args.avatar_user_id, args.art_limit)
