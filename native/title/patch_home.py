@@ -225,49 +225,45 @@ def patch(kit):
             if(!file)return false;
             std::fclose(file);return true;
         }();
-        // Read ONLY the tail of the locally written payload log, once. A
-        // configuration marker alone proves nothing about executed payloads.
-        // The file is not uploaded, and historical success is labelled as such.
-        static const char *journal_status=[]() -> const char * {
-            std::FILE *log=std::fopen("/data/niakps5-autostart.log","rb");
-            if(!log)return "Journal inaccessible";
-            if(std::fseek(log,0,SEEK_END)!=0) {
-                std::fclose(log);return "Journal illisible";
-            }
-            const long size=std::ftell(log);
-            if(size<0 || std::fseek(log,size>8192?size-8192:0,SEEK_SET)!=0) {
-                std::fclose(log);return "Journal illisible";
-            }
-            char buffer[8193]{};
-            const std::size_t n=std::fread(buffer,1,sizeof(buffer)-1,log);
-            std::fclose(log);
-            buffer[n]=0;
-            const char *last_attempt=nullptr;
-            for(const char *p=buffer;(p=std::strstr(p,
-                    "NiakPS5 optional autostart start"));++p)
-                last_attempt=p;
-            if(!last_attempt)return "Aucune exécution identifiable";
-            // Match the most recent attempt only; old successes aren't proof
-            // that the CURRENT firmware/PLDmgr chain is still functioning.
-            const char *last_result=nullptr;
-            for(const char *p=last_attempt;(p=std::strstr(p,
-                    "sceSystemServiceLaunchApp rc="));++p)
-                last_result=p;
-            if(!last_result)return "Dernière tentative sans lancement confirmé";
-            return std::strncmp(last_result,
-                "sceSystemServiceLaunchApp rc=0x00000000",
-                sizeof("sceSystemServiceLaunchApp rc=0x00000000")-1)==0
-                    ? "Dernier lancement OK (journal historique)"
-                    : "Dernier lancement en erreur (journal)";
-        }();
-        // A single static check would stay stale if the user starts PLDmgr
-        // after opening NiakPS5. Refresh every 15 seconds at most; a failed
-        // loopback connect is normally immediate and no network is contacted.
+        // Refresh the actual local payload log and broker liveness together.
+        // Old successes are historical, and a log can appear AFTER UI startup.
+        static char journal_status[96]="Journal inaccessible";
         static bool live_broker=false;
         static std::time_t last_check=0;
         const std::time_t now=std::time(nullptr);
-        if(!last_check || (now>last_check && now-last_check>=15)) {
+        if(!last_check || now<last_check || now-last_check>=15) {
             last_check=now;
+            const auto read_status=[]() -> const char * {
+                std::FILE *log=std::fopen("/data/niakps5-autostart.log","rb");
+                if(!log)return "Journal inaccessible";
+                if(std::fseek(log,0,SEEK_END)!=0) {
+                    std::fclose(log);return "Journal illisible";
+                }
+                const long size=std::ftell(log);
+                if(size<0 || std::fseek(log,size>8192?size-8192:0,SEEK_SET)!=0) {
+                    std::fclose(log);return "Journal illisible";
+                }
+                char buffer[8193]{};
+                const std::size_t count=std::fread(buffer,1,sizeof(buffer)-1,log);
+                std::fclose(log);
+                buffer[count]=0;
+                const char *attempt=nullptr;
+                for(const char *p=buffer;(p=std::strstr(p,
+                         "NiakPS5 optional autostart start"));++p)
+                    attempt=p;
+                if(!attempt)return "Aucune exécution identifiable";
+                const char *result=nullptr;
+                for(const char *p=attempt;(p=std::strstr(p,
+                         "sceSystemServiceLaunchApp rc="));++p)
+                    result=p;
+                if(!result)return "Dernière tentative sans lancement confirmé";
+                return std::strncmp(result,
+                    "sceSystemServiceLaunchApp rc=0x00000000",
+                    sizeof("sceSystemServiceLaunchApp rc=0x00000000")-1)==0
+                        ? "Dernier lancement OK (journal historique)"
+                        : "Dernier lancement en erreur (journal)";
+            };
+            std::snprintf(journal_status,sizeof(journal_status),"%s",read_status());
             live_broker=niak_launch_broker_ready();
         }
         ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
