@@ -24,7 +24,10 @@ static inline int niak_title_is_launchable(
     for(size_t i=0;i<root_count;++i) {
         char path[192];
         if(!roots[i])continue;
-        const int len=snprintf(path,sizeof(path),"%s%s",roots[i],id);
+        const size_t root_len=strlen(roots[i]);
+        if(root_len==0)continue;
+        const int len=snprintf(path,sizeof(path),"%s%s%s",roots[i],
+                               roots[i][root_len-1]=='/'?"":"/",id);
         if(len<=0 || (size_t)len>=sizeof(path))continue;
         struct stat installed;
         // Refuse symlink names masquerading as installed titles. Do not
