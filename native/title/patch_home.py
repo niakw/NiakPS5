@@ -199,12 +199,48 @@ def patch(kit):
             if(!file)return false;
             std::fclose(file);return true;
         }();
+        // Read ONLY the tail of the locally written payload log, once. A
+        // configuration marker alone proves nothing about executed payloads.
+        // The file is not uploaded, and historical success is labelled as such.
+        static const char *journal_status=[]() -> const char * {
+            std::FILE *log=std::fopen("/data/niakps5-autostart.log","rb");
+            if(!log)return "Journal inaccessible";
+            if(std::fseek(log,0,SEEK_END)!=0) {
+                std::fclose(log);return "Journal illisible";
+            }
+            const long size=std::ftell(log);
+            if(size<0 || std::fseek(log,size>8192?size-8192:0,SEEK_SET)!=0) {
+                std::fclose(log);return "Journal illisible";
+            }
+            char buffer[8193]{};
+            const std::size_t n=std::fread(buffer,1,sizeof(buffer)-1,log);
+            std::fclose(log);
+            buffer[n]=0;
+            const char *last_attempt=nullptr;
+            for(const char *p=buffer;(p=std::strstr(p,
+                    "NiakPS5 optional autostart start"));++p)
+                last_attempt=p;
+            if(!last_attempt)return "Aucune exécution identifiable";
+            // Match the most recent attempt only; old successes aren't proof
+            // that the CURRENT firmware/PLDmgr chain is still functioning.
+            const char *last_result=nullptr;
+            for(const char *p=last_attempt;(p=std::strstr(p,
+                    "sceSystemServiceLaunchApp rc="));++p)
+                last_result=p;
+            if(!last_result)return "Dernière tentative sans lancement confirmé";
+            return std::strncmp(last_result,
+                "sceSystemServiceLaunchApp rc=0x00000000",38)==0
+                    ? "Dernier lancement OK (journal historique)"
+                    : "Dernier lancement en erreur (journal)";
+        }();
         ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
         ui::text(list, fonts.regular,
                  disabled ? "Désactivé" :
-                 enabled ? "Configuration détectée (PLDmgr à vérifier)" :
+                 enabled ? "Configuré (pas nécessairement exécuté)" :
                            "Non détecté / accès limité",
                  500, 882, 20, kWhite.with_alpha(0.78f));
+        ui::text(list, fonts.regular, journal_status, 500, 910, 18,
+                 kWhite.with_alpha(0.66f));
         ui::paragraph(list, fonts.regular,
                       "Les reglages de la console restent geres par Sony. "
                       "Le dernier choix quitte NiakPS5 pour y acceder. "
