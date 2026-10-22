@@ -108,6 +108,11 @@ def copy_avatar_for_ftp(ftp, user_id=None):
         if not blob or len(blob)<144 or blob[:len(signature)]!=signature:
             continue
         suffix=".png" if name.endswith(".png") else ".dds"
+        # The owner marker is intentionally cleared FIRST. An interrupted
+        # FTP upload must never expose another user's new avatar under an old
+        # account's previously cached marker.
+        marker=f"/data/homebrew/{TITLE}/assets/niak-profile-source.txt"
+        upload(ftp,marker,b"")
         upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-profile{suffix}",blob)
         owner=f"0x{int(user,16):08X} {suffix[1:]}\n"
         upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-profile-source.txt",

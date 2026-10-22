@@ -219,6 +219,26 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile-source.txt"],
                          b"0x22222222 png\n")
 
+    def test_avatar_upload_failure_clears_previous_owner_before_image_update(self):
+        from ftplib import error_perm
+        source="/system_data/priv/cache/profile/0x12345678/avatar.png"
+        marker="/data/homebrew/PPSA99386/assets/niak-profile-source.txt"
+        destination="/data/homebrew/PPSA99386/assets/niak-profile.png"
+        class BrokenFTP(FakeFTP):
+            def storbinary(self,command,buf):
+                if command=="STOR "+destination:
+                    raise error_perm("550 write refused")
+                return super().storbinary(command,buf)
+        f=BrokenFTP({
+            source:b"\x89PNG\r\n\x1a\n"+bytes(200),
+            marker:b"0x87654321 png\n",
+            destination:b"old-avatar",
+        })
+        with self.assertRaises(error_perm):
+            ftpmod.copy_avatar_for_ftp(f)
+        self.assertEqual(f.files[marker],b"")
+        self.assertEqual(f.files[destination],b"old-avatar")
+
     def test_staged_dds_identifies_format_and_foreground_owner(self):
         user="0xA0B0C0D0"
         dds=b"DDS "+bytes(220)

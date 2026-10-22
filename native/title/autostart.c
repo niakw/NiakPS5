@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -64,14 +65,27 @@ static int copy_profile_image(const char *source,const char *dest,
         if(lstat("/data/homebrew/PPSA99386/assets",&folder)==0 &&
            S_ISDIR(folder.st_mode)) {
             char temp[256];
-            snprintf(temp,sizeof(temp),"%s.tmp",dest);
-            const int fd=open(temp,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW,0600);
-            if(fd>=0) {
-                const ssize_t n=write(fd,data,size);
-                ok=n==(ssize_t)size && fchmod(fd,0644)==0 && fsync(fd)==0 && rename(temp,dest)==0;
-                close(fd);
-                if(!ok)unlink(temp);
-            }else ok=0;
+            const int label=snprintf(temp,sizeof(temp),"%s.XXXXXX",dest);
+            if(label<=0 || label>=(int)sizeof(temp))ok=0;
+            else {
+                // mkstemp creates a fresh O_EXCL file for each attempt.
+                // Fixed *.tmp names could permanently block later updates.
+                const int fd=mkstemp(temp);
+                if(fd<0)ok=0;
+                else {
+                    size_t written=0;
+                    while(written<size) {
+                        const ssize_t n=write(fd,data+written,size-written);
+                        if(n<0 && errno==EINTR)continue;
+                        if(n<=0)break;
+                        written+=(size_t)n;
+                    }
+                    ok=written==size && fchmod(fd,0644)==0 && fsync(fd)==0;
+                    if(close(fd)!=0)ok=0;
+                    if(ok)ok=rename(temp,dest)==0;
+                    if(!ok)unlink(temp);
+                }
+            }
         }else ok=0;
     }
     free(data);return ok;
@@ -93,8 +107,22 @@ static void mark_profile_asset(int user,const char *format) {
     if(close(fd)!=0)ok=0;
     if(!ok || rename(temp,dst)!=0)unlink(temp);
 }
+/* Invalidate the generic file's owner BEFORE replacing its bytes.
+ * If permissions prevent invalidation, do not overwrite the old image:
+ * another profile could otherwise inherit a mismatched owner marker. */
+static int invalidate_profile_asset(void) {
+    const char *path="/data/homebrew/PPSA99386/assets/niak-profile-source.txt";
+    const int fd=open(path,O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,0600);
+    if(fd<0)return 0;
+    const int ok=fchmod(fd,0644)==0 && fsync(fd)==0;
+    return close(fd)==0 && ok;
+}
 static void copy_current_avatar_png(int user) {
     if(user<0)return;
+    if(!invalidate_profile_asset()) {
+        report("Avatar owner invalidation denied", -1);
+        return;
+    }
     char profile[256],source[320];
     snprintf(profile,sizeof(profile),
              "/system_data/priv/cache/profile/0x%08X",(unsigned)user);
