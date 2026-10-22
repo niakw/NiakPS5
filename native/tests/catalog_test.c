@@ -50,7 +50,7 @@ int main(void){
   snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys",root);make_dir(path);
   snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys/param.json",root);
   FILE *media=fopen(path,"wb");assert(media);
-  fputs("{\\\"applicationCategoryType\\\":65536,\\\"titleName\\\":\\\"Media App\\\"}",media);
+  fputs("{\"applicationCategoryType\":65536,\"titleName\":\"Media App\"}",media);
   fclose(media);
   assert(sqlite3_open(database,&db)==SQLITE_OK);
   assert(sqlite3_exec(db,
@@ -59,7 +59,7 @@ int main(void){
       "installTime TEXT,AppInfoJson TEXT);"
       "INSERT INTO tbl_contentinfo VALUES("
       "'PPSA12345','Titre installé','2023-01-01','2022-01-01',"
-      "'{\\\"#_last_access_time\\\":\\\"2026-10-20\\\"}');"
+      "'{\"#_last_access_time\":\"2026-10-20\"}');"
       "INSERT INTO tbl_contentinfo VALUES("
       "'NPXS50001','Media App','2026-10-21','2026-10-01','{}');",
       NULL,NULL,NULL)==SQLITE_OK);
