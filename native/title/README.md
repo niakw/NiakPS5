@@ -123,7 +123,7 @@ Attention : les notes légales, classifications et logos présents dans les exem
 
 ## Diagnostic local et récupération des jaquettes
 
-La simple copie du ZIP par FTP ne télécharge **pas** les images privées LaunchBox et ne configure **pas** l'autoload. Utiliser le script embarqué dans le dossier extrait pour obtenir ces fonctions sans publier les jaquettes :
+Une copie manuelle du ZIP par FTP ne télécharge **pas** les images privées LaunchBox et ne configure **pas** l'autoload. L'installeur FTP livré dans l'archive, lui, configure PLDmgr par défaut ; `--no-autoload` désactive explicitement cette étape. Utiliser le script embarqué dans le dossier extrait pour obtenir ces fonctions sans publier les jaquettes :
 
 ```sh
 python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --status

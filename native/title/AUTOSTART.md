@@ -1,4 +1,4 @@
-# NiakPS5 : accueil automatique après jailbreak (optionnel, réversible)
+# NiakPS5 : démarrage via PLDmgr (configuré par défaut, réversible)
 
 ## Principe et limite
 
@@ -15,15 +15,37 @@ Le mini-payload :
 - ne fait rien tant que le fichier \`/data/niakps5-autostart.enabled\` est absent ;
 - ne fait rien si \`/data/niakps5-autostart.disable\` existe.
 
-## Installation
+## Installation actuelle (une seule commande)
 
-1. Installer le dossier \`/data/homebrew/PPSA99386\` complet.
-2. Charger Kstuff et ShadowMountPlus dans l'ordre habituel et vérifier que la tuile NiakPS5 existe. **Tester une fois le lancement manuel du titre natif et son retour au Sony Home.**
-3. Créer un fichier vide \`/data/niakps5-autostart.enabled\` par FTP. Cela constitue une activation explicite.
-4. Installer \`niakps5_autostart.elf\` comme **dernier payload de la liste d'autochargement** de ton WebKit Autoloader / Payload Manager, APRES Kstuff et ShadowMountPlus. Adapter sa configuration à la version installée ; ne pas remplacer l'autoloader, ni écraser les autres payloads.
-5. Relancer le jailbreak : NiakPS5 devrait s'ouvrir une fois le titre enregistré. Voir \`/data/niakps5-autostart.log\` pour les résultats. Les codes et les services dépendent du firmware ; cette procédure n'a **pas encore été vérifiée sur ta PS5 13.60**.
+L'archive contient l'application native `PPSA99386/eboot.bin`, l'installeur
+`PPSA99386/tools/ftp_install.py` et son payload compagnon
+`PPSA99386/tools/niakps5.elf`.
 
-**Désactivation immédiate :** enlever \`niakps5_autostart.elf\` de la chaîne ou supprimer \`/data/niakps5-autostart.enabled\`. Option sans modification de la chaîne : créer \`/data/niakps5-autostart.disable\`.
+Depuis l'ordinateur connecté à la PS5, après extraction du ZIP :
+
+```sh
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5
+```
+
+Cette commande installe le titre et **configure PLDmgr par défaut** pour charger
+le payload compagnon en dernier, après les autres payloads conservés. Elle active
+son marqueur privé et peut copier les jaquettes ainsi que les gabarits présents.
+Pour une simple installation sans modification de PLDmgr, utiliser
+`--no-autoload`. Pour une inspection strictement en lecture seule, utiliser
+`--status`.
+
+Copier seulement le dossier par FTP n'ajoute pas automatiquement un payload à
+une liste PLDmgr existante : le script doit être exécuté pour cette étape.
+Le service local « Jouer » ne devient disponible qu'après exécution effective
+du payload par la chaîne de jailbreak ; un binaire copié ne suffit pas.
+La compatibilité PS5 13.60 doit encore être testée sur matériel.
+
+Après jailbreak, Réglages NiakPS5 affiche si le service local PLDmgr répond
+réellement. En cas de problème, consulter le diagnostic `--status` et le journal
+`/data/niakps5-autostart.log`. Une ancienne trace de succès n'est pas une preuve
+de fonctionnement du démarrage actuel.
+
+**Désactivation immédiate :** enlever \`niakps5.elf\` de la chaîne ou supprimer \`/data/niakps5-autostart.enabled\`. Option sans modification de la chaîne : créer \`/data/niakps5-autostart.disable\`.
 
 **Sécurité :** ne pas programmer ce payload à répétition pendant le jeu et ne pas le déclencher à chaque retour au Sony Home : cela provoquerait une boucle de lancement. C'est un *one-shot* à la fin du jailbreak.
 
