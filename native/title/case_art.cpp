@@ -2,6 +2,7 @@
 // Optional pre-cached LaunchBox retail PS4/PS5 case print.
 #include "niak/case_art.hpp"
 #include "niak/lodepng.h"
+#include "niak/case_texture_scale.hpp"
 extern "C" {
 #include "niak/catalog.h"
 }
@@ -64,6 +65,11 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  std::vector<unsigned char> pixels;unsigned w=0,h=0;
  if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||
     pixels.size()!=std::size_t(w)*h*4)return 0;
+ // A 1024x1536 source was consuming 6 MiB of permanent VRAM per cover.
+ // Projected sleeves never use that resolution: keep 512x768 at most.
+ const unsigned max_w=logo?768u:spine?96u:512u;
+ const unsigned max_h=logo?768u:768u;
+ if(!niak_scale_case_rgba(pixels,w,h,max_w,max_h))return 0;
  return renderer.create_texture(int(w),int(h),pixels.data());
 }
 
@@ -134,6 +140,9 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  unsigned w=0,h=0;
  if(lodepng::decode(pixels,w,h,bytes)!=0||w!=width||h!=height||
     pixels.size()!=std::size_t(w)*h*4)return 0;
+ // Shared mastheads/footers also avoid needless original-size GPU textures.
+ if(!niak_scale_case_rgba(pixels,w,h,side==2?96u:1024u,
+                          side==2?768u:512u))return 0;
  template_textures[index]=renderer.create_texture(int(w),int(h),pixels.data());
  return template_textures[index];
 }

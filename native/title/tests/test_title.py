@@ -120,6 +120,8 @@ class NativeTitleTests(unittest.TestCase):
             self.assertIn(name,source)
         stage=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("niak_load_case_art",stage)
+        self.assertIn('"case_texture_scale.hpp"',stage)
+        self.assertIn("niak_scale_case_rgba",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("niak_load_game_background",stage)
         self.assertIn("case_scene",source)
         self.assertIn("sce_sys/pic1.png",(ROOT/"title"/"game_icons.cpp").read_text())
