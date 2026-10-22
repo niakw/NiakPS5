@@ -97,6 +97,23 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn('"/app0/assets/niak-installed/%s-icon.png"',native)
         self.assertIn('"/app0/assets/niak-installed/%s-scene.png"',native)
 
+
+    def test_only_verified_npxs_media_is_staged(self):
+        import io
+        from contextlib import redirect_stdout
+        good="NPXS12345"
+        bad="NPXS99999"
+        # The cache discovery itself must be restricted to verified media
+        # metadata, not just any directory matching an NPXS identifier.
+        overlay=f"/data/homebrew/PPSA99386/assets/niak-local-titles.tsv"
+        ftp=FakeFTP({overlay:(good+"\tLecteur vidéo\tApplication\t\t\n"+
+                              bad+"\tService système\tAutre\t\t\n").encode()})
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(ftpmod._verified_media_ids(ftp),[good])
+        src=(SCRIPT.parent/"game_icons.cpp").read_text()
+        self.assertIn('std::strncmp(id,"NPXS",4)==0',src)
+        self.assertIn('if(!niak_valid_title_id(id) && !media)return 0;',src)
+
     def test_installed_artwork_rejects_malformed_and_oversized_png(self):
         self.assertIsNone(ftpmod._prepare_installed_png(b"NOTPNG",False))
         header=(b"\x89PNG\r\n\x1a\n"+b"\x00"*8+

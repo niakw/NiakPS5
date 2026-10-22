@@ -167,7 +167,10 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
 }
 
 std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char *id) {
-    if(!niak_valid_title_id(id))return 0;
+    bool media=id && std::strlen(id)==9 && std::strncmp(id,"NPXS",4)==0;
+    if(media)for(int i=4;i<9;++i)
+        if(id[i]<'0'||id[i]>'9')media=false;
+    if(!niak_valid_title_id(id) && !media)return 0;
     std::vector<unsigned char> png;
     for(const char *format : {
         "/app0/assets/niak-installed/%s-scene.png",

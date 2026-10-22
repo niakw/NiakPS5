@@ -220,9 +220,27 @@ def _prepare_installed_png(data,scene=False):
         return data
     return None
 
+def _verified_media_ids(ftp):
+    """Only NPXS titles explicitly marked as installed media applications."""
+    try:
+        raw=_bounded_retrieve(
+            ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",limit=512*1024)
+    except (OSError,ValueError):
+        return []
+    if not raw:return []
+    ids=set()
+    for line in raw.decode("utf-8","replace").splitlines():
+        columns=line.split("\t")
+        if len(columns)>=3 and re.fullmatch(r"NPXS[0-9]{5}",columns[0]) and columns[2]=="Application":
+            ids.add(columns[0])
+    return sorted(ids)
+
 def stage_installed_artwork(ftp,maximum_titles=150,force=False):
     """Store actual installed-title icon0/pic1 locally; never scrape user media."""
     ids=_installed_title_ids(ftp,maximum_titles)
+    # NPXS covers Sony system services too; stage only verified media apps
+    # from the private param.json overlay, never arbitrary system titles.
+    ids=list(dict.fromkeys((ids+_verified_media_ids(ftp))[:maximum_titles]))
     existing=_remote_filenames(ftp,INSTALLED_ART_ROOT) or set()
     count=0
     rejected=0
