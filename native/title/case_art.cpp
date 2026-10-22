@@ -8,13 +8,22 @@ extern "C" {
 #include "gfx/renderer.hpp"
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <vector>
 std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side){
  if(!niak_valid_title_id(id)||!side ||
     (std::strcmp(side,"front") && std::strcmp(side,"back") &&
      std::strcmp(side,"logo") && std::strcmp(side,"spine")))return 0;
- char file[170];
- std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
+ char file[384];
+ // Linux CI loads explicit non-commercial QA art. Never shipped in PS5 ZIP.
+ // The native PS5 title always loads the locally installed private scans.
+#if defined(__linux__)
+ const char *preview=std::getenv("NIAK_CASE_PREVIEW_ASSETS");
+ if(preview && preview[0])
+     std::snprintf(file,sizeof(file),"%s/%s-%s.png",preview,id,side);
+ else
+#endif
+     std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
  FILE *fp=std::fopen(file,"rb");if(!fp)return 0;
  if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
  const long bytes=std::ftell(fp);

@@ -101,7 +101,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case_renderer.cpp",stage)
         self.assertIn('item.case_spine = niak_load_case_art(renderer,item.title_id,"spine")',stage)
         self.assertIn("textured_face(",source)
+        self.assertIn("spine_texture(",source)
         self.assertIn("cam.project(",source)
+        host=(ROOT/"title"/"host_preview.py").read_text()
+        self.assertIn("make_case_art_fixtures",host)
+        self.assertIn("NIAK_CASE_PREVIEW_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertNotIn("face_w=bounds.w",source)
 
     def test_real_top_navigation(self):
