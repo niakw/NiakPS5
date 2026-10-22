@@ -150,17 +150,25 @@ class AutoloadTests(unittest.TestCase):
         import json
         game="/data/homebrew/PPSA11111/sce_sys/param.json"
         app="/data/homebrew/PPSA22222/sce_sys/param.json"
+        media="/user/app/NPXS50001/sce_sys/param.json"
+        system="/system_ex/app/NPXS50002/sce_sys/param.json"
         f=FakeFTP({
             game:json.dumps({"titleName":"Test Game",
                              "applicationCategoryType":0}).encode(),
             app:json.dumps({"titleName":"Test App",
-                            "applicationCategoryType":65536}).encode()
+                            "applicationCategoryType":65536}).encode(),
+            media:json.dumps({"titleName":"Test Streaming",
+                              "applicationCategoryType":65792}).encode(),
+            system:json.dumps({"titleName":"Built-in System Service",
+                               "applicationCategoryType":0}).encode()
         })
         count=ftpmod.upload_local_homebrew_names(f)
-        self.assertEqual(count,2)
+        self.assertEqual(count,3)
         overlay=f.files["/data/homebrew/PPSA99386/assets/niak-local-titles.tsv"].decode()
         self.assertIn("PPSA11111\tTest Game\tJeu\t",overlay)
         self.assertIn("PPSA22222\tTest App\tApplication\t",overlay)
+        self.assertIn("NPXS50001\tTest Streaming\tApplication\t",overlay)
+        self.assertNotIn("NPXS50002",overlay)
 
     def test_read_only_status_never_changes_console(self):
         from contextlib import redirect_stdout
