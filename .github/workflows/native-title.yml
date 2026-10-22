@@ -85,8 +85,28 @@ jobs:
           print('FTP ZIP verified (one root folder, modes, no nested ZIP)')
           PY
           sha256sum dist/PPSA99386.zip
-      - uses: actions/upload-artifact@v4
+      # GitHub Actions always wraps uploaded files in its OWN ZIP.
+      # Uploading dist/PPSA99386.zip would produce ZIP -> ZIP -> title.
+      # Validate the original install ZIP above, then upload its already
+      # unpacked directory so the GitHub download has exactly ONE ZIP layer:
+      # NiakPS5-PPSA99386.zip -> PPSA99386/ -> eboot.bin, tools/, ...
+      - name: Stage single-layer download archive
+        run: |
+          rm -f dist/PPSA99386.zip
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('dist')
+          assert [p.name for p in root.iterdir()] == ['PPSA99386']
+          title=root/'PPSA99386'
+          assert (title/'eboot.bin').stat().st_size > 0
+          assert (title/'sce_sys/param.json').stat().st_size > 0
+          assert (title/'tools/ftp_install.py').stat().st_size > 0
+          assert not any(p.suffix.lower()=='.zip' for p in title.rglob('*'))
+          print('GitHub artifact staging verified: single top-level PPSA99386/ directory, no nested ZIP')
+          PY
+      - name: Upload single ZIP installation package
+        uses: actions/upload-artifact@v4
         with:
-          name: NiakPS5-native-home-PPSA99386
-          path: dist/PPSA99386.zip
+          name: NiakPS5-PPSA99386
+          path: dist/
           if-no-files-found: error
