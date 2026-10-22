@@ -212,6 +212,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('std::strcmp(game.title,"Mes vidéos")==0',source)
         self.assertIn('if (input.is_pressed(Action::page_next))',
                       (ROOT/"title"/"patch_home.py").read_text())
+        # Wallpapers should not be almost invisible under stacked overlays.
+        wallpaper_ui=(ROOT/"title"/"patch_home.py").read_text()
+        self.assertIn("kWhite.with_alpha(0.85f)",wallpaper_ui)
+        self.assertIn("Color::rgb(0x081014, 0.52f)",wallpaper_ui)
+        self.assertIn("Color::rgb(0x051015, 0.65f)",wallpaper_ui)
         self.assertIn('ui::Button::cross, "Choisir"',
                       (ROOT/"title"/"polish.py").read_text())
         self.assertIn("Stratégie au tour par tour",
