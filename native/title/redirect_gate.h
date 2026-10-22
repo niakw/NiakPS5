@@ -45,13 +45,13 @@ static inline int niak_redirect_tick(NiakRedirectGate *g,int running_app,
  g->completed=1;
  return 1;
 }
-/* Arm only for a launch that actually succeeded from the Niak home title.
- * In particular, discovering an arbitrary active application at startup
- * must never become the user's automatic return target. */
+/* Arm only for an explicit successful NiakPS5 launch request, including
+ * when the user opened the title manually after an unsuccessful autostart.
+ * Discovering an arbitrary application at boot never arms the gate. */
 static inline int niak_redirect_arm_after_launch(
-    NiakRedirectGate *gate,int launcher_started,int resume_enabled,
+    NiakRedirectGate *gate,int resume_enabled,
     int source_app,int launch_rc) {
- if(!gate || !launcher_started || !resume_enabled ||
+ if(!gate || !resume_enabled ||
     source_app<=0 || launch_rc!=0)return 0;
  niak_redirect_init(gate,source_app);
  return 1;

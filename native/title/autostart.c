@@ -190,7 +190,7 @@ static uint64_t niak_monotonic_ms(void) {
     return (uint64_t)clock_time.tv_sec*1000u+
            (uint64_t)clock_time.tv_nsec/1000000u;
 }
-static void serve_launch_requests(int launcher_started) {
+static void serve_launch_requests(void) {
     const int fd=socket(AF_INET,SOCK_STREAM,0);
     if(fd<0){report("Local launch broker socket unavailable",fd);return;}
     niak_socket_guard(fd);
@@ -252,8 +252,7 @@ static void serve_launch_requests(int launcher_started) {
                             // we explicitly requested may arm it. Merely
                             // seeing some other bigapp never arms a redirect.
                             gate_ready=niak_redirect_arm_after_launch(
-                                &gate,launcher_started,
-                                is_regular_file(NIAK_RESUME),
+                                &gate,is_regular_file(NIAK_RESUME),
                                 source_app,result);
                             return_user=gate_ready?user:-1;
                         }
@@ -267,7 +266,7 @@ static void serve_launch_requests(int launcher_started) {
                 close(client);
             }
         }
-        if(!launcher_started || !is_regular_file(NIAK_RESUME)) {
+        if(!is_regular_file(NIAK_RESUME)) {
             gate_ready=0;
             return_user=-1;
             continue;
@@ -321,9 +320,8 @@ int main(void) {
     }
     if(!launcher_started)
         report("Autostart not confirmed; launch broker still available",0);
-    // Even if the console was busy launching another title during bootstrap,
-    // leave the local launch broker alive for a manually opened NiakPS5.
-    // Return-to-launcher monitoring is safe ONLY if we started that launcher.
-    serve_launch_requests(launcher_started);
+    // A manually started title can submit an explicit launch request too.
+    // Return is armed by that request, not by autostart success at boot.
+    serve_launch_requests();
     return 0;
 }

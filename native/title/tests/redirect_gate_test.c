@@ -2,14 +2,16 @@
 #include <assert.h>
 int main(void){
  NiakRedirectGate g;
- assert(!niak_redirect_arm_after_launch(&g,0,1,314,0));
- assert(!niak_redirect_arm_after_launch(&g,1,0,314,0));
- assert(!niak_redirect_arm_after_launch(&g,1,1,-1,0));
- assert(!niak_redirect_arm_after_launch(&g,1,1,314,-2));
+ // Manual opening is sufficient for return after a successful PLAY.
+ // No separate bootstrap success flag is needed.
+ assert(!niak_redirect_arm_after_launch(&g,0,314,0));
+ assert(!niak_redirect_arm_after_launch(&g,0,314,0));
+ assert(!niak_redirect_arm_after_launch(&g,1,-1,0));
+ assert(!niak_redirect_arm_after_launch(&g,1,314,-2));
  assert(niak_redirect_same_user(100,100));
  assert(!niak_redirect_same_user(100,200));
  assert(!niak_redirect_same_user(-1,100));
- assert(niak_redirect_arm_after_launch(&g,1,1,314,0));
+ assert(niak_redirect_arm_after_launch(&g,1,314,0));
  // Running own UI and Sony Home with no intervening game never returns.
  for(unsigned i=0;i<50;++i)
      assert(!niak_redirect_tick(&g,0,1000u+i));
@@ -25,7 +27,7 @@ int main(void){
  for(unsigned i=0;i<30;++i)
      assert(!niak_redirect_tick(&g,0,16000u+i));
  // Disconnected/unknown observations reset the stable-home timer.
- assert(niak_redirect_arm_after_launch(&g,1,1,314,0));
+ assert(niak_redirect_arm_after_launch(&g,1,314,0));
  assert(!niak_redirect_tick(&g,18,20000));
  assert(!niak_redirect_tick(&g,0,21000));
  assert(!niak_redirect_tick(&g,-1,30000));
@@ -33,7 +35,7 @@ int main(void){
  assert(!niak_redirect_tick(&g,0,40000));
  assert(niak_redirect_tick(&g,0,41000));
  // Another title resumes before grace period; the countdown restarts.
- assert(niak_redirect_arm_after_launch(&g,1,1,314,0));
+ assert(niak_redirect_arm_after_launch(&g,1,314,0));
  assert(!niak_redirect_tick(&g,18,50000));
  assert(!niak_redirect_tick(&g,0,51000));
  assert(!niak_redirect_tick(&g,0,60999));
@@ -42,7 +44,7 @@ int main(void){
  assert(!niak_redirect_tick(&g,0,71999));
  assert(niak_redirect_tick(&g,0,72000));
  // Clock failures and resets cannot trigger an early redirect.
- assert(niak_redirect_arm_after_launch(&g,1,1,314,0));
+ assert(niak_redirect_arm_after_launch(&g,1,314,0));
  assert(!niak_redirect_tick(&g,18,80000));
  assert(!niak_redirect_tick(&g,0,82000));
  assert(!niak_redirect_tick(&g,0,0));

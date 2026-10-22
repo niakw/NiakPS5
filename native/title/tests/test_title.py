@@ -12,6 +12,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sceSystemServiceLaunchApp", source)
         self.assertIn("GetAppIdOfRunningBigApp", source)
         self.assertIn("niak_redirect_arm_after_launch(",source)
+        self.assertIn("serve_launch_requests();",source)
+        self.assertNotIn("!launcher_started || !is_regular_file(NIAK_RESUME)",source)
         self.assertIn('niak_socket_guard(client)',source)
         self.assertIn('niak_socket_send(client,"PONG\\n",5)',source)
         self.assertIn('niak_socket_send(fd,"PING\\n",5)',(ROOT/"title"/"launch_bridge.cpp").read_text())
