@@ -115,7 +115,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("APERÇU RECONSTITUÉ — NON OFFICIEL",source)
         self.assertIn("const bool ps4=item.title_id[0]=='C'",source)
         self.assertIn("0.885f*v",source)
-        self.assertIn("0.68f",source)
+        self.assertIn("footer_start=ps4?0.57f:0.69f",source)
         self.assertIn("fonts.regular,description",source)
         self.assertIn("if(std::fabs(camera.cs)>0.90f)",source)
         self.assertNotIn("case_wrap",source)
