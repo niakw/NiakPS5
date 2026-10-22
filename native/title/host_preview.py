@@ -156,7 +156,7 @@ def patch(kit):
         Item item{};
         item.title=owned_titles_.back().c_str();
         item.studio="Aperçu hors console";
-        item.genre=n==4?"HOMEBREW":"PS5";
+        item.genre=n==4?"HOMEBREW":ids[n][0]=='C'?"PS4":"PS5";
         item.blurb="Aperçu C++/OpenGL hors console. Catalogue utilisateur non accessible.";
         item.homebrew=n==4;
         item.application=n==4; // Exercise the real apps/homebrew second row.
