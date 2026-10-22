@@ -48,7 +48,8 @@ void polygon4(DrawList &list,Pt a,Pt b,Pt c,Pt d,Color color) {
 }
 template<class Project>
 void printed(DrawList &list,std::uint32_t texture,Project project,
-             int columns,int rows,bool flip_v=false) {
+             int columns,int rows,bool flip_v=false,
+             float uv_min=0.0f,float uv_max=1.0f) {
     if(!texture)return;
     // DrawList only supports rectangular texture instances. Tessellate BOTH
     // directions to approximate a projected plane, never stretch a full image
@@ -56,6 +57,8 @@ void printed(DrawList &list,std::uint32_t texture,Project project,
     for(int r=0;r<rows;++r)for(int col=0;col<columns;++col) {
         const float u0=float(col)/columns,u1=float(col+1)/columns;
         const float v0=float(r)/rows,v1=float(r+1)/rows;
+        const float sample0=uv_min+(uv_max-uv_min)*v0;
+        const float sample1=uv_min+(uv_max-uv_min)*v1;
         const Pt p0=project(u0,v0),p1=project(u1,v0);
         const Pt p2=project(u1,v1),p3=project(u0,v1);
         const float x0=std::min({p0.x,p1.x,p2.x,p3.x});
@@ -67,8 +70,9 @@ void printed(DrawList &list,std::uint32_t texture,Project project,
         // UVs are 0..1 from real portrait covers and real narrow spine scans.
         // Very small overlap covers subpixel seams without widening the sleeve.
         list.image(texture,{x0-0.12f,y0-0.10f,x1-x0+0.24f,y1-y0+0.20f},
-                   {reverse?u1:u0,flip_v?1.0f-v0:v0,
-                    reverse?u0-u1:u1-u0,flip_v?v0-v1:v1-v0},
+                   {reverse?u1:u0,flip_v?1.0f-sample0:sample0,
+                    reverse?u0-u1:u1-u0,
+                    flip_v?sample0-sample1:sample1-sample0},
                    Color::rgb(0xffffff));
     }
 }
@@ -134,8 +138,16 @@ void outer_face(DrawList &list,const Camera &camera,
                 };
                 printed(list,item.cover,detail,18,18,!item.cover_is_image);
             }
-            block(0,0,1,0.123f,Color::rgb(ps4?0x0351a8:0xf2f7fc));
-            block(0,0.122f,1,0.130f,Color::rgb(ps4?0xd7ecff:0x1558c4));
+            if(item.case_template_front) {
+                // User-supplied authentic PS4/PS5 masthead, same for every case.
+                const auto banner=[&](float u,float v){
+                    return paper(u,v*0.125f);
+                };
+                printed(list,item.case_template_front,banner,28,4);
+            } else {
+                block(0,0,1,0.123f,Color::rgb(ps4?0x0351a8:0xf2f7fc));
+                block(0,0.122f,1,0.130f,Color::rgb(ps4?0xd7ecff:0x1558c4));
+            }
             block(0,0.90f,1,1,Color::rgb(0x081426,0.78f));
         } else {
             // TOP: genuine cover/icon or screenshot available locally.
@@ -149,12 +161,22 @@ void outer_face(DrawList &list,const Camera &camera,
                 printed(list,item.cover,art,26,12,!item.cover_is_image);
             }
             block(0,0.48f,1,0.68f,Color::rgb(0xf2f6fa));
-            block(0,0.68f,1,1,Color::rgb(0xd4e1ed));
-            block(0.035f,0.705f,0.965f,0.84f,Color::rgb(0x254a77));
-            block(0.035f,0.858f,0.965f,0.874f,Color::rgb(0xffffff));
-            block(0.035f,0.898f,0.965f,0.907f,Color::rgb(0x5a7493));
-            block(0.035f,0.921f,0.84f,0.93f,Color::rgb(0x8a9bb0));
-            block(0.035f,0.944f,0.94f,0.953f,Color::rgb(0x8a9bb0));
+            if(item.case_template_back) {
+                // The supplied physical box footer is fixed; keep it as a
+                // single raster sheet rather than inventing tiny label icons.
+                // It comes from the PRIVATE install, never from public code.
+                auto footer=[&](float u,float v){
+                    return paper(u,0.68f+0.32f*v);
+                };
+                printed(list,item.case_template_back,footer,28,8);
+            } else {
+                block(0,0.68f,1,1,Color::rgb(0xd4e1ed));
+                block(0.035f,0.705f,0.965f,0.84f,Color::rgb(0x254a77));
+                block(0.035f,0.858f,0.965f,0.874f,Color::rgb(0xffffff));
+                block(0.035f,0.898f,0.965f,0.907f,Color::rgb(0x5a7493));
+                block(0.035f,0.921f,0.84f,0.93f,Color::rgb(0x8a9bb0));
+                block(0.035f,0.944f,0.94f,0.953f,Color::rgb(0x8a9bb0));
+            }
         }
         // Text in a perspective plane is legible only when the face is nearly
         // straight. Hide these planar labels edge-on; never overlay the spine.
@@ -187,17 +209,19 @@ void outer_face(DrawList &list,const Camera &camera,
                     hui::ui::paragraph(list,fonts.regular,description,
                         area.first,pos.y,std::clamp(area.second*0.045f,9.f,13.f),
                         area.second,15.f,Color::rgb(0x16263c),4);
-                    const auto lower=text_bounds(0.08f,0.92f,0.735f);
-                    const auto lower_y=paper(0.08f,0.735f).y;
-                    hui::ui::paragraph(list,fonts.semibold,item.title,
-                        lower.first,lower_y,
-                        std::clamp(lower.second*0.057f,10.f,17.f),
-                        lower.second,20.f,Color::rgb(0xffffff),2);
-                    const auto foot=text_bounds(0.06f,0.93f,0.968f);
-                    const auto foot_y=paper(0.06f,0.968f).y;
-                    hui::ui::text(list,fonts.regular,
-                        "APERÇU RECONSTITUÉ — NON OFFICIEL",
-                        foot.first,foot_y,9.f,Color::rgb(0x244564));
+                    if(!item.case_template_back) {
+                        const auto lower=text_bounds(0.08f,0.92f,0.735f);
+                        const auto lower_y=paper(0.08f,0.735f).y;
+                        hui::ui::paragraph(list,fonts.semibold,item.title,
+                            lower.first,lower_y,
+                            std::clamp(lower.second*0.057f,10.f,17.f),
+                            lower.second,20.f,Color::rgb(0xffffff),2);
+                        const auto foot=text_bounds(0.06f,0.93f,0.968f);
+                        const auto foot_y=paper(0.06f,0.968f).y;
+                        hui::ui::text(list,fonts.regular,
+                            "APERÇU RECONSTITUÉ — NON OFFICIEL",
+                            foot.first,foot_y,9.f,Color::rgb(0x244564));
+                    }
                 }
             }
         }
@@ -219,7 +243,18 @@ void left_spine(DrawList &list,const Camera &camera,const hui::demo::Item &item,
         return at(K+(F-K)*u,T+b+(B-T-2*b)*v);
     };
     if(item.case_spine)printed(list,item.case_spine,paper,10,9);
-    else {
+    else if(item.case_template_spine) {
+        // Preserve the real vertical PS4/PS5 masthead. Its lower 12% contains
+        // an ID belonging to the example box, so mask that area; never show a
+        // different game's SKU on the current case.
+        auto upper=[&](float u,float v) {
+            return paper(u,v*0.88f);
+        };
+        printed(list,item.case_template_spine,upper,8,15,false,0.f,0.88f);
+        polygon4(list,paper(0,0.88f),paper(1,0.88f),
+                 paper(1,1.f),paper(0,1.f),
+                 Color::rgb(item.title_id[0]=='C'?0x081019:0xe8eef6));
+    } else {
         // Standard PS4/PS5 blue plastic spine when LaunchBox has no scan.
         // It is a physical case side, not a fabricated game illustration.
         const auto left=paper(0.f,0.06f),right=paper(1.f,0.06f);
