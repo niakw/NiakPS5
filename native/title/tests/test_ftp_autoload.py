@@ -91,9 +91,10 @@ class AutoloadTests(unittest.TestCase):
         f=FakeFTP({"/user/app/PPSA34015/eboot.bin": b"x"})
         (self.root/"assets").mkdir()
         ids=("00000000-0000-0000-0000-000000000001.jpg",
-             "00000000-0000-0000-0000-000000000002.jpg")
+             "00000000-0000-0000-0000-000000000002.jpg",
+             "00000000-0000-0000-0000-000000000003.jpg")
         rows=("PPSA34015\\tRésumé réel\\tfr:"+ids[0]+
-              "\\teu:"+ids[1]+"\\t-\\t-\\t8\\n"+
+              "\\teu:"+ids[1]+"\\tfr:"+ids[2]+"\\t-\\t8\\n"+
               "PPSA01234\\tAbsent\\tfr:"+ids[0]+"\\t-\\t-\\t-\\t9\\n")
         (self.root/"assets/niak-launchbox-cases.tsv").write_text(rows.replace("\\t","\t").replace("\\n","\n"))
         class Response:
@@ -103,8 +104,8 @@ class AutoloadTests(unittest.TestCase):
         with (patch.object(urllib.request,"urlopen",return_value=Response()),
               patch.object(ftpmod,"_decode_retail_image",return_value=b"compressed png")):
             count=ftpmod.fetch_retail_covers(f,self.root)
-        self.assertEqual(count,2)
-        self.assertIn((("spine",4)),(("front",2),("back",3),("spine",4),("logo",5)))
+        self.assertEqual(count,3)
+        self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-spine.png",f.files)
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-front.png",f.files)
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-back.png",f.files)
         self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA01234-front.png",f.files)

@@ -90,8 +90,7 @@ def prepare(kit: Path, project: Path):
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
-                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;
-    std::uint32_t case_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::vector<Item> items_;')
 

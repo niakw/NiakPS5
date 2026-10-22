@@ -61,7 +61,6 @@ void textured_face(DrawList &list,const Camera &cam,std::uint32_t texture,
         const float x1=x_left+(x_right-x_left)*u1;
         const Point a=cam.project({x0,top,z});
         const Point b=cam.project({x1,top,z});
-        const Point c=cam.project({(x0+x1)*0.5f,bottom,z});
         const Point d=cam.project({(x0+x1)*0.5f,top,z});
         const float left=std::min(a.x,b.x),width=std::fabs(b.x-a.x);
         const Point low=cam.project({(x0+x1)*0.5f,bottom,z});
