@@ -9,6 +9,7 @@ extern "C" {
 #include "niak/socket_guard.h"
 #include "niak/http_icon_response.hpp"
 #include "niak/icon_endpoint_policy.hpp"
+#include "niak/loopback_connect.h"
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
 
@@ -52,7 +53,7 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     address.sin_family = AF_INET;
     address.sin_port = htons(10101);
     address.sin_addr.s_addr = htonl(0x7f000001u);
-    if (connect(sock, reinterpret_cast<sockaddr *>(&address), sizeof(address)) < 0)
+    if (niak_connect_bounded(sock, reinterpret_cast<sockaddr *>(&address), sizeof(address), 90) < 0)
     {
         close(sock);
         icon_endpoint.transport_failed(endpoint_now_ms());

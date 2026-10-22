@@ -6,6 +6,7 @@
 #include "shadowmount_api.h"
 #include "shadowmount_http.h"
 #include "socket_guard.h"
+#include "loopback_connect.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -158,7 +159,7 @@ int niak_scan_shadowmount(NiakGame *games,size_t capacity){
  struct sockaddr_in address={0};
  address.sin_family=AF_INET;address.sin_port=htons((unsigned short)port);
  address.sin_addr.s_addr=htonl(0x7f000001u); /* 127.0.0.1; PS5 SDK lacks INADDR_LOOPBACK */
- if(connect(fd,(struct sockaddr*)&address,sizeof(address))!=0){close(fd);return -1;}
+ if(niak_connect_bounded(fd,(struct sockaddr*)&address,sizeof(address),100)!=0){close(fd);return -1;}
  static const char request[]=
  "POST /api/v1/games HTTP/1.1\r\n"
  "Host: 127.0.0.1\r\nContent-Type: application/json\r\n"
