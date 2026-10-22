@@ -59,12 +59,14 @@ static inline const char *niak_json_skip_value(const char *p) {
     }
     return depth==0 && niak_json_space(start)!=p?p:NULL;
 }
-static inline int niak_is_installed_media_category(const char *json) {
+static inline int niak_is_installed_media_category_for_title(
+    const char *json,const char *expected_title) {
     static const char key[]="applicationCategoryType";
+    static const char title_key[]="titleId";
     if(!json)return 0;
     const char *p=niak_json_space(json);
     if(*p++!='{')return 0;
-    int found=0,allowed=0;
+    int found=0,allowed=0,found_title=0;
     for(;;) {
         p=niak_json_space(p);
         if(*p=='}') {
@@ -78,6 +80,8 @@ static inline int niak_is_installed_media_category(const char *json) {
         const size_t key_len=(size_t)((end-1)-begin);
         const int is_category=key_len==sizeof(key)-1 &&
                               memcmp(begin,key,sizeof(key)-1)==0;
+        const int is_title=key_len==sizeof(title_key)-1 &&
+                            memcmp(begin,title_key,sizeof(title_key)-1)==0;
         p=niak_json_space(end);
         if(*p++!=':')return 0;
         p=niak_json_space(p);
@@ -97,6 +101,13 @@ static inline int niak_is_installed_media_category(const char *json) {
             }
             p=niak_json_space(p);
             allowed=value==65536u||value==65792u||value==66048u;
+        } else if(is_title && expected_title) {
+            if(found_title++)return 0; // conflicting title identity
+            const char *end_value=niak_json_string_end(p);
+            if(!end_value)return 0;
+            const size_t length=(size_t)(end_value-p-2);
+            if(length!=9 || memcmp(p+1,expected_title,9)!=0)return 0;
+            p=niak_json_space(end_value);
         } else {
             p=niak_json_skip_value(p);
             if(!p)return 0;
@@ -109,5 +120,9 @@ static inline int niak_is_installed_media_category(const char *json) {
         }
         if(*p!='}')return 0;
     }
+}
+/* Legacy category-only wrapper, used by standalone parser tests. */
+static inline int niak_is_installed_media_category(const char *json) {
+    return niak_is_installed_media_category_for_title(json,NULL);
 }
 #endif

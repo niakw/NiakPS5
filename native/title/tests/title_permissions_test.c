@@ -45,6 +45,10 @@ int main(void) {
     assert(!niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
     file_at(param,"{\"applicationCategoryType\":65536,\"titleName\":\"Media\"}");
     assert(niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
+    file_at(param,"{\"titleId\":\"NPXS00002\",\"applicationCategoryType\":65536}");
+    assert(!niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
+    file_at(param,"{\"titleId\":\"NPXS00001\",\"applicationCategoryType\":65536}");
+    assert(niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
     file_at(param,"{\"applicationCategoryType\":\"65792\","
                   "\"localizedParameters\":{\"en-US\":{\"titleName\":\"Video\"}}}");
     assert(niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));

@@ -48,7 +48,7 @@ static inline int niak_title_is_launchable(
         const size_t size=fread(data,1,sizeof(data)-1,meta);
         const int bad=ferror(meta) || size!=(size_t)meta_stat.st_size;
         fclose(meta);
-        if(!bad && niak_is_installed_media_category(data))return 1;
+        if(!bad && niak_is_installed_media_category_for_title(data,id))return 1;
     }
     return 0;
 }

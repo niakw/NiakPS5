@@ -31,6 +31,18 @@ int main(void) {
     assert(!niak_is_installed_media_category("{\"applicationCategoryType\":65536"));
     assert(!niak_is_installed_media_category(
         "{\"other\":{\"nested\":[]],\"applicationCategoryType\":65536}"));
+    assert(niak_is_installed_media_category_for_title(
+        "{\"titleId\":\"NPXS00001\",\"applicationCategoryType\":65536}",
+        "NPXS00001"));
+    assert(!niak_is_installed_media_category_for_title(
+        "{\"titleId\":\"NPXS00002\",\"applicationCategoryType\":65536}",
+        "NPXS00001"));
+    assert(!niak_is_installed_media_category_for_title(
+        "{\"titleId\":\"NPXS00001\",\"titleId\":\"NPXS00001\","
+        "\"applicationCategoryType\":65536}", "NPXS00001"));
+    assert(niak_is_installed_media_category_for_title(
+        "{\"titleName\":\"Media\",\"applicationCategoryType\":65536}",
+        "NPXS00001"));
     assert(!niak_is_installed_media_category(NULL));
     return 0;
 }
