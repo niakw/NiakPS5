@@ -143,20 +143,55 @@ static int array_bounds(const char *json,const char **begin,const char **end) {
  }
  return 0;
 }
+/* Only a single, top-level numeric "status":0 grants a valid response.
+ * A quoted string or nested object containing "status":0 must not override
+ * an actual error returned by the local API. */
+static int niak_api_status_ok(const char *json) {
+ const char *p=json;skip_ws(&p);
+ if(*p!='{')return 0;
+ char brackets[64];unsigned depth=0;
+ int seen=0;
+ for(;*p;) {
+  if(*p=='"') {
+   const char *begin=++p;
+   while(*p && *p!='"') {
+    if(*p=='\\'){++p;if(!*p)return 0;}
+    ++p;
+   }
+   if(!*p)return 0;
+   const size_t bytes=(size_t)(p-begin);
+   const char *after=p+1;
+   skip_ws(&after);
+   if(depth==1 && bytes==6 && memcmp(begin,"status",6)==0 &&
+      *after==':') {
+    if(seen++)return 0;
+    ++after;skip_ws(&after);
+    if(*after!='0')return 0;
+    const char next=after[1];
+    if(next!=',' && next!='}' && next!=' ' &&
+       next!='\t' && next!='\r' && next!='\n')return 0;
+   }
+   ++p;continue;
+  }
+  if(*p=='{' || *p=='[') {
+   if(depth>=sizeof(brackets))return 0;
+   brackets[depth++]=*p=='{'?'}':']';
+  } else if(*p=='}'||*p==']') {
+   if(!depth||brackets[depth-1]!=*p)return 0;
+   --depth;
+   if(depth==0) {
+    ++p;skip_ws(&p);
+    return seen==1 && !*p;
+   }
+  }
+  ++p;
+ }
+ return 0;
+}
 int niak_parse_shadowmount_games(const char *json,NiakGame *games,size_t capacity) {
  if(!json||!games||capacity==0||strlen(json)>NIAK_HTTP_LIMIT)return -1;
- const char *p=json;skip_ws(&p);if(*p!='{')return -1;
- const char *status=p;char tmp[16];
- if(!member_string(p,p+strlen(p),"error",tmp,sizeof(tmp))) {
-  /* An error string is optional; status is required. */
- }
- /* Robust numeric status read even with arbitrary whitespace. */
- const char *st=strstr(status,"\"status\"");
- if(!st)return -1;
- st+=8;
- skip_ws(&st);
- if(*st++!=':')return -1;
- skip_ws(&st);if(*st++!='0'||(*st>='0'&&*st<='9'))return -1;
+ if(!niak_api_status_ok(json))return -1;
+ const char *p=json;
  const char *start=NULL,*finish=NULL;
  if(!array_bounds(json,&start,&finish))return -1;
  size_t count=0;

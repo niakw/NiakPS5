@@ -24,6 +24,19 @@ int main(void){
  assert(strcmp(g[1].id,"CUSA00222")==0);
  assert(niak_parse_shadowmount_games("{\"status\": 13,\"games\":[]}",g,5)==-1);
  assert(niak_parse_shadowmount_games("{\"status\":0,\"games\":[]}",g,5)==0);
+ assert(niak_parse_shadowmount_games(
+    "{\"details\":{\"status\":0},\"status\":13,\"games\":[]}",g,5)==-1);
+ assert(niak_parse_shadowmount_games(
+    "{\"status\":13,\"details\":{\"status\":0},\"games\":[]}",g,5)==-1);
+ assert(niak_parse_shadowmount_games(
+    "{\"status\":0,\"status\":13,\"games\":[]}",g,5)==-1);
+ assert(niak_parse_shadowmount_games(
+    "{\"status\":0,\"details\":{\"status\":99},\"games\":[]}",g,5)==0);
+ assert(niak_parse_shadowmount_games(
+    "{\"status\":0.5,\"games\":[]}",g,5)==-1);
+ assert(niak_parse_shadowmount_games(
+    "{\"status\":0,\"games\":[]]}",g,5)==-1);
+
  assert(niak_parse_shadowmount_games("{\"status\":0,\"games\":[{\"title_id\":\"PPSA00001\",\"name\":\"a\"},{\"title_id\":\"PPSA00001\",\"name\":\"b\"}]}",g,5)==1);
  // ShadowMountPlus may JSON-escape accented names and emoji.
  const char *escaped="{\"status\":0,\"games\":["
