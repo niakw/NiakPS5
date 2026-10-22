@@ -134,6 +134,39 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("PPSA11111\tTest Game\tJeu\t",overlay)
         self.assertIn("PPSA22222\tTest App\tApplication\t",overlay)
 
+    def test_read_only_status_never_changes_console(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        app="/data/homebrew/PPSA99386"
+        log=b"NiakPS5 optional autostart start rc=0x00000000\\n"
+        log+=b"sceSystemServiceLaunchApp rc=0x00000000\\n"
+        original={app+"/eboot.bin":b"native",
+                  "/data/niakps5-autostart.log":log,
+                  ftpmod.AUTOLOAD:(ftpmod.PAYLOAD+"\\n").encode(),
+                  ftpmod.CONFIG:b"AUTOLOAD_ENABLED=1\\n"}
+        f=FakeFTP(original)
+        out=StringIO()
+        with redirect_stdout(out):
+            ftpmod.diagnose(f)
+        self.assertEqual(f.files,original)
+        self.assertIn("succès HISTORIQUE",out.getvalue())
+        self.assertIn("PLDmgr AUTOLOAD_ENABLED : True",out.getvalue())
+
+    def test_art_cache_does_not_refetch_installed_front(self):
+        from unittest.mock import patch
+        import urllib.request
+        id="PPSA34015"
+        existing=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{id}-front.png"
+        f=FakeFTP({f"/user/app/{id}/eboot.bin":b"game",existing:b"image"})
+        (self.root/"assets").mkdir(exist_ok=True)
+        (self.root/"assets/niak-launchbox-cases.tsv").write_text(
+            id+"\\t-\\tfr:00000000-0000-0000-0000-000000000001.jpg\\t-\\t-\\t-\\t4\\n")
+        with patch.object(urllib.request,"urlopen") as open_url:
+            result=ftpmod.fetch_retail_covers(f,self.root)
+        self.assertEqual(result,0)
+        open_url.assert_not_called()
+        self.assertEqual(f.files[existing],b"image")
+
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
         (self.root/"tools/niakps5.elf").write_bytes(b"Not an ELF")
