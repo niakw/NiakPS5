@@ -189,6 +189,21 @@ def prepare(kit: Path, project: Path, revision: str):
     # The single-design title does not display the UI Lab tour banner.
     shell = kit / "src/app/shell.cpp"
     replace_once(shell, '    banner_ = kBannerSeconds;\n}\n', '    banner_ = 0.0f;\n}\n')
+    # Single-concept NiakPS5 owns R1 and touchpad. The pinned upstream Shell
+    # captures these actions for its multi-concept switcher, removes them from
+    # the forwarded InputFrame, and opens an English developer info panel.
+    # That interception made both features unreachable despite compiling.
+    replace_once(shell,
+        '    if (input.is_pressed(Action::page_next) || input.is_pressed(Action::page_prev))',
+        '    if (concepts_.size()>1 && (input.is_pressed(Action::page_next) || input.is_pressed(Action::page_prev)))')
+    replace_once(shell,
+        '    if (input.is_pressed(Action::touch))',
+        '    if (concepts_.size()>1 && input.is_pressed(Action::touch))')
+    for action in ("pressed","released","held"):
+        replace_once(shell,
+            f'    forwarded.{action} &= ~kShellActions;',
+            f'    if (concepts_.size()>1) forwarded.{action} &= ~kShellActions;')
+
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
