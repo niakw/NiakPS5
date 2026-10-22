@@ -173,8 +173,8 @@ class NativeTitleTests(unittest.TestCase):
                       (ROOT/"title"/"title_meta.cpp").read_text())
         self.assertIn("Action::touch",source)
         self.assertIn("concepts_.size()>1 && input.is_pressed(Action::touch)",source)
-        self.assertIn("if (concepts_.size()>1) forwarded.pressed &= ~kShellActions;",source)
-        self.assertIn("if (concepts_.size()>1) forwarded.held &= ~kShellActions;",source)
+        self.assertIn('for action in ("pressed","released","held"):',source)
+        self.assertIn("if (concepts_.size()>1) forwarded.{action} &= ~kShellActions;",source)
         self.assertIn('meta.category=="Application"',source)
         self.assertIn("data.genre.clear()",
                       (ROOT/"title"/"title_meta.cpp").read_text())
