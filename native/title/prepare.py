@@ -80,6 +80,8 @@ def prepare(kit: Path, project: Path):
                 if (selected.title_id[0] == '\\0')
                 {
                     sys::log("[NiakPS5] No launchable title: catalog unavailable");
+                    std::snprintf(launch_error_,sizeof(launch_error_),
+                        "Titre indisponible : identifiant de lancement manquant");
                     feedback.play(audio::Cue::error);
                 }
                 else
@@ -99,6 +101,8 @@ def prepare(kit: Path, project: Path):
                 }
             }'''
     replace_once(aurora, old_launch, new_launch)
+    replace_once(aurora, '            sheet_open_ = true;',
+                 '            launch_error_[0] = 0;\\n            sheet_open_ = true;')
     # Private favorites are reloaded and sorted before the first screen draw.
     replace_once(aurora, '        favorite_.assign(items.size(), false);',
     """        favorite_.assign(items.size(), false);
