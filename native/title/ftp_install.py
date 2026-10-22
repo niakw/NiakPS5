@@ -718,9 +718,36 @@ def upload_case_templates(ftp,directory):
     return len(entries)
 
 
+def validate_install_folder(directory, autoload):
+    """Refuse incomplete or mismatched extracted titles BEFORE any FTP write."""
+    if directory.name != TITLE or not directory.is_dir() or directory.is_symlink():
+        raise ValueError("Expected extracted PPSA99386/ folder")
+    for name in ("eboot.bin", "sce_module/libc.prx", "sce_sys/param.json"):
+        target=directory/name
+        if not target.is_file() or target.is_symlink() or not target.stat().st_size:
+            raise ValueError(f"Required PS5 title file missing or empty: {name}")
+    try:
+        metadata=json.loads((directory/"sce_sys/param.json").read_text("utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        raise ValueError("Malformed PS5 param.json") from exc
+    if not isinstance(metadata,dict) or metadata.get("titleId")!=TITLE:
+        raise ValueError("PS5 title ID does not match PPSA99386")
+    for entry in directory.rglob("*"):
+        if entry.is_symlink():
+            raise ValueError("Installation directory must not contain symlinks")
+        if entry.is_file() and entry.suffix.lower()==".zip":
+            raise ValueError("Nested ZIP detected; extract only the single download")
+    if autoload:
+        elf=directory/"tools/niakps5.elf"
+        if not elf.is_file() or elf.is_symlink():
+            raise ValueError("One-shot payload ELF missing")
+        with elf.open("rb") as stream:
+            if stream.read(4)!=b"\x7fELF":
+                raise ValueError("Invalid one-shot ELF; no FTP changes made")
+
+
 def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None, art_limit=150):
-    if directory.name != TITLE or not (directory / "sce_sys/param.json").is_file():
-        raise ValueError("Extract PPSA99386/ and run the installer inside that folder")
+    validate_install_folder(directory, autoload)
     for local in sorted(directory.rglob("*")):
         if local.is_symlink():
             raise ValueError("Symlinks are not accepted")
@@ -740,8 +767,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
         print("Titre installe. L'autoload n'est pas active sans --autoload.")
         return
     elf = directory / "tools/niakps5.elf"
-    if not elf.is_file() or elf.read_bytes()[:4] != b"\x7fELF":
-        raise ValueError("One-shot payload missing or not an ELF; refusing autoload changes")
+    # ELF identity verified before the first FTP write.
 
     # Preflight both PLDmgr files BEFORE writing payload, configuration or
     # markers. A malformed config must not leave half-enabled autoload.

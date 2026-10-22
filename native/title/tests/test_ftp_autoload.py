@@ -44,6 +44,8 @@ class AutoloadTests(unittest.TestCase):
         (self.root/"sce_sys").mkdir(parents=True)
         (self.root/"sce_sys/param.json").write_bytes(b'{"titleId":"PPSA99386"}')
         (self.root/"eboot.bin").write_bytes(b"title binary")
+        (self.root/"sce_module").mkdir()
+        (self.root/"sce_module/libc.prx").write_bytes(b"native runtime")
         (self.root/"tools").mkdir()
         (self.root/"tools/niakps5.elf").write_bytes(b"\x7fELFps5 test")
     def tearDown(self):
@@ -534,11 +536,36 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(refreshed,1)
         self.assertEqual(f.files[existing],b"repaired-png")
 
+    def test_install_preflight_is_atomic_on_invalid_local_package(self):
+        meta=self.root/"sce_sys/param.json"
+        for bad in (b'{bad-json',b'{"titleId":"PPSA00001"}',b'{"titleId":null}'):
+            meta.write_bytes(bad)
+            f=FakeFTP()
+            with self.assertRaises(ValueError):
+                ftpmod.install(f,self.root,False)
+            self.assertEqual(f.files,{})
+        meta.write_bytes(b'{"titleId":"PPSA99386"}')
+        runtime=self.root/"sce_module/libc.prx"
+        runtime.unlink()
+        f=FakeFTP()
+        with self.assertRaises(ValueError):
+            ftpmod.install(f,self.root,False)
+        self.assertEqual(f.files,{})
+        runtime.write_bytes(b"native runtime")
+        assets=self.root/"assets"
+        assets.mkdir(exist_ok=True)
+        (assets/"nested.zip").write_bytes(b"nested")
+        f=FakeFTP()
+        with self.assertRaises(ValueError):
+            ftpmod.install(f,self.root,False)
+        self.assertEqual(f.files,{})
+
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
         (self.root/"tools/niakps5.elf").write_bytes(b"Not an ELF")
         with self.assertRaises(ValueError):
             ftpmod.install(f,self.root,True)
         self.assertNotIn(ftpmod.AUTOLOAD,f.files)
+        self.assertEqual(f.files,{})
 if __name__=="__main__":
     unittest.main()
