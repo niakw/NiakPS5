@@ -65,6 +65,49 @@ def make_case_art_fixtures(kit):
     d.line((10,145,10,580),fill=(27,103,175),width=4)
     spine.save(output/f"{ident}-spine.png",optimize=True)
 
+    # Give EVERY preview-only title its own original illustration. The older
+    # snapshot left non-FC titles as solid blue rectangles, which masked visual
+    # defects and suggested that real LaunchBox art was missing on console.
+    # These synthetic QA assets never ship with the PS5 application.
+    examples=(
+        ("PPSA06186","HUMANKIND",(34,63,92),(112,155,178)),
+        ("PPSA05683","TROPICO 6",(29,85,88),(155,180,90)),
+        ("PPSA04716","ANNO 1800",(39,53,94),(151,116,76)),
+    )
+    for title_id,caption,color_a,color_b in examples:
+        front=gradient(480,640,color_a,color_b)
+        paint=ImageDraw.Draw(front)
+        paint.rectangle((0,0,479,68),fill=(244,247,253))
+        paint.text((22,13),"PS5",fill=(20,40,70),font=font(43))
+        paint.line((0,68,479,68),fill=(22,91,176),width=3)
+        paint.ellipse((180,154,450,424),outline=(230,249,248),width=10)
+        paint.polygon([(30,476),(180,288),(244,372),(355,222),(458,404),
+                       (458,546),(30,546)],fill=(15,36,80))
+        paint.text((32,110),caption,fill=(255,255,255),font=font(36))
+        paint.text((32,565),"APERÇU HÔTE / VISUEL NON OFFICIEL",
+                   fill=(241,252,255),font=font(17))
+        front.save(output/f"{title_id}-front.png",optimize=True)
+        rear=gradient(480,640,(235,240,247),(161,192,217))
+        paint=ImageDraw.Draw(rear)
+        paint.text((30,40),caption,fill=(15,50,88),font=font(33))
+        paint.rectangle((30,110,450,375),fill=(20,62,100))
+        paint.polygon([(50,341),(154,190),(239,280),(354,148),(430,330)],
+                      fill=(57,154,176))
+        paint.text((29,410),"APERÇU TECHNIQUE DU VERSO",fill=(19,58,88),
+                   font=font(22))
+        paint.text((29,610),"VISUEL DE TEST / NON COMMERCIAL",
+                   fill=(19,58,88),font=font(16))
+        rear.save(output/f"{title_id}-back.png",optimize=True)
+        side=gradient(44,640,(228,244,255),(74,145,213))
+        paint=ImageDraw.Draw(side)
+        paint.rectangle((0,0,43,639),outline=(22,80,156),width=3)
+        for index,letter in enumerate("PS5"):
+            paint.text((13,12+index*40),letter,fill=(12,49,108),
+                       font=font(24))
+        paint.line((11,172,11,585),fill=(31,99,177),width=3)
+        side.save(output/f"{title_id}-spine.png",optimize=True)
+
+
 def one(path,old,new):
     data=path.read_text("utf8")
     if data.count(old)!=1:raise RuntimeError(f"Preview mismatch: {path}: {old[:80]}")
