@@ -77,6 +77,7 @@ class LaunchBridgeTests(unittest.TestCase):
             work=Path(tmp)
             (work/"niak").mkdir()
             shutil.copyfile(ROOT/"launch_bridge.hpp",work/"niak"/"launch_bridge.hpp")
+            shutil.copyfile(ROOT/"socket_guard.h",work/"niak"/"socket_guard.h")
             (work/"server.cpp").write_text(SERVER,encoding="utf8")
             binary=work/"launch-bridge-test"
             subprocess.run([
