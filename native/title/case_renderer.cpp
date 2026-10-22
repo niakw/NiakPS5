@@ -295,7 +295,7 @@ void niak_draw_rotating_case(hui::gfx::DrawList &d,const hui::demo::Item &game,
     const float depth=w*(game.title_id[0]=='C'?0.102f:0.106f);
     const float L=-w*0.5f,R=w*0.5f,T=-h*0.5f,B=h*0.5f;
     const float F=depth*0.5f,K=-depth*0.5f;
-    const Camera cam{bounds,std::cos(motion.yaw),std::sin(motion.y),
+    const Camera cam{bounds,std::cos(motion.yaw),std::sin(motion.yaw),
                      w*4.1f,w*0.26f*opened};
     d.shadow({bounds.cx()-w*0.50f,bounds.cy()-h*0.45f,w,h},
              w*0.060f,20,Color::rgb(0x07101a,0.42f));
