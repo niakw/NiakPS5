@@ -191,6 +191,17 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
         self.assertIn("item.application",source)
+        # Regression: the fallback homebrew flag must NOT overwrite an
+        # explicit PS5 media/game applicationCategoryType decision.
+        start=source.index("if(std::strcmp(game.id,\"PPSA99386\")==0)")
+        end=source.index("item.blurb = owned_blurbs_",start)
+        classification=source[start:end]
+        self.assertLess(classification.index("game.application_category==2"),
+                        classification.index("game.application_category==1"))
+        self.assertLess(classification.index('meta.category=="Application"'),
+                        classification.index("item.application=game.is_homebrew!=0"))
+        self.assertEqual(classification.count("item.application=game.is_homebrew!=0"),1)
+        self.assertNotIn('else item.application=game.is_homebrew!=0;',classification)
         self.assertIn("niak_launch_registered_title",source)
         self.assertIn("serve_launch_requests",(ROOT/"title"/"autostart.c").read_text())
         self.assertIn("PING\\n",(ROOT/"title"/"autostart.c").read_text())
