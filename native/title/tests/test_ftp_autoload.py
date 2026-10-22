@@ -121,6 +121,31 @@ class AutoloadTests(unittest.TestCase):
         self.assertIsNone(ftpmod._prepare_installed_png(header,False))
         self.assertIsNone(ftpmod._prepare_installed_png(b"x"*(5*1024*1024+1),False))
 
+
+    def test_diagnose_normalizes_basename_only_ftp_listings(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        class Basenames(FakeFTP):
+            def nlst(self,path):
+                return [value.rsplit("/",1)[-1] for value in super().nlst(path)]
+        base="/data/homebrew/PPSA99386"
+        files={base+"/eboot.bin":b"native",
+               base+"/assets/niak-launchbox-cases.tsv":b"# index",
+               base+"/assets/niak-local-titles.tsv":b"# local",
+               base+"/assets/niak-profile.png":b"private avatar",
+               ftpmod.PAYLOAD:b"payload",
+               "/data/niakps5-autostart.enabled":b""}
+        stream=StringIO()
+        with redirect_stdout(stream):
+            ftpmod.diagnose(Basenames(files))
+        report=stream.getvalue()
+        self.assertIn("Titre eboot.bin : True",report)
+        self.assertIn("Index LaunchBox : True",report)
+        self.assertIn("Métadonnées locales : True",report)
+        self.assertIn("Avatar copié : True",report)
+        self.assertIn("Payload ELF : True",report)
+        self.assertIn("Marqueur activation : True",report)
+
     def test_no_autoload_does_not_touch_pldmgr(self):
         f=FakeFTP()
         ftpmod.install(f,self.root,False)

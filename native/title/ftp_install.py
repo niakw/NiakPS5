@@ -574,8 +574,13 @@ def diagnose(ftp,local_directory=None):
     payloads=_listed(ftp,"/data/pldmgr/payloads/niakps5")
     def known(state):
         return "accès refusé / inconnu" if state is None else str(state)
+    def present(entries,name):
+        # LIST may return basename-only, a relative name, or an absolute path.
+        # It is a read-only diagnostic, not an installation integrity proof.
+        return None if entries is None else name in {
+            posixpath.basename(str(value).rstrip("/")) for value in entries}
     print("NiakPS5 — diagnostic local (aucun fichier modifié)")
-    print("Titre eboot.bin :",known(None if files is None else app+"/eboot.bin" in files))
+    print("Titre eboot.bin :",known(present(files,"eboot.bin")))
     if local_directory is not None:
         comparison=installed_binary_matches(
             ftp,Path(local_directory)/"eboot.bin")
@@ -583,10 +588,10 @@ def diagnose(ftp,local_directory=None):
         if comparison is False:
             print("Attention : le binaire PS5 est différent de celui du paquet ; "
                   "l'interface peut encore être une ancienne révision.")
-    print("Index LaunchBox :",known(None if assets is None else app+"/assets/niak-launchbox-cases.tsv" in assets))
-    print("Métadonnées locales :",known(None if assets is None else app+"/assets/niak-local-titles.tsv" in assets))
+    print("Index LaunchBox :",known(present(assets,"niak-launchbox-cases.tsv")))
+    print("Métadonnées locales :",known(present(assets,"niak-local-titles.tsv")))
     print("Avatar copié :",known(None if assets is None else any(
-        app+"/assets/"+name in assets for name in ("niak-profile.png","niak-profile.dds"))))
+        present(assets,name) for name in ("niak-profile.png","niak-profile.dds"))))
     if installed_art is None:
         print("Icônes/fonds en cache : accès inconnu / refusé")
     else:
@@ -624,7 +629,7 @@ def diagnose(ftp,local_directory=None):
         else:
             print("Titres installés visibles : non vérifiables par FTP. "
                   "Ne pas déduire que la bibliothèque PS5 est vide.")
-    print("Payload ELF :",known(None if payloads is None else PAYLOAD in payloads))
+    print("Payload ELF :",known(present(payloads,"niakps5.elf")))
     if local_directory is not None:
         elf_match=installed_binary_matches(
             ftp,Path(local_directory)/"tools/niakps5.elf",PAYLOAD,
@@ -643,10 +648,8 @@ def diagnose(ftp,local_directory=None):
     # Markers prove configuration only; not execution. Never call it "working"
     # unless the user's PS5 log records a successful service call.
     marker=_listed(ftp,"/data")
-    print("Marqueur activation :",known(None if marker is None else
-                                       "/data/niakps5-autostart.enabled" in marker))
-    print("Marqueur désactivation :",known(None if marker is None else
-                                          "/data/niakps5-autostart.disable" in marker))
+    print("Marqueur activation :",known(present(marker,"niakps5-autostart.enabled")))
+    print("Marqueur désactivation :",known(present(marker,"niakps5-autostart.disable")))
     try: log=_bounded_retrieve(ftp,"/data/niakps5-autostart.log")
     except (OSError,ValueError): log=None
     if log:
