@@ -6,6 +6,9 @@ int main(void){
  assert(!niak_redirect_arm_after_launch(&g,1,0,314,0));
  assert(!niak_redirect_arm_after_launch(&g,1,1,-1,0));
  assert(!niak_redirect_arm_after_launch(&g,1,1,314,-2));
+ assert(niak_redirect_same_user(100,100));
+ assert(!niak_redirect_same_user(100,200));
+ assert(!niak_redirect_same_user(-1,100));
  assert(niak_redirect_arm_after_launch(&g,1,1,314,0));
  // First launcher, Sony dashboard, no game: never redirect/loop.
  for(int i=0;i<50;++i)assert(!niak_redirect_tick(&g,0));

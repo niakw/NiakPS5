@@ -195,7 +195,7 @@ static void serve_launch_requests(int launcher_started) {
     }
     report("Local launch broker ready (127.0.0.1 only)",0);
     NiakRedirectGate gate;
-    int gate_ready=0;
+    int gate_ready=0,return_user=-1;
     // The original 21,600 two-second iterations silently stopped the
     // launch service after roughly twelve hours. Keep the opt-in broker
     // alive until the user disables it or the console shuts down.
@@ -245,6 +245,7 @@ static void serve_launch_requests(int launcher_started) {
                                 &gate,launcher_started,
                                 is_regular_file(NIAK_RESUME),
                                 source_app,result);
+                            return_user=gate_ready?user:-1;
                         }
                     }
                 }
@@ -258,17 +259,24 @@ static void serve_launch_requests(int launcher_started) {
         }
         if(!launcher_started || !is_regular_file(NIAK_RESUME)) {
             gate_ready=0;
+            return_user=-1;
             continue;
         }
         if(!gate_ready)continue;
         const int running=sceSystemServiceGetAppIdOfRunningBigApp();
         if(!niak_redirect_tick(&gate,running))continue;
         int user=-1;
-        if(sceUserServiceGetForegroundUser(&user)==0 && user>=0) {
+        const int user_rc=sceUserServiceGetForegroundUser(&user);
+        if(user_rc==0 && niak_redirect_same_user(return_user,user)) {
             const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
             report("Optional game-exit return",rc);
-            gate_ready=0;
+        } else {
+            // A changed or unreadable profile must never receive an
+            // unsolicited home switch from the previous user's game.
+            report("Optional game-exit return cancelled (user changed)",user_rc);
         }
+        gate_ready=0;
+        return_user=-1;
     }
     close(fd);
     report("Local launch broker shutdown",0);

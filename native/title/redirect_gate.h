@@ -45,4 +45,9 @@ static inline int niak_redirect_arm_after_launch(
  niak_redirect_init(gate,source_app);
  return 1;
 }
+/* If the active PS5 user changed while a game was running, cancelling the
+ * optional return is safer than bringing a different user's Niak home forward. */
+static inline int niak_redirect_same_user(int original,int current) {
+ return original>=0 && original==current;
+}
 #endif
