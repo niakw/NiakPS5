@@ -201,6 +201,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("OUVRIR LE SYSTEME",(ROOT/"title"/"patch_home.py").read_text())
         self.assertNotIn("Accueil natif NiakTV",(ROOT/"title"/"prepare.py").read_text())
         self.assertIn("Multimédia",(ROOT/"title"/"prepare.py").read_text())
+        self.assertIn('{"NIAK", "Jeux", "Multimédia", "Réglages"}', (ROOT/"title"/"polish.py").read_text())
         self.assertIn("Médias lus par NiakPS5",
                       (ROOT/"title"/"patch_home.py").read_text())
         settings_ui=(ROOT/"title"/"patch_home.py").read_text()
