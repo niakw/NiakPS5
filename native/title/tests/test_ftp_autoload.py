@@ -141,7 +141,7 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn('if args.refresh_art:',source)
         self.assertIn('action="store_true", default=True',source)
         self.assertIn("--no-autoload",source)
-        self.assertIn("niakps5.elf",(ROOT/"title"/"AUTOSTART.md").read_text())
+        self.assertIn("niakps5.elf",(SCRIPT.parent/"AUTOSTART.md").read_text())
         self.assertIn('fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)',source)
         self.assertIn("--force-art",source)
         self.assertIn('indexed_matches',source)
