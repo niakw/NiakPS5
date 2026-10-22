@@ -29,7 +29,7 @@ int main(void){
  const char *escaped="{\"status\":0,\"games\":["
     "{\"title_id\":\"PPSA12345\",\"name\":\"Jeu \\u00e9dition \\uD83C\\uDFAE\"}]}";
  assert(niak_parse_shadowmount_games(escaped,g,5)==1);
- assert(strcmp(g[0].title,"Jeu \xc3\xa9dition \xf0\x9f\x8e\xae")==0);
+ assert(strcmp(g[0].title,"Jeu \xc3\xa9" "dition \xf0\x9f\x8e\xae")==0);
  // A malformed UTF-16 surrogate is rejected; fallback is the exact title ID.
  const char *bad_unicode="{\"status\":0,\"games\":["
     "{\"title_id\":\"CUSA22334\",\"name\":\"\\uD83C\"}]}";
