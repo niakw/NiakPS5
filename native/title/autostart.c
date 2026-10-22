@@ -135,7 +135,7 @@ static int permitted_title(const char *id) {
     }
     return 0;
 }
-static void serve_launch_requests(void) {
+static void serve_launch_requests(int launcher_started) {
     const int fd=socket(AF_INET,SOCK_STREAM,0);
     if(fd<0){report("Local launch broker socket unavailable",fd);return;}
     int yes=1;(void)setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));
@@ -198,7 +198,7 @@ static void serve_launch_requests(void) {
                 close(client);
             }
         }
-        if(!is_regular_file(NIAK_RESUME))continue;
+        if(!launcher_started || !is_regular_file(NIAK_RESUME))continue;
         const int running=sceSystemServiceGetAppIdOfRunningBigApp();
         if(!gate_ready) {
             if(running>0) {
@@ -223,6 +223,7 @@ int main(void) {
     if(!is_regular_file(NIAK_ENABLED)||is_regular_file(NIAK_DISABLED))return 0;
     report("NiakPS5 optional autostart start",0);
     int profile_checked=0;
+    int launcher_started=0;
     for(unsigned i=0;i<12;++i) {
         if(is_regular_file(NIAK_DISABLED))return 0;
         const int running=sceSystemServiceGetAppIdOfRunningBigApp();
@@ -238,14 +239,19 @@ int main(void) {
             const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
             report("sceSystemServiceLaunchApp",rc);
             if(rc==0) {
-                serve_launch_requests();
-                return 0;
+                launcher_started=1;
+                break;
             }
         } else {
             report("Foreground user unavailable",user_rc);
         }
         sceKernelUsleep(3000000);
     }
-    report("Autostart gave up: no system partition or title modified",0);
-    return 1;
+    if(!launcher_started)
+        report("Autostart not confirmed; launch broker still available",0);
+    // Even if the console was busy launching another title during bootstrap,
+    // leave the local launch broker alive for a manually opened NiakPS5.
+    // Return-to-launcher monitoring is safe ONLY if we started that launcher.
+    serve_launch_requests(launcher_started);
+    return 0;
 }
