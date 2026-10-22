@@ -42,11 +42,15 @@ def patch(kit):
         // Keep the animated aurora/smoke behind real game artwork.
         if (const std::uint32_t wallpaper = niak_daily_backdrop())
         {
+            // Previously the 0.59 image alpha combined with 0.68–0.81
+            // darkening left only ~11–19% of the wallpaper visible. R1 could
+            // appear ineffective even with a successfully changed texture.
+            // Keep a dark readability veil while preserving actual scenery.
             list.image(wallpaper, {0, 0, gfx::kVirtualWidth, gfx::kVirtualHeight},
-                       gfx::kFullUv, kWhite.with_alpha(0.59f));
+                       gfx::kFullUv, kWhite.with_alpha(0.85f));
             list.gradient_rect({0, 0, gfx::kVirtualWidth, gfx::kVirtualHeight}, 0,
-                               Color::rgb(0x081014, 0.68f),
-                               Color::rgb(0x051015, 0.81f));
+                               Color::rgb(0x081014, 0.52f),
+                               Color::rgb(0x051015, 0.65f));
         }''')
     text = once(text, "        draw_top_bar(list);\n        draw_hero(list);\n        draw_shelves(list);",
     """        draw_top_bar(list);
