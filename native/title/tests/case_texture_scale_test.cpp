@@ -19,7 +19,7 @@ int main() {
     std::vector<unsigned char> spine(std::size_t(spine_w)*spine_h*4u,180);
     assert(niak_scale_case_rgba(spine,spine_w,spine_h,96,768));
     assert(spine_w<=96&&spine_h<=768);
-    assert(spine_w>=48&&spine_w<=54); // spine aspect stays stable
+    assert(spine_w==96&&spine_h==672); // original 1:7 aspect preserved
     unsigned bad_w=0,bad_h=768;
     std::vector<unsigned char> bad;
     assert(!niak_scale_case_rgba(bad,bad_w,bad_h,512,768));
