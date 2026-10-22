@@ -110,6 +110,14 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-back.png",f.files)
         self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA01234-front.png",f.files)
 
+    def test_refresh_art_is_isolated_from_payload_manager(self):
+        # --refresh-art delegates only to the two read-only discovery /
+        # private artwork staging helpers, not the app/Payload Manager installer.
+        source=SCRIPT.read_text()
+        self.assertIn('if args.refresh_art:',source)
+        self.assertIn('fetch_retail_covers(ftp, directory)',source)
+        self.assertIn('indexed_matches',source)
+
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
         (self.root/"tools/niakps5.elf").write_bytes(b"Not an ELF")

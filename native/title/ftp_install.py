@@ -206,17 +206,24 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
     Build ZIP ships text index only; third-party scans never enter repository.
     """
     index=folder/"assets/niak-launchbox-cases.tsv"
-    if not index.is_file():return 0
+    if not index.is_file():
+        print("LaunchBox: index absent du paquet. Aucun téléchargement possible.")
+        return 0
     installed=set(_installed_title_ids(ftp))
-    if not installed:return 0
+    if not installed:
+        print("LaunchBox: aucun titre trouvé par FTP dans les dossiers autorisés.")
+        return 0
     import urllib.request
     shipped=0
+    indexed_matches=0
+    attempted=0
     for line in index.read_text("utf8").splitlines():
         if not line or line.startswith("#"):continue
         columns=line.split("\t")
         if len(columns)<7 or columns[0] not in installed:continue
         ident=columns[0]
-        if shipped>=maximum_titles*4:break
+        indexed_matches+=1
+        if indexed_matches>maximum_titles:break
         # Metadata fields: ID, description, front, back, spine, logo, sourceID.
         for side,field in (("front",2),("back",3),("spine",4),("logo",5)):
             choices=columns[field]
@@ -227,6 +234,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
                 name=parts[1]
                 if not re.fullmatch(r"(?:r2_)?[0-9A-Fa-f-]{36}\.(?:jpe?g|png)",name):
                     continue
+                attempted+=1
                 url="https://images.launchbox-app.com/"+name
                 try:
                     req=urllib.request.Request(url,headers={
@@ -243,7 +251,12 @@ def fetch_retail_covers(ftp, folder, maximum_titles=60):
                     # Keep icon/description fallbacks when LaunchBox is offline
                     # or a specific regional scan is malformed.
                     continue
-    print(f"LaunchBox: {shipped} jaquettes/logos copiés en privé via FTP.")
+    print(f"LaunchBox: {len(installed)} titres installés visibles par FTP, "
+          f"{indexed_matches} correspondances exactes, {attempted} visuels tentés, "
+          f"{shipped} fichiers transférés.")
+    if not indexed_matches:
+        print("LaunchBox: vérifier le nom/version du titre dans l'index; "
+              "aucune jaquette ne peut être déduite d'un identifiant seul.")
     return shipped
 
 
@@ -311,17 +324,23 @@ def main():
                      help="Installer et activer le démarrage automatique (défaut)")
     cli.add_argument("--no-autoload", dest="autoload", action="store_false",
                      help="Transférer seulement le titre sans modifier Payload Manager")
+    cli.add_argument("--refresh-art", action="store_true",
+                     help="Rechercher les jaquettes des jeux installés sans toucher au titre ni à PLDmgr")
     cli.add_argument("--return-after-game", action="store_true",
                      help="Surveiller uniquement la fermeture d'un jeu, sans intercepter le bouton PS")
     args = cli.parse_args()
-    if args.return_after_game and not args.autoload:
+    if args.return_after_game and not args.autoload and not args.refresh_art:
         cli.error("--return-after-game requires --autoload")
     directory = Path(__file__).resolve().parent.parent
     password = "" if args.user == "anonymous" else getpass("Mot de passe FTP: ")
     with FTP() as ftp:
         ftp.connect(args.host, args.port, timeout=20)
         ftp.login(args.user, password)
-        install(ftp, directory, args.autoload, args.return_after_game, args.avatar_user_id)
+        if args.refresh_art:
+            upload_local_homebrew_names(ftp)
+            fetch_retail_covers(ftp, directory)
+        else:
+            install(ftp, directory, args.autoload, args.return_after_game, args.avatar_user_id)
 
 if __name__ == "__main__":
     main()

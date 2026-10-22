@@ -381,6 +381,16 @@ Catalog::Catalog()
                     already_seen = true;
             if (!already_seen)
                 games[count++] = candidate;
+            else {
+                // Preserve the explicit homebrew origin even when app.db
+                // discovered the same title first.
+                for (std::size_t i=0;i<count;++i)
+                    if (std::strcmp(games[i].id,candidate.id)==0) {
+                        games[i].is_homebrew=1;
+                        games[i].discovered_from_homebrew=1;
+                        break;
+                    }
+            }
         }
     }
     sys::log("[NiakPS5] read-only catalog: app.db=%d, homebrew folders=%d, api=%d, unique=%zu",
