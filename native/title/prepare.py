@@ -562,18 +562,24 @@ Catalog::Catalog()
                          (game.id[0]=='C' ? "PS4" : "PS5");
             // The current scanner has no trusted category for native titles.
             // Homebrew folders are initially classified as applications.
-            if (game.application_category==1)item.application=false;
-            else if(game.application_category==2)item.application=true;
-            else if (known && meta.category=="Jeu")item.application=false;
-            else if (known && meta.category=="Application")item.application=true;
+            // The verified category wins over the installation origin.
+            // Previously, the unconditional trailing "else" overwrote this
+            // classification for virtually every game/media application.
+            if(std::strcmp(game.id,"PPSA99386")==0)
+                item.application=true; // NiakPS5 is always an app.
+            else if (game.application_category==2)
+                item.application=true;
+            else if (game.application_category==1)
+                item.application=false;
+            else if (known && meta.category=="Application")
+                item.application=true;
+            else if (known && meta.category=="Jeu")
+                item.application=false;
             else if (std::strcmp(game.title,"Mes vidéos")==0 ||
                      std::strcmp(game.title,"My Videos")==0)
                 item.application=true;
-            // This launcher is an application even when its packaging metadata
-            // declares the legacy 'game' category for Homebrew Installer.
-            if(std::strcmp(game.id,"PPSA99386")==0)
-                item.application=true;
-            else item.application=game.is_homebrew!=0;
+            else
+                item.application=game.is_homebrew!=0;
             const char *last=game.last_access;
             const char *installed=game.installed_at;
             const char *recent=std::strcmp(last,installed)>=0?last:installed;
