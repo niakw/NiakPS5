@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import re
 
 TITLE_ID = "PPSA99386"
 
@@ -17,7 +18,7 @@ def replace_once(path, old, new):
         raise SystemExit(f"Expected one anchor in {path}: {old[:60]!r}; found {count}")
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
-def prepare(kit: Path, project: Path):
+def prepare(kit: Path, project: Path, revision: str):
     registry = kit / "src/concepts/registry.cpp"
     reg = registry.read_text()
     begin = reg.index("    static constexpr ConceptFactory kFactories[] = {")
@@ -26,7 +27,7 @@ def prepare(kit: Path, project: Path):
     registry.write_text(reg)
 
     aurora = kit / "src/concepts/aurora.cpp"
-    replace_once(aurora, '#include "ui/motion.hpp"', '#include "ui/motion.hpp"\n#include "platform/ps5/system.hpp"')
+    replace_once(aurora, '#include "ui/motion.hpp"', '#include "ui/motion.hpp"\n#include "platform/ps5/system.hpp"\n#include "niak/version.hpp"')
     replace_once(aurora, 'namespace hui::concepts\n{', 'extern "C" int sceSystemServiceLaunchApp(const char *, const char **, void *);\n\nnamespace hui::concepts\n{')
     old = '''        shelves_.resize(3);
         shelves_[0].title = "Continue playing";
@@ -194,6 +195,11 @@ def prepare(kit: Path, project: Path):
 
     src_niak = kit / "src/niak"
     src_niak.mkdir(parents=True, exist_ok=True)
+    if not re.fullmatch(r"[0-9a-f]{7,12}",revision):
+        raise ValueError("Invalid Git revision")
+    (src_niak/"version.hpp").write_text(
+        '#pragma once\nnamespace niak {inline constexpr const char *revision = "'
+        + revision + '";}\n',encoding="utf8")
     for filename in ("catalog.c", "catalog.h", "shadowmount_api.c", "shadowmount_api.h"):
         shutil.copy2(project / "native" / filename, src_niak / filename)
     for filename in ("title_meta.cpp", "title_meta.hpp"):
@@ -549,5 +555,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--kit", type=Path, required=True)
     parser.add_argument("--project", type=Path, required=True)
+    parser.add_argument("--revision", required=True)
     args = parser.parse_args()
-    prepare(args.kit.resolve(), args.project.resolve())
+    prepare(args.kit.resolve(), args.project.resolve(), args.revision)

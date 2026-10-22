@@ -243,6 +243,8 @@ def patch(kit):
                  500, 882, 20, kWhite.with_alpha(0.78f));
         ui::text(list, fonts.regular, journal_status, 500, 910, 18,
                  kWhite.with_alpha(0.66f));
+        ui::text(list, fonts.regular, niak::revision, 110, 950, 20,
+                 kWhite.with_alpha(0.72f));
         ui::paragraph(list, fonts.regular,
                       "Les reglages de la console restent geres par Sony. "
                       "Le dernier choix quitte NiakPS5 pour y acceder. "

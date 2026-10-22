@@ -18,7 +18,7 @@ git -C "$stage" checkout --detach --force "$kit_revision"
 git -C "$stage" reset --hard "$kit_revision"
 test "$(git -C "$stage" rev-parse HEAD)" = "$kit_revision"
 # This checkout is ephemeral and only prepared for our own GPU UI.
-python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root"
+python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root" --revision "$(git -C "$root" rev-parse --short=12 HEAD)"
 # Best-effort recent games from Steam; offline/error => original animated smoke.
 python3 "$root/native/title/fetch_daily_games.py" --output "$stage/assets/niak-daily"
 # Exact LaunchBox PlayStation 4/5 regional metadata; no retail scans
