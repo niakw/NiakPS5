@@ -22,7 +22,7 @@ def patch(kit):
     # Procedural covers are FBO textures (bottom-left); actual PS5 PNG images
     # are uploaded top-row-first and REQUIRE kFullUv. kCanvasUv flips the PNG.
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 36);',
-                 'niak_draw_rotating_case(list,it,art,clock_,fonts);')
+                 'niak_draw_rotating_case(list,it,art,\'\n                 \'context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_, fonts);')
     s=exactly(s,'list.image(it.cover, rect, gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);',
                  'list.image(it.cover, rect, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);')
     # Focused game tile is itself the animated physical PS4/PS5 case, not a
