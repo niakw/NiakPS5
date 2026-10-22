@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <utility>
 
 namespace {
 using hui::gfx::Color;
@@ -108,26 +109,97 @@ void outer_face(DrawList &list,const Camera &camera,
     if(texture) {
         printed(list,texture,paper,32,9);
     } else {
-        const Pt a=paper(0,0),b0=paper(1,0),c=paper(1,1),d=paper(0,1);
-        polygon4(list,a,b0,c,d,Color::rgb(0x1a3558));
-        // No retail scan? Keep a physical box, never stretch a square homebrew
-        // icon into a portrait jacket. Print the actual installed app icon in
-        // a centered square on the generic paper insert.
-        if(!back && item.cover) {
-            auto icon=[&](float u,float v){
-                return paper(0.13f+u*0.74f,0.23f+v*0.55f);
-            };
-            printed(list,item.cover,icon,14,10,!item.cover_is_image);
+        // RECONSTRUCTED insert, computed in the native 3D renderer. No generated
+        // or packaged fake artwork. The existing installed icon is the art source.
+        // The PS4/PS5 brand band and lower information strip stay identical
+        // for all fallback cases; only available icon/title/metadata vary.
+        auto block=[&](float x0,float y0,float x1,float y1,Color color) {
+            polygon4(list,paper(x0,y0),paper(x1,y0),
+                     paper(x1,y1),paper(x0,y1),color);
+        };
+        block(0,0,1,1,Color::rgb(0x101d34));
+        const bool ps4=item.title_id[0]=='C';
+        if(!back) {
+            // Full-bleed art begins directly under the branded top banner.
+            // The square installed icon is enlarged as an atmospheric base,
+            // and repeated at a natural near-square ratio to preserve detail.
+            if(item.cover) {
+                auto fill=[&](float u,float v){
+                    return paper(u,0.115f+0.885f*v);
+                };
+                printed(list,item.cover,fill,24,24,!item.cover_is_image);
+                block(0,0.71f,1,1,Color::rgb(0x051021,0.70f));
+                auto detail=[&](float u,float v){
+                    return paper(0.055f+u*0.89f,0.18f+v*0.59f);
+                };
+                printed(list,item.cover,detail,18,18,!item.cover_is_image);
+            }
+            block(0,0,1,0.123f,Color::rgb(ps4?0x0351a8:0xf2f7fc));
+            block(0,0.122f,1,0.130f,Color::rgb(ps4?0xd7ecff:0x1558c4));
+            block(0,0.90f,1,1,Color::rgb(0x081426,0.78f));
+        } else {
+            // TOP: genuine cover/icon or screenshot available locally.
+            // MIDDLE: real summary text. LOWER: reusable generic layout,
+            // explicitly NOT a simulated barcode, PEGI or official back scan.
+            block(0,0,1,0.10f,Color::rgb(ps4?0x0349a2:0xeaf3fc));
+            if(item.cover) {
+                auto art=[&](float u,float v) {
+                    return paper(0.025f+u*0.95f,0.115f+v*0.37f);
+                };
+                printed(list,item.cover,art,26,12,!item.cover_is_image);
+            }
+            block(0,0.48f,1,0.68f,Color::rgb(0xf2f6fa));
+            block(0,0.68f,1,1,Color::rgb(0xd4e1ed));
+            block(0.035f,0.705f,0.965f,0.84f,Color::rgb(0x254a77));
+            block(0.035f,0.858f,0.965f,0.874f,Color::rgb(0xffffff));
+            block(0.035f,0.898f,0.965f,0.907f,Color::rgb(0x5a7493));
+            block(0.035f,0.921f,0.84f,0.93f,Color::rgb(0x8a9bb0));
+            block(0.035f,0.944f,0.94f,0.953f,Color::rgb(0x8a9bb0));
         }
-        const float start=std::min(a.x,b0.x),span=std::fabs(a.x-b0.x);
-        if(span>74.f) {
-            hui::ui::text(list,fonts.semibold,item.title_id[0]=='C'?"PS4":"PS5",
-                          start+span*0.5f,a.y+29.f,19.f,
-                          Color::rgb(0xffffff),hui::gfx::Align::center);
-            hui::ui::paragraph(list,fonts.semibold,
-                               back?(item.blurb&&item.blurb[0]?item.blurb:item.title):item.title,
-                               start+9.f,a.y+71.f,14.f,span-18.f,18.f,
-                               Color::rgb(0xf1f7ff),4);
+        // Text in a perspective plane is legible only when the face is nearly
+        // straight. Hide these planar labels edge-on; never overlay the spine.
+        if(std::fabs(camera.cs)>0.90f) {
+            const auto text_bounds=[&](float left,float right,float line){
+                const auto aa=paper(left,line),bb=paper(right,line);
+                return std::pair<float,float>{std::min(aa.x,bb.x),
+                                              std::fabs(bb.x-aa.x)};
+            };
+            const auto top=text_bounds(0.08f,0.92f,0.06f);
+            const auto top_y=paper(0.5f,0.06f).y;
+            const float label=std::clamp(top.second*0.10f,11.f,25.f);
+            hui::ui::text(list,fonts.semibold,ps4?"PS4":"PS5",
+                          top.first+top.second*0.5f,top_y+label*0.28f,
+                          label,Color::rgb(ps4?0xffffff:0x103d76),
+                          hui::gfx::Align::center);
+            if(!back) {
+                const auto area=text_bounds(0.06f,0.94f,0.925f);
+                const auto pos=paper(0.06f,0.925f);
+                if(area.second>55.f)
+                    hui::ui::paragraph(list,fonts.semibold,item.title,
+                        area.first,pos.y, std::clamp(area.second*0.066f,10.f,18.f),
+                        area.second,21.f,Color::rgb(0xffffff),2);
+            } else {
+                const auto area=text_bounds(0.055f,0.945f,0.505f);
+                const auto pos=paper(0.055f,0.505f);
+                if(area.second>65.f) {
+                    const char *description=item.blurb&&item.blurb[0]?
+                        item.blurb:item.title;
+                    hui::ui::paragraph(list,fonts.regular,description,
+                        area.first,pos.y,std::clamp(area.second*0.045f,9.f,13.f),
+                        area.second,15.f,Color::rgb(0x16263c),4);
+                    const auto lower=text_bounds(0.08f,0.92f,0.735f);
+                    const auto lower_y=paper(0.08f,0.735f).y;
+                    hui::ui::paragraph(list,fonts.semibold,item.title,
+                        lower.first,lower_y,
+                        std::clamp(lower.second*0.057f,10.f,17.f),
+                        lower.second,20.f,Color::rgb(0xffffff),2);
+                    const auto foot=text_bounds(0.06f,0.93f,0.968f);
+                    const auto foot_y=paper(0.06f,0.968f).y;
+                    hui::ui::text(list,fonts.regular,
+                        "APERÇU RECONSTITUÉ — NON OFFICIEL",
+                        foot.first,foot_y,9.f,Color::rgb(0x244564));
+                }
+            }
         }
     }
     const auto topL=at(L,T),topR=at(R,T),botL=at(L,B),botR=at(R,B);
