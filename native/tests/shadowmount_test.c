@@ -36,8 +36,19 @@ int main(void){
  assert(niak_shadowmount_http_json(raw,len-4,1,&body)==-1);
  char invalid[256]="HTTP/1.1 200 OK\r\nContent-Length: 99999999999999\r\n\r\n{}";
  assert(niak_shadowmount_http_json(invalid,strlen(invalid),0,&body)==-1);
- char bad_transfer[256]="HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n";
+ char chunked[256]="HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n"
+                   "Connection: keep-alive\r\n\r\n"
+                   "8\r\n{\"status\"\r\n"
+                   "F\r\n:0,\"games\":[]}\r\n0\r\n\r\n";
+ size_t chunk_size=strlen(chunked);
+ assert(niak_shadowmount_http_json(chunked,chunk_size-2,0,&body)==0);
+ assert(niak_shadowmount_http_json(chunked,chunk_size,0,&body)==1);
+ assert(strcmp(body,"{\"status\":0,\"games\":[]}") == 0);
+ char bad_transfer[256]="HTTP/1.1 200 OK\r\nTransfer-Encoding: gzip\r\n\r\n0\r\n\r\n";
  assert(niak_shadowmount_http_json(bad_transfer,strlen(bad_transfer),0,&body)==-1);
+ char ambiguous[256]="HTTP/1.1 200 OK\r\nContent-Length: 23\r\n"
+                     "Transfer-Encoding: chunked\r\n\r\n0\r\n\r\n";
+ assert(niak_shadowmount_http_json(ambiguous,strlen(ambiguous),0,&body)==-1);
  // End-to-end loopback test: an HTTP/1.1 server can keep its socket
  // open after the complete JSON. The scanner must NOT wait for close.
  int server=socket(AF_INET,SOCK_STREAM,0);
