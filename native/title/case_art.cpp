@@ -67,6 +67,17 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  return renderer.create_texture(int(w),int(h),pixels.data());
 }
 
+namespace {
+bool template_attempted[6]={};
+std::uint32_t template_textures[6]={};
+}
+void niak_release_case_templates(hui::gfx::Renderer &renderer) {
+ for(int i=0;i<6;++i) {
+  if(template_textures[i])renderer.destroy_texture(template_textures[i]);
+  template_textures[i]=0;
+  template_attempted[i]=false;
+ }
+}
 std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
                                       const char *platform,const char *part) {
  // Exactly six static, user-supplied files. Never form untrusted paths.
@@ -79,10 +90,8 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
      if(part && std::strcmp(part,parts[i])==0)side=i;
  if(generation<0||side<0)return 0;
  const int index=generation*3+side;
- static bool attempted[6]={};
- static std::uint32_t texture[6]={};
- if(attempted[index])return texture[index];
- attempted[index]=true;
+ if(template_attempted[index])return template_textures[index];
+ template_attempted[index]=true;
  char file[512]{};
  FILE *fp=nullptr;
 #if defined(__linux__)
@@ -125,6 +134,6 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  unsigned w=0,h=0;
  if(lodepng::decode(pixels,w,h,bytes)!=0||w!=width||h!=height||
     pixels.size()!=std::size_t(w)*h*4)return 0;
- texture[index]=renderer.create_texture(int(w),int(h),pixels.data());
- return texture[index];
+ template_textures[index]=renderer.create_texture(int(w),int(h),pixels.data());
+ return template_textures[index];
 }

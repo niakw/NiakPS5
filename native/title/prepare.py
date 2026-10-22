@@ -237,6 +237,24 @@ def prepare(kit: Path, project: Path, revision: str):
     for filename in ("lodepng.cpp", "lodepng.h"):
         shutil.copy2(project / "native" / "title" / "vendor" / filename, src_niak / filename)
     art_file = kit / "src/demo/catalog_art.cpp"
+    replace_once(art_file, 'void Catalog::release_covers(gfx::Renderer &renderer)\n{\n    for (Item &item : items_)',
+                 '''void Catalog::release_covers(gfx::Renderer &renderer)
+{
+    // Six platform templates are SHARED by every title. Destroy only once.
+    niak_release_case_templates(renderer);
+    for (Item &item : items_)''')
+    replace_once(art_file, '''        renderer.destroy_texture(item.cover);
+        item.cover = 0;''',
+                 '''        for(std::uint32_t *texture : {&item.case_front, &item.case_back,
+                                      &item.case_spine, &item.logo_art}) {
+            if(*texture)renderer.destroy_texture(*texture);
+            *texture=0;
+        }
+        if(item.cover)renderer.destroy_texture(item.cover);
+        item.cover = 0;
+        item.case_template_front=0;
+        item.case_template_back=0;
+        item.case_template_spine=0;''')
     replace_once(art_file, '#include "gfx/renderer.hpp"',
                  '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"')
     replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',
