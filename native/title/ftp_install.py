@@ -722,30 +722,41 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     elf = directory / "tools/niakps5.elf"
     if not elf.is_file() or elf.read_bytes()[:4] != b"\x7fELF":
         raise ValueError("One-shot payload missing or not an ELF; refusing autoload changes")
-    upload(ftp, PAYLOAD, elf.read_bytes())
+
+    # Preflight both PLDmgr files BEFORE writing payload, configuration or
+    # markers. A malformed config must not leave half-enabled autoload.
     original = retrieve(ftp, AUTOLOAD)
-    if original is not None:
-        if len(original) > 3500 or b"\0" in original:
-            raise ValueError("Unexpected autoload.txt; left untouched")
-        upload(ftp, AUTOLOAD + ".niakps5.bak", original)
-    entries = (original or b"").decode("utf-8").splitlines()
-    # Absolute path accepted by modern pldmgr. Keep all existing payload order.
-    if PAYLOAD not in [line.strip() for line in entries]:
+    raw = retrieve(ftp, CONFIG)
+    if original is not None and (len(original)>3500 or b"\0" in original):
+        raise ValueError("Unexpected autoload.txt; left untouched")
+    if raw is not None and (len(raw)>65536 or b"\0" in raw):
+        raise ValueError("Unexpected PLDmgr config; left untouched")
+    try:
+        entries = (original or b"").decode("utf-8").splitlines()
+        lines = (raw or b"").decode("utf-8").splitlines()
+    except UnicodeDecodeError as exc:
+        raise ValueError("Unexpected PLDmgr text encoding; left untouched") from exc
+    already_installed = PAYLOAD in [line.strip() for line in entries]
+    if not already_installed:
         entries += ["!2000", PAYLOAD]
     body = ("\n".join(entries).rstrip() + "\n").encode()
-    if len(body) > 4095:
+    if len(body)>4095:
         raise ValueError("Autoload file too large; no changes")
-    upload(ftp, AUTOLOAD, body)
-    # Explicit activation of the new entry without touching any other settings.
-    raw = retrieve(ftp, CONFIG)
-    if raw is not None:
-        if len(raw) > 65536 or b"\0" in raw:
-            raise ValueError("Unexpected config; do not change")
-        upload(ftp, CONFIG + ".niakps5.bak", raw)
-    lines = (raw or b"").decode("utf-8").splitlines()
+
     lines = [line for line in lines if not line.startswith("AUTOLOAD_ENABLED=")]
     lines.append("AUTOLOAD_ENABLED=1")
-    upload(ftp, CONFIG, ("\n".join(lines)+"\n").encode())
+    config_body=("\n".join(lines)+"\n").encode()
+
+    # Preserve FIRST-install backups across subsequent runs. Backing up an
+    # already modified config would destroy the only useful rollback copy.
+    if not already_installed:
+        if original is not None and retrieve(ftp,AUTOLOAD+".niakps5.bak") is None:
+            upload(ftp,AUTOLOAD+".niakps5.bak",original)
+        if raw is not None and retrieve(ftp,CONFIG+".niakps5.bak") is None:
+            upload(ftp,CONFIG+".niakps5.bak",raw)
+    upload(ftp, PAYLOAD, elf.read_bytes())
+    upload(ftp, AUTOLOAD, body)
+    upload(ftp, CONFIG, config_body)
     # Activate only once both the binary and the autoload configuration exist.
     upload(ftp, "/data/niakps5-autostart.enabled", b"")
     if return_after_game:

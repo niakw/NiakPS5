@@ -169,6 +169,34 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("/data/niakps5-return-after-game.enabled",f.files)
         ftpmod.install(f,self.root,True,False)
         self.assertEqual(f.files[ftpmod.AUTOLOAD].decode().count(ftpmod.PAYLOAD),1)
+        # A repeat install must never replace the original pre-Niak backups.
+        self.assertEqual(f.files[ftpmod.AUTOLOAD+".niakps5.bak"],initial)
+        self.assertEqual(f.files[ftpmod.CONFIG+".niakps5.bak"],config)
+
+
+    def test_invalid_pldmgr_config_never_partially_enables_autoload(self):
+        existing=b"/data/pldmgr/payloads/shadow/shadow.elf\n"
+        f=FakeFTP({ftpmod.AUTOLOAD:existing,
+                   ftpmod.CONFIG:b"AUTOLOAD_ENABLED=0\0CORRUPT"})
+        with self.assertRaises(ValueError):
+            ftpmod.install(f,self.root,True)
+        self.assertEqual(f.files[ftpmod.AUTOLOAD],existing)
+        self.assertNotIn(ftpmod.PAYLOAD,f.files)
+        self.assertNotIn(ftpmod.AUTOLOAD+".niakps5.bak",f.files)
+        self.assertNotIn("/data/niakps5-autostart.enabled",f.files)
+
+    def test_autoload_backup_is_never_replaced_if_it_preexists(self):
+        initial=b"/data/pldmgr/payloads/shadow/shadow.elf\n"
+        first_backup=b"ORIGINAL BEFORE NIAKPS5\n"
+        first_config=b"AUTOLOAD_ENABLED=0\nAUTOLOAD_DELAY=3\n"
+        current_config=b"AUTOLOAD_ENABLED=1\nAUTOLOAD_DELAY=5\n"
+        f=FakeFTP({ftpmod.AUTOLOAD:initial,
+                   ftpmod.CONFIG:current_config,
+                   ftpmod.AUTOLOAD+".niakps5.bak":first_backup,
+                   ftpmod.CONFIG+".niakps5.bak":first_config})
+        ftpmod.install(f,self.root,True)
+        self.assertEqual(f.files[ftpmod.AUTOLOAD+".niakps5.bak"],first_backup)
+        self.assertEqual(f.files[ftpmod.CONFIG+".niakps5.bak"],first_config)
 
     def test_single_profile_avatar_is_locally_staged(self):
         user="0x12345678"
