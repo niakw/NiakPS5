@@ -151,6 +151,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case-05-wallpaper-r1",host)
         self.assertIn("case-06-touchpad-details",host)
         self.assertIn("case-07-ps4-template-front",host)
+        self.assertIn('ids[n][0]==\'C\'?"PS4":"PS5"',host)
         self.assertIn("case-08-ps4-template-back",host)
         self.assertIn("PS4 front and back overlays rendered identically",
                       (ROOT/"title"/"validate_preview.py").read_text())
