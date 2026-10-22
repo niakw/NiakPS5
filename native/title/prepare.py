@@ -94,7 +94,7 @@ def prepare(kit: Path, project: Path):
     # Failed launch must remain visible in the detail panel rather than
     # closing as if it had succeeded; the PS5 return code is diagnostic.
     replace_once(aurora, '    int action_ = 0;', 
-                 "    char launch_error_[96] = {};\\n    int action_ = 0;")
+                 "    char launch_error_[96] = {};\n    int action_ = 0;")
     # Favorites affect actual positions, not merely the star decoration.
     replace_once(aurora, '        favorite_[index] = !favorite_[index];',
                  """        favorite_[index] = !favorite_[index];
