@@ -128,7 +128,7 @@ def upload_local_homebrew_names(ftp):
       except (error_perm,AttributeError,OSError):continue
       for dirname in entries[:300]:
         ident=posixpath.basename(dirname.rstrip("/"))
-        if not re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE)[0-9]{5}",ident):continue
+        if not re.fullmatch(r"(PPSA|CUSA|LAPY|FAKE|NPXS)[0-9]{5}",ident):continue
         try: body=_bounded_retrieve(ftp,f"{root}/{ident}/sce_sys/param.json")
         except (OSError,ValueError):continue
         if not body or len(body)>65536:continue
@@ -155,6 +155,10 @@ def upload_local_homebrew_names(ftp):
             if type(category) is int:
                 if category==0:genre="Jeu"
                 elif category in (65536,65792,66048):genre="Application"
+            # NPXS also covers Sony system services. Only verified installed
+            # media applications qualify for this private metadata overlay.
+            if ident.startswith("NPXS") and genre!="Application":
+                continue
             if title and "\t" not in title:
                 records[ident]=(title,genre)
     if records:
