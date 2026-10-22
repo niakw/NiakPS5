@@ -153,6 +153,12 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("const Camera camera{",source)
         self.assertNotIn("case_wrap",source)
         self.assertIn("if(back&&show_face)",source)
+        # Near-front/back holds use fewer quads; full perspective returns
+        # during rotation to preserve the 3D box proportions and corners.
+        self.assertIn("const bool near_frontal=std::fabs(camera.cs)>0.985f",source)
+        self.assertIn("near_frontal?12:32",source)
+        self.assertIn("near_frontal?12:24",source)
+        self.assertIn("near_frontal?12:28",source)
         self.assertIn("if(!back&&show_face)",source)
         self.assertIn("if(show_spine)",source)
         self.assertIn("if(show_seal)",source)

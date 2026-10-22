@@ -109,9 +109,15 @@ void outer_face(DrawList &list,const Camera &camera,
         return at(back?pRight+(pLeft-pRight)*u:pLeft+(pRight-pLeft)*u,
                   pTop+(pBottom-pTop)*v);
     };
+    // Near the stationary front/back holds the perspective is almost
+    // rectangular. Reduce per-frame texture quads by ~75%, but retain full
+    // tessellation as soon as the case rotates toward the edge.
+    const bool near_frontal=std::fabs(camera.cs)>0.985f;
+    const int face_columns=near_frontal?12:32;
+    const int face_rows=near_frontal?6:9;
     const auto texture=back?item.case_back:item.case_front;
     if(texture) {
-        printed(list,texture,paper,32,9);
+        printed(list,texture,paper,face_columns,face_rows);
     } else {
         // RECONSTRUCTED insert, computed in the native 3D renderer. No generated
         // or packaged fake artwork. The existing installed icon is the art source.
@@ -132,20 +138,23 @@ void outer_face(DrawList &list,const Camera &camera,
                     return paper(u,0.115f+0.885f*v);
                 };
                 const auto image=item.case_scene?item.case_scene:item.cover;
-                printed(list,image,fill,24,24,
+                printed(list,image,fill,near_frontal?12:24,
+                        near_frontal?8:24,
                         item.case_scene?false:!item.cover_is_image);
                 block(0,0.71f,1,1,Color::rgb(0x051021,0.70f));
                 auto detail=[&](float u,float v){
                     return paper(0.055f+u*0.89f,0.18f+v*0.59f);
                 };
-                printed(list,item.cover,detail,18,18,!item.cover_is_image);
+                printed(list,item.cover,detail,near_frontal?12:18,
+                        near_frontal?8:18,!item.cover_is_image);
             }
             if(item.case_template_front) {
                 // User-supplied authentic PS4/PS5 masthead, same for every case.
                 const auto banner=[&](float u,float v){
                     return paper(u,v*0.125f);
                 };
-                printed(list,item.case_template_front,banner,28,4);
+                printed(list,item.case_template_front,banner,
+                        near_frontal?12:28,near_frontal?3:4);
             } else {
                 block(0,0,1,0.123f,Color::rgb(ps4?0x0351a8:0xf2f7fc));
                 block(0,0.122f,1,0.130f,Color::rgb(ps4?0xd7ecff:0x1558c4));
@@ -161,7 +170,8 @@ void outer_face(DrawList &list,const Camera &camera,
                     return paper(0.025f+u*0.95f,0.115f+v*0.37f);
                 };
                 const auto image=item.case_scene?item.case_scene:item.cover;
-                printed(list,image,art,26,12,
+                printed(list,image,art,near_frontal?12:26,
+                        near_frontal?6:12,
                         item.case_scene?false:!item.cover_is_image);
             }
             // Exact proportions of the user-provided strips:
@@ -176,7 +186,8 @@ void outer_face(DrawList &list,const Camera &camera,
                 auto footer=[&](float u,float v){
                     return paper(u,footer_start+(1.0f-footer_start)*v);
                 };
-                printed(list,item.case_template_back,footer,28,8);
+                printed(list,item.case_template_back,footer,
+                        near_frontal?12:28,near_frontal?5:8);
             } else {
                 block(0,footer_start,1,1,Color::rgb(0xd4e1ed));
                 block(0.035f,0.705f,0.965f,0.84f,Color::rgb(0x254a77));
