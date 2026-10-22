@@ -198,6 +198,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("stats.templates+=item.case_template_front!=0",stage)
         self.assertIn("Retour à l’accueil Sony",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("QUITTER NIAKPS5",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertIn("kWhite.with_alpha(active ? 1.0f : 0.88f)",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertIn("Color::rgb(0x06101c, 0.28f)",(ROOT/"title"/"patch_home.py").read_text())
         self.assertNotIn("OUVRIR LE SYSTEME",(ROOT/"title"/"patch_home.py").read_text())
         self.assertNotIn("Accueil natif NiakTV",(ROOT/"title"/"prepare.py").read_text())
         self.assertIn("Multimédia",(ROOT/"title"/"prepare.py").read_text())

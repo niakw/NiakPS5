@@ -291,6 +291,16 @@ def patch(kit):
     void update_shelves(const InputFrame &input, app::Feedback &feedback)
 """)
     text = once(text, "            const bool active = i == 0;", "            const bool active = i == active_tab_;")
+    # Real GPU screenshot review: tabs are too faint on light scenery.
+    # A subtle dark band and stronger inactive text keep their contrast
+    # without hiding the dynamic wallpaper or adding a second UI layer.
+    text = once(text,
+        '        const char *tabs[] = {"NIAK", "Jeux", "Multimédia", "Réglages"};',
+        '        list.rounded_rect({70, 45, 655, 75}, 22, Color::rgb(0x06101c, 0.28f));\n'
+        '        const char *tabs[] = {"NIAK", "Jeux", "Multimédia", "Réglages"};')
+    text = once(text,
+        'kWhite.with_alpha(active ? 1.0f : 0.55f)',
+        'kWhite.with_alpha(active ? 1.0f : 0.88f)')
     text = once(text, "            x += w + 44;\n", """            if (top_focus_ && i == selected_tab_)
                 list.bordered_rect({x - 15, 53, w + 30, 56}, 17,
                                    kWhite.with_alpha(0.06f), 2.6f, palette_[3].value());
