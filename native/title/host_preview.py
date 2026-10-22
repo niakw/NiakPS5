@@ -135,6 +135,7 @@ def patch(kit):
         item.genre=n==4?"HOMEBREW":"PS5";
         item.blurb="Aperçu C++/OpenGL hors console. Catalogue utilisateur non accessible.";
         item.homebrew=n==4;
+        item.application=n==4; // Exercise the real apps/homebrew second row.
         std::snprintf(item.title_id,sizeof(item.title_id),"%s",ids[n]);
         item.dark=gfx::Color::rgb(0x081719);
         item.mid=gfx::Color::rgb(0x183e44);
