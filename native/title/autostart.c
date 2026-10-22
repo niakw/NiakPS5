@@ -149,7 +149,10 @@ static void serve_launch_requests(int launcher_started) {
     report("Local launch broker ready (127.0.0.1 only)",0);
     NiakRedirectGate gate;
     int current_niak=-1, gate_ready=0;
-    for(int ticks=0;ticks<21600;++ticks) {
+    // The original 21,600 two-second iterations silently stopped the
+    // launch service after roughly twelve hours. Keep the opt-in broker
+    // alive until the user disables it or the console shuts down.
+    for(;;) {
         if(is_regular_file(NIAK_DISABLED)||!is_regular_file(NIAK_ENABLED))break;
         fd_set pending;FD_ZERO(&pending);FD_SET(fd,&pending);
         struct timeval tv={2,0};
