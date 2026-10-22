@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#define _POSIX_C_SOURCE 200809L
 // Connect only to NiakPS5's opt-in PLDmgr local launch broker.
 // A sandboxed title must not claim sceSystemServiceLaunchApp works here.
 #include "niak/launch_bridge.hpp"
