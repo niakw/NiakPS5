@@ -207,7 +207,9 @@ void outer_face(DrawList &list,const Camera &camera,
             if(!back) {
                 const auto area=text_bounds(0.06f,0.94f,0.925f);
                 const auto pos=paper(0.06f,0.925f);
-                if(area.second>55.f)
+                // The procedural fallback icon already prints its title:
+                // don't stamp it twice on the reconstructed jacket.
+                if(area.second>55.f && (!item.cover || item.cover_is_image))
                     hui::ui::paragraph(list,fonts.semibold,item.title,
                         area.first,pos.y, std::clamp(area.second*0.066f,10.f,18.f),
                         area.second,21.f,Color::rgb(0xffffff),2);
