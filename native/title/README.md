@@ -139,3 +139,33 @@ La description affichée provient des **métadonnées factuelles disponibles**, 
 Les 14 visuels embarqués dans `assets/niak-daily` proviennent d'un relevé GitHub des sorties récentes PS5 et des images d'éditeurs PlayStation. Un bug TGA empêchait précédemment le chargement des images en rejetant leur pied de fichier standard de 26 octets ; ce bug est corrigé. Le titre sélectionne désormais un visuel différent chaque jour selon sa date locale. **Le titre essaie maintenant un rafraîchissement HTTPS quotidien** à partir d'un flux de sorties PS5 publiques (worker hors thread graphique, cache privé `/download0`). En cas d'échec du réseau ou de permission, il garde les 14 images du paquet et sélectionne celle du jour localement. R1 parcourt immédiatement ces images embarquées sans avancer la date réelle. La disponibilité du service HTTPS natif reste à confirmer sur la console et le firmware cible.
 
 Un élément « Paramètres PS5 » ne doit pas prétendre ouvrir directement un service Sony non supporté : l'option quitte vers l'accueil Sony. Aucun accès à des réglages sensibles ou fonction système n'a été contourné.
+
+## Contrôles de la version et du lancement
+
+Le moteur amont consommait les actions R1 et clic tactile avant NiakPS5.
+La version à écran unique transmet ces deux actions à NiakPS5. Les captures
+OpenGL doivent montrer un changement réel de fond après R1 et la fiche de
+détails propre à NiakPS5 après un clic du pavé tactile.
+
+Réglages affiche le SHA Git exact du titre compilé ainsi que le résultat d'un
+PING local du service de lancement PLDmgr. La simple présence de l'ELF ou
+du fichier autoload ne prouve pas que le service fonctionne.
+
+Pour comparer les deux binaires du paquet local à l'installation PS5 :
+
+    python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --status
+
+La commande est en lecture seule : elle compare les SHA-256 de eboot.bin
+et du payload niakps5.elf. Un ancien binaire explique pourquoi l'interface
+semble inchangée malgré les commits. Les accès FTP refusés sont déclarés
+inconnus, jamais présumés valides.
+
+Jouer utilise désormais le service local du payload opt-in PLDmgr, limité
+à 127.0.0.1:19187, pour les identifiants d'applications installées.
+Les erreurs de ce service sont affichées dans la fiche au lieu de fermer
+silencieusement l'écran. Le succès effectif sur le firmware PS5 doit
+toujours être constaté sur console ; il ne découle pas d'un CI vert.
+
+Jeux et Applications sont répartis par catégorie réelle si la PS5 la rend
+accessible, et triés par dernier accès puis installation. Si app.db n'est
+pas lisible, le dossier d'installation fournit une date de repli approximative.
