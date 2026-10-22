@@ -258,8 +258,8 @@ def prepare(kit: Path, project: Path, revision: str):
         item.case_template_spine=0;''')
     replace_once(art_file, '#include "gfx/renderer.hpp"',
                  '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/asset_stats.hpp"')
-    replace_once(art_file, 'void Catalog::load_covers(gfx::Renderer &renderer)\n{',
-                 'void Catalog::load_covers(gfx::Renderer &renderer)\n{\n    niak::case_media_stats={};')
+    replace_once(art_file, '    release_covers(renderer);\n    constexpr float kSize',
+                 '    release_covers(renderer);\n    niak::case_media_stats={};\n    constexpr float kSize')
     replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',
                  """    for (Item &item : items_)
     {
