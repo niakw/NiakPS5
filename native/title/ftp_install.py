@@ -394,9 +394,9 @@ def _listed(ftp,path):
         return None
 
 
-def installed_binary_matches(ftp,local_binary,maximum=150*1024*1024):
+def installed_binary_matches(ftp,local_binary,remote_path=None,maximum=150*1024*1024):
     """Stream hashes read-only, with a hard byte bound; never copy PS5 binaries."""
-    target=f"/data/homebrew/{TITLE}/eboot.bin"
+    target=remote_path or f"/data/homebrew/{TITLE}/eboot.bin"
     local=Path(local_binary)
     if not local.is_file() or local.stat().st_size>maximum:
         return None
@@ -447,6 +447,14 @@ def diagnose(ftp,local_directory=None):
               "rectos,",sum(name.endswith("-back.png") for name in art),"versos,",
               sum(name.endswith("-spine.png") for name in art),"tranches")
     print("Payload ELF :",known(None if payloads is None else PAYLOAD in payloads))
+    if local_directory is not None:
+        elf_match=installed_binary_matches(
+            ftp,Path(local_directory)/"tools/niakps5.elf",PAYLOAD,
+            maximum=20*1024*1024)
+        print("Payload PLDmgr identique au paquet :",known(elf_match))
+        if elf_match is False:
+            print("Attention : le payload est ancien. Le service Jouer "
+                  "ne peut pas être considéré comme installé.")
     autoload=retrieve(ftp,AUTOLOAD)
     config=retrieve(ftp,CONFIG)
     configured=(autoload is not None and PAYLOAD in
