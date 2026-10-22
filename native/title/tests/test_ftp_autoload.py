@@ -110,6 +110,27 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-back.png",f.files)
         self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA01234-front.png",f.files)
 
+    def test_continuous_jacket_atlas_has_no_paper_gaps(self):
+        from PIL import Image
+        from io import BytesIO
+        def sample(rgb,width):
+            img=Image.new("RGB",(width,640),rgb)
+            out=BytesIO()
+            img.save(out,format="PNG")
+            return out.getvalue()
+        atlas=ftpmod._compose_case_wrap({
+            "back":sample((190,28,25),460),
+            "spine":sample((60,100,230),44),
+            "front":sample((18,80,150),460)})
+        self.assertIsNotNone(atlas)
+        with Image.open(BytesIO(atlas)) as img:
+            self.assertEqual(img.size,(964,620))
+            rgb=img.convert("RGB")
+            for seam in (460,504):
+                left=rgb.getpixel((seam-1,320))
+                right=rgb.getpixel((seam,320))
+                self.assertLess(sum(abs(a-b) for a,b in zip(left,right)),80)
+
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
         (self.root/"tools/niakps5.elf").write_bytes(b"Not an ELF")
