@@ -173,6 +173,9 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("stats.templates+=item.case_template_front!=0",stage)
         self.assertIn("Médias lus par NiakPS5",
                       (ROOT/"title"/"patch_home.py").read_text())
+        settings_ui=(ROOT/"title"/"patch_home.py").read_text()
+        self.assertIn("now-last_check>=15",settings_ui)
+        self.assertNotIn("static const bool live_broker",settings_ui)
         self.assertIn("niak_release_case_templates",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("niak_release_case_templates(renderer)",stage)
         self.assertIn("renderer.destroy_texture(*texture)",stage)
