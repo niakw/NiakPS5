@@ -10,6 +10,9 @@ typedef struct {
   char background[512];
   unsigned char discovered_from_homebrew; /* metadata-only, registration not proven */
   unsigned char is_homebrew; /* verified /data/homebrew path, not inferred from PPSA */
+  unsigned char application_category; /* 0 unknown, 1 game, 2 media app */
+  char last_access[48];
+  char installed_at[48];
 } NiakGame;
 /* Read-only catalogue; checks installed app directories and excludes shell titles. */
 int niak_scan_games(const char *database_path, const char *filesystem_root,

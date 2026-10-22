@@ -44,12 +44,23 @@ def prepare(kit: Path, project: Path):
     new = '''        // Library and verified homebrew apps, without imaginary application cards.
         shelves_.resize(2);
         shelves_[0].title = "Bibliothèque PS5";
-        shelves_[1].title = "Applications et homebrews";
+        shelves_[1].title = "Applications";
         for (int i = 0; i < static_cast<int>(items.size()); ++i)
         {
             // Use a category property rather than relying on PPSA/CUSA prefixes.
             const demo::Item &entry=items[static_cast<std::size_t>(i)];
             (entry.application ? shelves_[1] : shelves_[0]).items.push_back(i);
+        }
+        // Recent launch/play/install first; unknown dates sort alphabetically.
+        for(Shelf &shelf:shelves_) {
+            std::stable_sort(shelf.items.begin(),shelf.items.end(),
+                [&items](int left,int right) {
+                    const demo::Item &a=items[static_cast<std::size_t>(left)];
+                    const demo::Item &b=items[static_cast<std::size_t>(right)];
+                    const int date=std::strcmp(a.recently_used,b.recently_used);
+                    if(date!=0)return date>0;
+                    return std::strcmp(a.title,b.title)<0;
+                });
         }
         // Empty rows crash the upstream focus/card code. When there are
         // only applications, show one Applications row rather than putting
@@ -177,7 +188,7 @@ def prepare(kit: Path, project: Path):
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
-                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::vector<Item> items_;')
 
@@ -481,12 +492,15 @@ Catalog::Catalog()
                          (game.id[0]=='C' ? "PS4" : "PS5");
             // The current scanner has no trusted category for native titles.
             // Homebrew folders are initially classified as applications.
-            if (known && meta.category=="Jeu")
-                item.application=false;
-            else if (known && meta.category=="Application")
-                item.application=true;
-            else
-                item.application = game.is_homebrew != 0;
+            if (game.application_category==1)item.application=false;
+            else if(game.application_category==2)item.application=true;
+            else if (known && meta.category=="Jeu")item.application=false;
+            else if (known && meta.category=="Application")item.application=true;
+            else item.application=game.is_homebrew!=0;
+            const char *last=game.last_access;
+            const char *installed=game.installed_at;
+            const char *recent=std::strcmp(last,installed)>=0?last:installed;
+            std::snprintf(item.recently_used,sizeof(item.recently_used),"%s",recent);
             item.blurb = owned_blurbs_.back().c_str();
             item.homebrew = game.is_homebrew != 0;
             item.year = 0;

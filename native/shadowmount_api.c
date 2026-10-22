@@ -126,6 +126,10 @@ int niak_parse_shadowmount_games(const char *json,NiakGame *games,size_t capacit
   if(!member_string(begin,p,"name",game.title,sizeof(game.title))||!game.title[0])
    snprintf(game.title,sizeof(game.title),"%s",game.id);
   game.discovered_from_homebrew=2;
+  member_string(begin,p,"last_launch_time",game.last_access,sizeof(game.last_access));
+  if(!game.last_access[0])
+    member_string(begin,p,"last_access_time",game.last_access,sizeof(game.last_access));
+  member_string(begin,p,"install_time",game.installed_at,sizeof(game.installed_at));
   char source_path[512]={0};
   if(member_string(begin,p,"path",source_path,sizeof(source_path)) &&
      strncmp(source_path,"/data/homebrew/",15)==0)

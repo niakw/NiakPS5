@@ -19,6 +19,57 @@ int niak_valid_title_id(const char *id) {
   for (int i=4;i<9;i++) if (id[i]<'0' || id[i]>'9') return 0;
   return id[9]=='\0';
 }
+
+/* NPXS can refer to Sony built-ins: only explicit media categories qualify. */
+static int valid_media_id(const char *id) {
+ if(!id||strlen(id)!=9||strncmp(id,"NPXS",4)!=0)return 0;
+ for(int i=4;i<9;i++)if(id[i]<'0'||id[i]>'9')return 0;
+ return 1;
+}
+static int category_of(const char *text) {
+ if(!text)return 0;
+ const char *p=strstr(text,"applicationCategoryType");
+ if(!p || !(p=strchr(p,':')))return 0;
+ char *end=NULL;long v=strtol(p+1,&end,10);
+ if(end==p+1)return 0;
+ if(v==0)return 1;
+ return v==65536||v==65792||v==66048 ? 2 : 0;
+}
+static int category_from_param(const char *root,const char *id) {
+ static const char *paths[]={"/user/app/","/system_ex/app/",
+      "/data/homebrew/","/mnt/ext0/user/app/","/mnt/ext1/user/app/"};
+ char file[768],content[32769];
+ for(size_t i=0;i<sizeof(paths)/sizeof(paths[0]);++i) {
+  int n=snprintf(file,sizeof(file),"%s%s%s/sce_sys/param.json",root,paths[i],id);
+  if(n<=0||n>=(int)sizeof(file))continue;
+  FILE *fp=fopen(file,"rb");if(!fp)continue;
+  size_t size=fread(content,1,sizeof(content)-1,fp);
+  int eof=feof(fp);fclose(fp);
+  if(!eof || size<15)continue;
+  content[size]=0;
+  int category=category_of(content);
+  if(category)return category;
+ }
+ return 0;
+}
+static void read_json_value(const char *source,const char *key,char *out,size_t cap) {
+ if(!source||!key||!cap)return;
+ char quoted[90];snprintf(quoted,sizeof(quoted),"\"%s\"",key);
+ const char *p=strstr(source,quoted);
+ if(!p || !(p=strchr(p+strlen(quoted),':')))return;
+ ++p;while(*p==' '||*p=='\t')++p;
+ size_t n=0;
+ if(*p=='"') {
+  ++p;
+  while(*p && *p!='"' && n+1<cap) {
+   if(*p=='\\')return;
+   out[n++]=*p++;
+  }
+ }else{
+  while((*p>='0'&&*p<='9') && n+1<cap)out[n++]=*p++;
+ }
+ out[n]=0;
+}
 static int installed(const char *root,const char *id) {
   static const char *prefixes[]={"/user/app/","/system_ex/app/","/mnt/ext0/user/app/","/mnt/ext1/user/app/","/data/homebrew/"};
   char path[768];
@@ -45,11 +96,28 @@ static int gather(sqlite3 *db,const char *sql,const char *root,NiakGame *games,s
   while(sqlite3_step(st)==SQLITE_ROW && *count<capacity){
     const char *id=(const char*)sqlite3_column_text(st,0);
     const char *name=(const char*)sqlite3_column_text(st,1);
-    if(!niak_valid_title_id(id)||!installed(root,id)||find_index(games,*count,id)>=0)continue;
+    if((!niak_valid_title_id(id)&&!valid_media_id(id))||
+       !installed(root,id)||find_index(games,*count,id)>=0)continue;
+    const int columns=sqlite3_column_count(st);
+    const char *details=columns>4?(const char*)sqlite3_column_text(st,4):NULL;
+    int category=category_from_param(root,id);
+    if(!category)category=category_of(details);
+    if(valid_media_id(id) && category!=2)continue;
     NiakGame *game=&games[(*count)++];
     memset(game,0,sizeof(*game));
     copy_text(game->id,sizeof(game->id),id);
     copy_text(game->title,sizeof(game->title),(name&&name[0])?name:id);
+    game->application_category=(unsigned char)category;
+    if(columns>3) {
+      copy_text(game->last_access,sizeof(game->last_access),
+                (const char*)sqlite3_column_text(st,2));
+      copy_text(game->installed_at,sizeof(game->installed_at),
+                (const char*)sqlite3_column_text(st,3));
+    }
+    read_json_value(details,"#_last_access_time",
+                    game->last_access,sizeof(game->last_access));
+    read_json_value(details,"#_install_time",
+                    game->installed_at,sizeof(game->installed_at));
     artwork(root,id,"icon0.png",game->icon,sizeof(game->icon));
     artwork(root,id,"pic1.png",game->background,sizeof(game->background));
     if(!game->background[0])artwork(root,id,"pic0.png",game->background,sizeof(game->background));
@@ -68,7 +136,10 @@ int niak_scan_games(const char *database_path,const char *filesystem_root,NiakGa
   size_t count=0;
   /* PS5 databases vary between firmware revisions. These are best-effort queries. */
   const char *queries[]={
-    "SELECT titleId,titleName FROM tbl_appbrowse WHERE titleId LIKE 'CUSA%' OR titleId LIKE 'PPSA%' ORDER BY titleName COLLATE NOCASE",
+    "SELECT titleId,titleName,lastAccessTime,installTime,AppInfoJson FROM tbl_contentinfo "
+    "WHERE titleId LIKE 'CUSA%' OR titleId LIKE 'PPSA%' OR titleId LIKE 'NPXS%' "
+    "ORDER BY lastAccessTime DESC,installTime DESC",
+    "SELECT titleId,titleName FROM tbl_appbrowse WHERE titleId LIKE 'CUSA%' OR titleId LIKE 'PPSA%' OR titleId LIKE 'NPXS%' ORDER BY titleName COLLATE NOCASE",
     "SELECT titleId, MAX(CASE WHEN key='TITLE_01' THEN val END) FROM tbl_appinfo WHERE titleId LIKE 'CUSA%' OR titleId LIKE 'PPSA%' GROUP BY titleId",
     "SELECT titleId, titleId FROM tbl_contentinfo WHERE titleId LIKE 'CUSA%' OR titleId LIKE 'PPSA%'"
   };
@@ -126,6 +197,7 @@ int niak_scan_homebrews(const char *filesystem_root,NiakGame *games,size_t capac
     copy_text(game->title,sizeof(game->title),id);
     game->discovered_from_homebrew=1;
     game->is_homebrew=1;
+    game->application_category=(unsigned char)category_from_param(filesystem_root,id);
     n=snprintf(icon,sizeof(icon),"%s/sce_sys/icon0.png",folder);
     if(n>0&&n<(int)sizeof(icon)&&is_plain_file(icon))
       copy_text(game->icon,sizeof(game->icon),icon);
