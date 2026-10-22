@@ -64,6 +64,13 @@ def make_case_art_fixtures(kit):
     d.text((13,85),"5",fill=(18,35,74),font=font(23))
     d.line((10,145,10,580),fill=(27,103,175),width=4)
     spine.save(output/f"{ident}-spine.png",optimize=True)
+    # Original QA art only; same no-gap atlas generator as private FTP.
+    from ftp_install import _compose_case_wrap
+    components={side:(output/f"{ident}-{side}.png").read_bytes()
+                for side in ("front","spine","back")}
+    wrap=_compose_case_wrap(components)
+    if wrap is None:raise RuntimeError("Continuous preview sleeve failed")
+    (output/f"{ident}-wrap.png").write_bytes(wrap)
 
 def one(path,old,new):
     data=path.read_text("utf8")
@@ -121,12 +128,15 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         hui::InputFrame idle;
         idle.connected = true;
         shell.show(0, false);
-        for(int frame=0;frame<580;++frame) {
+        for(int frame=0;frame<715;++frame) {
             shell.update(idle,kDt);
             if(frame==90)render("case-00-front");
-            if(frame==224)render("case-01-turn");
-            if(frame==340)render("case-02-back");
-            if(frame==520)render("case-03-return");
+            if(frame==180)render("case-01-unlatch");
+            if(frame==248)render("case-02-open");
+            if(frame==348)render("case-03-close");
+            if(frame==420)render("case-04-turn");
+            if(frame==540)render("case-05-back");
+            if(frame==690)render("case-06-return");
         }
         return ok ? 0 : 1;
     }
