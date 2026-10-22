@@ -25,7 +25,22 @@ def patch(kit):
                  'niak_draw_rotating_case(list,it,art,'
                  'context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_, fonts);')
     s=exactly(s,'list.image(it.cover, rect, gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);',
-                 'list.image(it.cover, rect, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);')
+                 '''if(it.cover) {
+                    list.image(it.cover,rect,
+                               it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv,
+                               kWhite.with_alpha(0.82f),22);
+                } else {
+                    // During idle-only streaming, unprocessed games must
+                    // occupy visible shelf cards rather than empty holes.
+                    // This is a neutral title card, NOT a loading screen.
+                    list.rounded_rect(rect,22,it.dark);
+                    list.bordered_rect(rect,22,
+                        Color::rgb(0x000000,0.0f),1.5f,it.accent.with_alpha(0.55f));
+                    ui::text(list,fonts.semibold,it.genre,
+                             rect.x+16,rect.y+34,17,kWhite.with_alpha(0.63f));
+                    ui::paragraph(list,fonts.semibold,it.title,
+                                  rect.x+15,rect.y+85,19,rect.w-30,24,kWhite,3);
+                }''')
     # Focused game tile is itself the animated physical PS4/PS5 case, not a
     # splash screen or a new loader. Unfocused tiles remain native flat icons;
     # homebrew titles always retain their app icon.
