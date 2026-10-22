@@ -12,7 +12,8 @@ using Index=std::unordered_map<std::string,NiakTitleMetadata>;
 static Index read_titles(){
  Index index;
  for(const char *source : {"/app0/assets/niak-ps-titles.tsv",
-                             "/app0/assets/niak-local-titles.tsv"}) {
+                             "/app0/assets/niak-local-titles.tsv",
+                             "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv"}) {
  FILE *f=std::fopen(source,"rb");if(!f)continue;
  char line[1200];
  while(std::fgets(line,sizeof(line),f)){
@@ -114,6 +115,8 @@ std::string niak_title_overview(const char *id) {
  static const auto index=[]() {
    std::unordered_map<std::string,std::string> data;
    FILE *f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
+   if(!f) f=std::fopen(
+       "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv","rb");
    if(!f)return data;
    char line[1800];
    while(std::fgets(line,sizeof(line),f)) {

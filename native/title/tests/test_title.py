@@ -154,6 +154,10 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
         self.assertIn("item.application",source)
+        self.assertIn('shelves_[0].items=shelves_[1].items',source)
+        self.assertNotIn('shelves_[0].items.push_back(shelves_[1].items.front())',source)
+        self.assertIn("/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+                      (ROOT/"title"/"title_meta.cpp").read_text())
         self.assertIn("applicationCategoryType",(ROOT/"title"/"ftp_install.py").read_text())
         self.assertIn("/download0/niak-favorites.tsv",source)
         self.assertIn("std::stable_partition",source)

@@ -51,10 +51,16 @@ def prepare(kit: Path, project: Path):
             const demo::Item &entry=items[static_cast<std::size_t>(i)];
             (entry.application ? shelves_[1] : shelves_[0]).items.push_back(i);
         }
-        if (shelves_[0].items.empty() && !shelves_[1].items.empty())
-            shelves_[0].items.push_back(shelves_[1].items.front());
-        if (shelves_[1].items.empty())
-            shelves_.resize(1);'''
+        // Empty rows crash the upstream focus/card code. When there are
+        // only applications, show one Applications row rather than putting
+        // an application into the Games row or duplicating its tile.
+        if (shelves_[0].items.empty() && !shelves_[1].items.empty()) {
+            shelves_[0].title=shelves_[1].title;
+            shelves_[0].items=shelves_[1].items;
+            shelves_.resize(1);
+        } else if (shelves_[1].items.empty()) {
+            shelves_.resize(1);
+        }'''
     replace_once(aurora, old, new)
     replace_once(aurora, '"Aurora Shelf",', '"NiakPS5",')
     replace_once(aurora, '"A console home screen: hero panel, cover shelves, frosted details",',
