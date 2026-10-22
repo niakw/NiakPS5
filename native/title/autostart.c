@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <time.h>
 #include "redirect_gate.h"
 #include "title_category.h"
 #include "socket_guard.h"
@@ -183,6 +184,12 @@ static int permitted_title(const char *id) {
     }
     return 0;
 }
+static uint64_t niak_monotonic_ms(void) {
+    struct timespec clock_time;
+    if(clock_gettime(CLOCK_MONOTONIC,&clock_time)!=0)return 0;
+    return (uint64_t)clock_time.tv_sec*1000u+
+           (uint64_t)clock_time.tv_nsec/1000000u;
+}
 static void serve_launch_requests(int launcher_started) {
     const int fd=socket(AF_INET,SOCK_STREAM,0);
     if(fd<0){report("Local launch broker socket unavailable",fd);return;}
@@ -267,7 +274,7 @@ static void serve_launch_requests(int launcher_started) {
         }
         if(!gate_ready)continue;
         const int running=sceSystemServiceGetAppIdOfRunningBigApp();
-        if(!niak_redirect_tick(&gate,running))continue;
+        if(!niak_redirect_tick(&gate,running,niak_monotonic_ms()))continue;
         int user=-1;
         const int user_rc=sceUserServiceGetForegroundUser(&user);
         if(user_rc==0 && niak_redirect_same_user(return_user,user)) {

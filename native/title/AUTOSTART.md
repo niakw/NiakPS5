@@ -67,7 +67,7 @@ Ce mécanisme ne peut pas lire le bouton PS (intercepté par le système) et **n
 
 Sur Android TV, `HomeRedirectService` reçoit un évènement `TYPE_WINDOW_STATE_CHANGED` d'AccessibilityService et lance `MainActivity`. Le système PS5 ne fournit pas cette API au titre NiakPS5. Le mode `--return-after-game` observe seulement les transitions entre applications PS5 en avant-plan, par périodes de deux secondes. Il ne voit ni l'appui court/long sur PS ni le contexte des fenêtres du Centre de contrôle.
 
-Le verrou `redirect_gate.h` vérifie : un vrai autre bigapp a succédé à NiakPS5, puis aucun bigapp actif pendant cinq mesures consécutives. Il ignore une erreur d'observation, attend au moins ~10 s avant de lancer, ne lance qu'une fois, et ne tente pas de remplacer le shell Sony. Ce mode est désactivé sans le marqueur `/data/niakps5-return-after-game.enabled`.
+Le verrou `redirect_gate.h` vérifie : un vrai autre bigapp a succédé à NiakPS5, puis une période continue d'au moins dix secondes sans grand titre actif, mesurée avec l'horloge monotone (indépendamment du nombre de requêtes réseau). Il ignore une erreur d'observation, attend au moins ~10 s avant de lancer, ne lance qu'une fois, et ne tente pas de remplacer le shell Sony. Ce mode est désactivé sans le marqueur `/data/niakps5-return-after-game.enabled`.
 
 La redirection immédiate au bouton PS comme NiakTV nécessiterait une instrumentation spécifique de `SceShellUI`, plus invasive et non validée sur le firmware de test. Ne pas la confondre avec le mode de retour après fermeture d'un jeu.
 
