@@ -141,7 +141,7 @@ def patch(kit):
     {
         const auto &fonts = context_.fonts;
         const bool settings = active_tab_ == 3;
-        ui::text(list, fonts.display, settings ? "Reglages" : "Multimedia",
+        ui::text(list, fonts.display, settings ? "Réglages" : "Multimédia",
                  96, 232, 78, kWhite);
         if (!settings)
         {
@@ -181,7 +181,7 @@ def patch(kit):
                                 "Animations reduites", "Afficher FPS",
                                 "Vibrations DualSense", "Couleur lumineuse",
                                 "Volume des effets sonores",
-                                "Retour a l'accueil Sony / parametres PS5"};
+                                "Retour à l’accueil Sony"};
         const auto &s=context_.settings;
         char value[40];
         for (int i=0;i<9;++i)
@@ -201,7 +201,7 @@ def patch(kit):
                               i==1 ? s.ui_volume : i==2 ? s.music_volume : s.sfx_volume);
                 display=value;
             }
-            else if(i==8) display="OUVRIR LE SYSTEME";
+            else if(i==8) display="QUITTER NIAKPS5";
             else
             {
                 const bool on=i==3 ? s.reduced_motion : i==4 ? s.show_fps :
@@ -282,8 +282,8 @@ def patch(kit):
         ui::text(list, fonts.regular, niak::revision, 110, 950, 20,
                  kWhite.with_alpha(0.72f));
         ui::paragraph(list, fonts.regular,
-                      "Les reglages de la console restent geres par Sony. "
-                      "Le dernier choix quitte NiakPS5 pour y acceder. "
+                      "Les réglages système restent accessibles via l’accueil Sony. "
+                      "Le dernier choix quitte uniquement NiakPS5. "
                       "Rond : revenir aux onglets.",
                       104, 990, 20, 1450, 30, kWhite.with_alpha(0.55f), 2);
     }

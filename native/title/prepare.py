@@ -76,9 +76,9 @@ def prepare(kit: Path, project: Path, revision: str):
     replace_once(aurora, old, new)
     replace_once(aurora, '"Aurora Shelf",', '"NiakPS5",')
     replace_once(aurora, '"A console home screen: hero panel, cover shelves, frosted details",',
-                 '"Votre console. Votre espace. Accueil natif NiakTV.",')
+                 '"Votre console. Votre espace. Accueil natif NiakPS5.",')
     replace_once(aurora, '''        const char *tabs[] = {"Home", "Library", "Store", "Captures"};''',
-                 '''        const char *tabs[] = {"NIAK", "Jeux", "Multimedia", "Reglages"};''')
+                 '''        const char *tabs[] = {"NIAK", "Jeux", "Multimédia", "Réglages"};''')
     replace_once(aurora, 'Color::rgb(0x7ff0d8),', 'Color::rgb(0x91f5df),')
     old_launch = '''            if (action_ == 0)
             {

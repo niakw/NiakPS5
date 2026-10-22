@@ -195,6 +195,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_load_case_template",(ROOT/"title"/"case_art.hpp").read_text())
         self.assertIn("stats.fronts+=item.case_front!=0",stage)
         self.assertIn("stats.templates+=item.case_template_front!=0",stage)
+        self.assertIn("Retour à l’accueil Sony",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertIn("QUITTER NIAKPS5",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertNotIn("OUVRIR LE SYSTEME",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertNotIn("Accueil natif NiakTV",(ROOT/"title"/"prepare.py").read_text())
+        self.assertIn("Multimédia",(ROOT/"title"/"prepare.py").read_text())
         self.assertIn("Médias lus par NiakPS5",
                       (ROOT/"title"/"patch_home.py").read_text())
         settings_ui=(ROOT/"title"/"patch_home.py").read_text()
