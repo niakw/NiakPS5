@@ -189,10 +189,13 @@ void outer_face(DrawList &list,const Camera &camera,
             const auto top=text_bounds(0.08f,0.92f,0.06f);
             const auto top_y=paper(0.5f,0.06f).y;
             const float label=std::clamp(top.second*0.10f,11.f,25.f);
-            hui::ui::text(list,fonts.semibold,ps4?"PS4":"PS5",
-                          top.first+top.second*0.5f,top_y+label*0.28f,
-                          label,Color::rgb(ps4?0xffffff:0x103d76),
-                          hui::gfx::Align::center);
+            // The uploaded masthead already contains the console marking.
+            // Drawing an extra PS4/PS5 caption would double the logo.
+            if(back || !item.case_template_front)
+                hui::ui::text(list,fonts.semibold,ps4?"PS4":"PS5",
+                              top.first+top.second*0.5f,top_y+label*0.28f,
+                              label,Color::rgb(ps4?0xffffff:0x103d76),
+                              hui::gfx::Align::center);
             if(!back) {
                 const auto area=text_bounds(0.06f,0.94f,0.925f);
                 const auto pos=paper(0.06f,0.925f);
