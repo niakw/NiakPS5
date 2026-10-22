@@ -51,6 +51,10 @@ def patch(kit):
        '''if (it.logo_art)
             list.image(it.logo_art, {x + 460, 220, 300, 85}, gfx::kFullUv, kWhite);
         ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);''')
+    # Keep the long title inside the available left column.
+    s=exactly(s,'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',
+        'ui::paragraph(list, fonts.display, it.title, x - 4, 285, '
+        '66, 1110, 73, kWhite, 2);')
     # The glyph sits on the left of the 220px-wide button; center the label
     # in the remaining area, not at the old left-aligned English text position.
     s=exactly(s,'''ui::text(list, fonts.semibold, it.title_id[0] ? "Jouer" : "Indisponible", play.x + 72,

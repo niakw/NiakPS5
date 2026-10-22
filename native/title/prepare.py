@@ -234,10 +234,6 @@ struct tm *localtime_r(const time_t *stamp, struct tm *dest) {
                             'ui::text(list, fonts.semibold, "N", 1800, 91, 22,')
     # Draw long titles inside the LEFT text column, never over the right-hand jacket.
     visual = visual.replace(
-        'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',
-        'ui::paragraph(list, fonts.display, it.title, x - 4, 285, '
-        '66, 1110, 73, kWhite, 2);')
-    visual = visual.replace(
         'ui::text(list, fonts.display, it.title, x - 2, sheet.y + 156, 60, kWhite);',
         'ui::paragraph(list, fonts.semibold, it.title, x - 2, sheet.y + 130, '
         '43, 690, 49, kWhite, 2);')
