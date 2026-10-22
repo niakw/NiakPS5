@@ -30,9 +30,9 @@ int main() {
     local.sin_family=AF_INET;local.sin_port=htons(19187);
     local.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
     assert(::bind(server,reinterpret_cast<sockaddr*>(&local),sizeof(local))==0);
-    assert(::listen(server,3)==0);
+    assert(::listen(server,4)==0);
     std::thread worker([&]() {
-        for(int i=0;i<3;++i) {
+        for(int i=0;i<4;++i) {
             int client=::accept(server,nullptr,nullptr);
             assert(client>=0);
             char buffer[40]{};
@@ -41,6 +41,10 @@ int main() {
             if(i==0) {
                 assert(std::strncmp(buffer,"PING\n",5)==0);
                 send_parts(client,"PO","NG\n");
+            } else if(i==3) {
+                assert(std::strncmp(buffer,"PING\n",5)==0);
+                // A dead broker accepted the socket but never replied.
+                std::this_thread::sleep_for(std::chrono::milliseconds(300));
             } else {
                 assert(std::strncmp(buffer,"LAUNCH PPSA12345\n",17)==0);
                 if(i==1)send_parts(client,"RC 0000","0000\n");
@@ -53,6 +57,11 @@ int main() {
     assert(niak_launch_broker_ready());
     assert(niak_launch_registered_title("PPSA12345")==0);
     assert(niak_launch_registered_title("PPSA12345")==-2);
+    const auto before=std::chrono::steady_clock::now();
+    assert(!niak_launch_broker_ready());
+    const auto milliseconds=std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now()-before).count();
+    assert(milliseconds<220);
     worker.join();
     ::close(server);
     return 0;

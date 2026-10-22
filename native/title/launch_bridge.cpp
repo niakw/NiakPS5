@@ -6,6 +6,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <cerrno>
+#include <fcntl.h>
+#include <sys/select.h>
 #include <cstdio>
 #include <cstring>
 #include <sys/socket.h>
@@ -68,29 +70,47 @@ int niak_launch_registered_title(const char *title_id) {
 }
 
 bool niak_launch_broker_ready() {
+    // This runs while drawing Settings. A connected but unresponsive local
+    // broker must never stall the UI for the previous one-second timeout.
     int fd=::socket(AF_INET,SOCK_STREAM,0);
     if(fd<0)return false;
-    timeval tv{1,0};
-    (void)::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
-    (void)::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+    const int flags=::fcntl(fd,F_GETFL,0);
+    if(flags<0 || ::fcntl(fd,F_SETFL,flags|O_NONBLOCK)<0) {
+        ::close(fd);
+        return false;
+    }
     sockaddr_in peer{};
     peer.sin_family=AF_INET;
-    peer.sin_port=htons(19187);
+    peer.sin_port=htons(kPort);
     peer.sin_addr.s_addr=htonl(0x7f000001u);
-    const bool connected=::connect(fd,reinterpret_cast<sockaddr*>(&peer),
-                                   sizeof(peer))==0;
-    bool ready=false;
-    if(connected && ::send(fd,"PING\n",5,0)==5) {
-        char answer[5]{};
-        std::size_t received=0;
+    int result=::connect(fd,reinterpret_cast<sockaddr*>(&peer),sizeof(peer));
+    if(result!=0 && errno==EINPROGRESS) {
+        fd_set writable;FD_ZERO(&writable);FD_SET(fd,&writable);
+        timeval connect_timeout{0,30000}; // at most 30ms on loopback
+        const int selected=::select(fd+1,nullptr,&writable,nullptr,&connect_timeout);
+        int error=0;socklen_t error_size=sizeof(error);
+        if(selected==1 && FD_ISSET(fd,&writable) &&
+           ::getsockopt(fd,SOL_SOCKET,SO_ERROR,&error,&error_size)==0 &&
+           error==0)result=0;
+    }
+    if(result!=0 || ::fcntl(fd,F_SETFL,flags)<0) {
+        ::close(fd);
+        return false;
+    }
+    // Short, finite reads still accept fragmented local TCP replies.
+    timeval io_timeout{0,40000};
+    (void)::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&io_timeout,sizeof(io_timeout));
+    (void)::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&io_timeout,sizeof(io_timeout));
+    char answer[5]{};
+    std::size_t received=0;
+    if(::send(fd,"PING\n",5,0)==5) {
         while(received<sizeof(answer)) {
             const ssize_t n=::recv(fd,answer+received,
                                    sizeof(answer)-received,0);
             if(n<=0)break;
             received+=static_cast<std::size_t>(n);
         }
-        ready=received==5 && std::memcmp(answer,"PONG\n",5)==0;
     }
     ::close(fd);
-    return ready;
+    return received==sizeof(answer) && std::memcmp(answer,"PONG\n",5)==0;
 }
