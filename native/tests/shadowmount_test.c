@@ -2,6 +2,12 @@
 #include "../shadowmount_api.h"
 #include "../shadowmount_http.h"
 #include <stdlib.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -31,6 +37,55 @@ int main(void){
  assert(niak_shadowmount_http_json(invalid,strlen(invalid),0,&body)==-1);
  char bad_transfer[256]="HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n";
  assert(niak_shadowmount_http_json(bad_transfer,strlen(bad_transfer),0,&body)==-1);
- puts("ShadowMountPlus readonly API JSON: OK");
+ // End-to-end loopback test: an HTTP/1.1 server can keep its socket
+ // open after the complete JSON. The scanner must NOT wait for close.
+ int server=socket(AF_INET,SOCK_STREAM,0);
+ assert(server>=0);
+ struct sockaddr_in bound={0};
+ bound.sin_family=AF_INET;
+ bound.sin_port=0;
+ bound.sin_addr.s_addr=htonl(0x7f000001u);
+ assert(bind(server,(struct sockaddr*)&bound,sizeof(bound))==0);
+ assert(listen(server,1)==0);
+ socklen_t addrlen=sizeof(bound);
+ assert(getsockname(server,(struct sockaddr*)&bound,&addrlen)==0);
+ char port[12];
+ snprintf(port,sizeof(port),"%u",(unsigned)ntohs(bound.sin_port));
+ assert(setenv("NIAK_SHADOWMOUNT_PORT",port,1)==0);
+ pid_t child=fork();
+ assert(child>=0);
+ if(child==0) {
+  int client=accept(server,NULL,NULL);
+  if(client<0)_exit(2);
+  char request[512]={0};
+  ssize_t received=recv(client,request,sizeof(request)-1,0);
+  if(received<=0 || !strstr(request,"POST /api/v1/games"))_exit(3);
+  const char *json="{\"status\":0,\"games\":[{\"title_id\":\"PPSA12345\","
+                   "\"name\":\"Local API\"}]}";
+  char answer[512];
+  int bytes=snprintf(answer,sizeof(answer),
+      "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n"
+      "Connection: keep-alive\r\n\r\n%s",strlen(json),json);
+  if(bytes<1||bytes>=(int)sizeof(answer))_exit(4);
+  if(send(client,answer,(size_t)bytes,0)!=bytes)_exit(5);
+  struct timespec pause_for={2,0};
+  nanosleep(&pause_for,NULL);
+  close(client);close(server);_exit(0);
+ }
+ struct timespec before,after;
+ assert(clock_gettime(CLOCK_MONOTONIC,&before)==0);
+ memset(g,0,sizeof(g));
+ assert(niak_scan_shadowmount(g,5)==1);
+ assert(strcmp(g[0].id,"PPSA12345")==0);
+ assert(clock_gettime(CLOCK_MONOTONIC,&after)==0);
+ long elapsed=(after.tv_sec-before.tv_sec)*1000L+
+              (after.tv_nsec-before.tv_nsec)/1000000L;
+ assert(elapsed>=0&&elapsed<1500); // 2-second server hold must not block
+ int status=0;
+ assert(waitpid(child,&status,0)==child);
+ assert(WIFEXITED(status)&&WEXITSTATUS(status)==0);
+ assert(unsetenv("NIAK_SHADOWMOUNT_PORT")==0);
+ close(server);
+ puts("ShadowMountPlus readonly API JSON and keep-alive: OK");
  return 0;
 }

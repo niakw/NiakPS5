@@ -81,9 +81,14 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
             response.insert(response.end(),buffer.begin(),buffer.begin()+count);
             // Any genuine HTTP response (including 404 for missing art)
             // proves the API is alive. Never disable all other game art.
-            if(response.size()>=13 &&
+            static constexpr unsigned char header_end[4]={'\r','\n','\r','\n'};
+            // An incomplete header may itself be from a stalled server;
+            // only a COMPLETE HTTP header proves a responsive endpoint.
+            if(response.size()>=17 &&
                (std::memcmp(response.data(),"HTTP/1.1 ",9)==0 ||
-                std::memcmp(response.data(),"HTTP/1.0 ",9)==0))
+                std::memcmp(response.data(),"HTTP/1.0 ",9)==0) &&
+               std::search(response.begin(),response.end(),
+                           header_end,header_end+4)!=response.end())
                 icon_endpoint.responded();
             const auto state=niak_http_icon_body(response,false,kMaximumPng,out);
             if(state==NiakHttpState::Complete) {
