@@ -117,11 +117,15 @@ def upload_local_homebrew_names(ftp):
     """Build a small local-only title overlay from real PS5 param.json files.
     It stays on the owner's PS5; no online lookup or repository upload.
     """
-    root="/data/homebrew"
-    try: entries=ftp.nlst(root)
-    except (error_perm,AttributeError):return 0
+    # Native game (0) vs media app (65536/65792/66048) is encoded in
+    # PS5 param.json. No guessing from a title name or PPSA prefix.
+    roots=("/data/homebrew","/user/app","/system_ex/app",
+           "/mnt/ext0/user/app","/mnt/ext1/user/app")
     records={}
-    for dirname in entries:
+    for root in roots:
+      try: entries=ftp.nlst(root)
+      except (error_perm,AttributeError,OSError):continue
+      for dirname in entries[:300]:
         ident=posixpath.basename(dirname.rstrip("/"))
         if not re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident):continue
         try: body=_bounded_retrieve(ftp,f"{root}/{ident}/sce_sys/param.json")
@@ -129,6 +133,9 @@ def upload_local_homebrew_names(ftp):
         if not body or len(body)>65536:continue
         try: meta=json.loads(body)
         except (ValueError,UnicodeDecodeError):continue
+        if not isinstance(meta,dict):continue
+        # The shared parsing block continues below at this indentation.
+
         params=meta.get("localizedParameters") or {}
         languages=["fr-FR","en-US",str(params.get("defaultLanguage",""))]
         languages += [k for k in params if isinstance(params[k],dict)]
@@ -140,12 +147,19 @@ def upload_local_homebrew_names(ftp):
                     title=value["titleName"];break
         if isinstance(title,str):
             title=" ".join(title.split())[:120]
-            if title and "\t" not in title:records[ident]=title
+            category=meta.get("applicationCategoryType")
+            genre=""
+            if type(category) is int:
+                if category==0:genre="Jeu"
+                elif category in (65536,65792,66048):genre="Application"
+            if title and "\t" not in title:
+                records[ident]=(title,genre)
     if records:
-        contents="".join(f"{id}\t{name}\t\t\t\n" for id,name in sorted(records.items()))
+        contents="".join(f"{id}\t{name}\t{kind}\t\t\n"
+                         for id,(name,kind) in sorted(records.items()))
         upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",
                contents.encode("utf-8"))
-    print(f"Titles: {len(records)} homebrew names resolved locally.")
+    print(f"Titles: {len(records)} installed PS4/PS5 title/category records resolved locally.")
     return len(records)
 
 

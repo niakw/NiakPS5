@@ -118,6 +118,22 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn('fetch_retail_covers(ftp, directory)',source)
         self.assertIn('indexed_matches',source)
 
+    def test_category_from_verified_ps5_param(self):
+        import json
+        game="/data/homebrew/PPSA11111/sce_sys/param.json"
+        app="/data/homebrew/PPSA22222/sce_sys/param.json"
+        f=FakeFTP({
+            game:json.dumps({"titleName":"Test Game",
+                             "applicationCategoryType":0}).encode(),
+            app:json.dumps({"titleName":"Test App",
+                            "applicationCategoryType":65536}).encode()
+        })
+        count=ftpmod.upload_local_homebrew_names(f)
+        self.assertEqual(count,2)
+        overlay=f.files["/data/homebrew/PPSA99386/assets/niak-local-titles.tsv"].decode()
+        self.assertIn("PPSA11111\tTest Game\tJeu\t",overlay)
+        self.assertIn("PPSA22222\tTest App\tApplication\t",overlay)
+
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
         (self.root/"tools/niakps5.elf").write_bytes(b"Not an ELF")

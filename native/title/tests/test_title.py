@@ -151,6 +151,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
         self.assertIn("item.application",source)
+        self.assertIn("applicationCategoryType",(ROOT/"title"/"ftp_install.py").read_text())
         self.assertIn("/download0/niak-favorites.tsv",source)
         self.assertIn("std::stable_partition",source)
         self.assertIn("Bibliothèque PS5",source)

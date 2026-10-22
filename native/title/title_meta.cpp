@@ -29,7 +29,12 @@ static Index read_titles(){
   if(std::strlen(v[0])!=9 || !*v[1])continue;
   const auto it=index.find(v[0]);
   if(it==index.end()) index.emplace(v[0],NiakTitleMetadata{v[1],v[2],v[3],v[4]});
-  else if(std::strstr(source,"local-titles"))it->second.name=v[1];
+  else if(std::strstr(source,"local-titles")) {
+   it->second.name=v[1];
+   if(v[2][0])it->second.genre=v[2];
+   if(v[3][0])it->second.publisher=v[3];
+   if(v[4][0])it->second.released=v[4];
+  }
  }
  std::fclose(f);
  }
