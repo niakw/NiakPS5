@@ -260,7 +260,16 @@ def patch(kit):
                     ? "Dernier lancement OK (journal historique)"
                     : "Dernier lancement en erreur (journal)";
         }();
-        static const bool live_broker=niak_launch_broker_ready();
+        // A single static check would stay stale if the user starts PLDmgr
+        // after opening NiakPS5. Refresh every 15 seconds at most; a failed
+        // loopback connect is normally immediate and no network is contacted.
+        static bool live_broker=false;
+        static std::time_t last_check=0;
+        const std::time_t now=std::time(nullptr);
+        if(!last_check || (now>last_check && now-last_check>=15)) {
+            last_check=now;
+            live_broker=niak_launch_broker_ready();
+        }
         ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
         ui::text(list, fonts.regular,
                  disabled ? "Désactivé" :
@@ -293,7 +302,7 @@ def patch(kit):
 """)
     # Read the current local PS5 display name via SceUserService (not a fake logo).
     text = once(text, '#include "niak/daily_backdrop.hpp"',
-                '#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"\n#include "niak/asset_stats.hpp"')
+                '#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"\n#include "niak/asset_stats.hpp"\n#include <ctime>')
     # The demo never had a real profile service. Do not fabricate a user's avatar.
     text = once(text, """        list.circle(1800, 82, 22, palette_[3].value());
         ui::text(list, fonts.semibold, "N", 1800, 91, 22, Color::rgb(0x0b0d16), gfx::Align::center);""",
