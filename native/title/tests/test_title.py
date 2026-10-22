@@ -111,6 +111,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sce_sys/pic1.png",(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_socket_guard(sock)",(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_socket_send(sock,", (ROOT/"title"/"game_icons.cpp").read_text())
+        self.assertIn("niak_http_icon_body(response,false", (ROOT/"title"/"game_icons.cpp").read_text())
+        self.assertIn('"http_icon_response.hpp"',(ROOT/"title"/"prepare.py").read_text())
         icons=(ROOT/"title"/"game_icons.cpp").read_text()
         self.assertIn("/mnt/ext0/user/app/%s/sce_sys/icon0.png",icons)
         self.assertIn("/mnt/ext1/user/appmeta/%s/icon0.png",icons)

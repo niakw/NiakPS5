@@ -230,7 +230,7 @@ def prepare(kit: Path, project: Path, revision: str):
     for filename in ("game_icons.cpp", "game_icons.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp",
-                     "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","asset_stats.hpp"):
+                     "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","http_icon_response.hpp","asset_stats.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)

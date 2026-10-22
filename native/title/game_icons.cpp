@@ -7,6 +7,7 @@ extern "C" {
 }
 #include "niak/lodepng.h"
 #include "niak/socket_guard.h"
+#include "niak/http_icon_response.hpp"
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
 
@@ -55,30 +56,31 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     }
     std::vector<unsigned char> response;
     response.reserve(256*1024);
-    std::array<unsigned char, 8192> buffer{};
-    ssize_t count = 0;
-    while (response.size() < kMaximumPng + 8192)
-    {
-        count = recv(sock, buffer.data(), buffer.size(), 0);
-        if (count <= 0) break;
-        response.insert(response.end(), buffer.begin(), buffer.begin() + count);
+    std::array<unsigned char,8192> buffer{};
+    // Complete Content-Length and chunked bodies without waiting for EOF:
+    // the local API may legitimately keep its HTTP connection open.
+    while(response.size()<kMaximumPng+8192+256*1024) {
+        const ssize_t count=recv(sock,buffer.data(),buffer.size(),0);
+        if(count>0) {
+            response.insert(response.end(),buffer.begin(),buffer.begin()+count);
+            const auto state=niak_http_icon_body(response,false,kMaximumPng,out);
+            if(state==NiakHttpState::Complete) {
+                close(sock);
+                return out.size()>=24 && out.size()<=kMaximumPng;
+            }
+            if(state==NiakHttpState::Invalid)break;
+            continue;
+        }
+        if(count==0) {
+            const auto state=niak_http_icon_body(response,true,kMaximumPng,out);
+            close(sock);
+            return state==NiakHttpState::Complete &&
+                   out.size()>=24 && out.size()<=kMaximumPng;
+        }
+        break;
     }
     close(sock);
-    if (count < 0 || response.size() >= kMaximumPng + 8192 || response.size() < 24)
-        return false;
-    const char header[] = "\r\n\r\n";
-    const auto split = std::search(response.begin(), response.end(),
-                                    header, header + 4);
-    if (split == response.end() || response.size() < 12 ||
-        (std::memcmp(response.data(), "HTTP/1.1 200", 12) &&
-         std::memcmp(response.data(), "HTTP/1.0 200", 12)))
-        return false;
-    const std::string headers(response.begin(), split);
-    if (headers.find("Transfer-Encoding: chunked") != std::string::npos ||
-        headers.find("transfer-encoding: chunked") != std::string::npos)
-        return false;
-    out.assign(split+4, response.end());
-    return out.size() >= 24 && out.size() <= kMaximumPng;
+    return false;
 }
 unsigned size32(const unsigned char *bytes)
 {
