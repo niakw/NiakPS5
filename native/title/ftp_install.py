@@ -9,6 +9,7 @@ import argparse
 from ftplib import FTP, error_perm
 from getpass import getpass
 from io import BytesIO
+import hashlib
 from pathlib import Path
 import posixpath
 import re
@@ -393,7 +394,31 @@ def _listed(ftp,path):
         return None
 
 
-def diagnose(ftp):
+def installed_binary_matches(ftp,local_binary,maximum=150*1024*1024):
+    """Stream hashes read-only, with a hard byte bound; never copy PS5 binaries."""
+    target=f"/data/homebrew/{TITLE}/eboot.bin"
+    local=Path(local_binary)
+    if not local.is_file() or local.stat().st_size>maximum:
+        return None
+    expected=hashlib.sha256()
+    with local.open("rb") as source:
+        for block in iter(lambda:source.read(65536),b""):
+            expected.update(block)
+    observed=hashlib.sha256()
+    total=0
+    def read(block):
+        nonlocal total
+        total+=len(block)
+        if total>maximum:raise ValueError("Installed binary exceeds safety bound")
+        observed.update(block)
+    try:
+        ftp.retrbinary("RETR "+target,read,blocksize=65536)
+    except (error_perm,OSError,ValueError):
+        return None
+    return total==local.stat().st_size and observed.digest()==expected.digest()
+
+
+def diagnose(ftp,local_directory=None):
     """Read-only PS5 deployment report. Never edit system/app databases."""
     app=f"/data/homebrew/{TITLE}"
     files=_listed(ftp,app)
@@ -404,6 +429,13 @@ def diagnose(ftp):
         return "accès refusé / inconnu" if state is None else str(state)
     print("NiakPS5 — diagnostic local (aucun fichier modifié)")
     print("Titre eboot.bin :",known(None if files is None else app+"/eboot.bin" in files))
+    if local_directory is not None:
+        comparison=installed_binary_matches(
+            ftp,Path(local_directory)/"eboot.bin")
+        print("Binaire identique au paquet local :",known(comparison))
+        if comparison is False:
+            print("Attention : le binaire PS5 est différent de celui du paquet ; "
+                  "l'interface peut encore être une ancienne révision.")
     print("Index LaunchBox :",known(None if assets is None else app+"/assets/niak-launchbox-cases.tsv" in assets))
     print("Métadonnées locales :",known(None if assets is None else app+"/assets/niak-local-titles.tsv" in assets))
     print("Avatar copié :",known(None if assets is None else any(
@@ -533,7 +565,7 @@ def main():
         ftp.connect(args.host, args.port, timeout=20)
         ftp.login(args.user, password)
         if args.status:
-            diagnose(ftp)
+            diagnose(ftp,directory)
         elif args.refresh_art:
             upload_local_homebrew_names(ftp)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)

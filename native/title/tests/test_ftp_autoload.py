@@ -152,6 +152,7 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(f.files,original)
         self.assertIn("succès HISTORIQUE",out.getvalue())
         self.assertIn("PLDmgr AUTOLOAD_ENABLED : True",out.getvalue())
+        self.assertIn("installed_binary_matches",SCRIPT.read_text())
 
     def test_art_cache_does_not_refetch_installed_front(self):
         from unittest.mock import patch

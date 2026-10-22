@@ -23,13 +23,13 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
      std::snprintf(file,sizeof(file),"%s/%s-%s.png",preview,id,side);
  else
 #endif
-     std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
+     std::snprintf(file,sizeof(file),
+         "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",id,side);
  FILE *fp=std::fopen(file,"rb");
- // Some homebrew launch paths keep /app0 mounted outside /data/homebrew.
- // Read the same title-owned FTP cache by absolute path when necessary.
+ // Prefer recent private scans; only fall back to the original app package
+ // if the owner has not refreshed this title via FTP.
  if(!fp) {
-    std::snprintf(file,sizeof(file),
-        "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",id,side);
+    std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
     fp=std::fopen(file,"rb");
  }
  if(!fp && std::strcmp(side,"front")==0) {

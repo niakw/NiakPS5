@@ -143,9 +143,9 @@ std::string niak_title_overview(const char *id) {
  if(!id || std::strlen(id)!=9)return {};
  static const auto index=[]() {
    std::unordered_map<std::string,std::string> data;
-   FILE *f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
-   if(!f) f=std::fopen(
+   FILE *f=std::fopen(
        "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv","rb");
+   if(!f) f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
    if(!f)return data;
    char line[1800];
    while(std::fgets(line,sizeof(line),f)) {
