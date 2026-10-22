@@ -229,7 +229,8 @@ def patch(kit):
                 last_result=p;
             if(!last_result)return "Dernière tentative sans lancement confirmé";
             return std::strncmp(last_result,
-                "sceSystemServiceLaunchApp rc=0x00000000",38)==0
+                "sceSystemServiceLaunchApp rc=0x00000000",
+                sizeof("sceSystemServiceLaunchApp rc=0x00000000")-1)==0
                     ? "Dernier lancement OK (journal historique)"
                     : "Dernier lancement en erreur (journal)";
         }();
