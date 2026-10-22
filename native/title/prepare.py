@@ -557,9 +557,9 @@ Catalog::Catalog()
             owned_blurbs_.emplace_back(std::move(detail));
             Item item{};
             item.title = owned_titles_.back().c_str();
-            item.studio = game.is_homebrew ? "Application" : "Jeu installé";
-            item.genre = game.is_homebrew ? "Homebrew" :
-                         (game.id[0]=='C' ? "PS4" : "PS5");
+            // A homebrew is an installation origin, not a media category.
+            // Use the verified title category below for visible labels.
+            item.genre = game.id[0]=='C' ? "PS4" : "PS5";
             // The current scanner has no trusted category for native titles.
             // Homebrew folders are initially classified as applications.
             // The verified category wins over the installation origin.
@@ -580,6 +580,8 @@ Catalog::Catalog()
                 item.application=false;
             else
                 item.application=game.is_homebrew!=0;
+            item.studio=item.application ? "Application installée" :
+                         "Jeu installé";
             const char *last=game.last_access;
             const char *installed=game.installed_at;
             const char *recent=std::strcmp(last,installed)>=0?last:installed;
