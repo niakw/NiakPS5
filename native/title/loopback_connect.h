@@ -4,6 +4,7 @@
  */
 #ifndef NIAK_LOOPBACK_CONNECT_H
 #define NIAK_LOOPBACK_CONNECT_H
+#include <stddef.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/select.h>
