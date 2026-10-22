@@ -134,6 +134,8 @@ class NativeTitleTests(unittest.TestCase):
         host=(ROOT/"title"/"host_preview.py").read_text()
         self.assertIn("make_case_art_fixtures",host)
         self.assertIn("case-04-homebrew-fallback",host)
+        self.assertIn("case-05-wallpaper-r1",host)
+        self.assertIn("R1 did not visibly switch",(ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("item.application=n==4",host)
         self.assertIn("case-04-homebrew-fallback",
                       (ROOT/"title"/"validate_preview.py").read_text())

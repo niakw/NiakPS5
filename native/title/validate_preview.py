@@ -19,12 +19,22 @@ required=[Path(sys.argv[1]) / f"case-{i:02d}-{suffix}.png" for i,suffix in
 if not all(p.exists() for p in required):raise SystemExit("Missing rotating case C++ frames")
 from PIL import ImageChops
 fallback=Path(sys.argv[1])/"case-04-homebrew-fallback.png"
+wallpaper=Path(sys.argv[1])/"case-05-wallpaper-r1.png"
+if not wallpaper.exists():raise SystemExit("Missing R1 wallpaper capture")
 if not fallback.exists():raise SystemExit("Missing no-retail-art homebrew case preview")
 frames=[Image.open(p).convert("RGB").crop((1160,90,1850,760)) for p in required]
 changes=[]
 for x,y in zip(frames,frames[1:]):
     delta=sum(ImageStat.Stat(ImageChops.difference(x,y)).mean)
     changes.append(delta)
+# R1 must visibly change the real wallpaper while keeping the same title.
+# Crop to scenery, outside the title/case panels. A successful build without
+# distinct wallpaper assets is NOT a valid success for this feature.
+with Image.open(wallpaper) as _after:
+    _background=_after.convert("RGB").crop((865,105,1115,480))
+    _before=frames[0].crop((865,105,1115,480))
+    if sum(ImageStat.Stat(ImageChops.difference(_before,_background)).mean)<4:
+        raise SystemExit("R1 did not visibly switch the wallpaper")
 # A fallback case must be distinguishable from the commercial scan.
 with Image.open(fallback) as _fallback:
     _box=_fallback.convert("RGB").crop((1160,90,1850,760))

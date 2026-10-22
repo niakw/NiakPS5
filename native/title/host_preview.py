@@ -165,7 +165,13 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         idle.connected = true;
         shell.show(0, false);
         for(int frame=0;frame<475;++frame) {
-            shell.update(idle,kDt);
+            if(frame==91) {
+                hui::InputFrame r1;
+                r1.connected=true;
+                r1.pressed=hui::action_bit(hui::Action::page_next);
+                shell.update(r1,kDt);
+                render("case-05-wallpaper-r1");
+            } else shell.update(idle,kDt);
             if(frame==90)render("case-00-front");
             if(frame==202)render("case-01-spine");
             if(frame==330)render("case-02-back");
