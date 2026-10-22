@@ -116,7 +116,7 @@ class NativeTitleTests(unittest.TestCase):
         for angle in ("case-00-front","case-01-spine",
                       "case-02-back","case-03-return"):
             self.assertIn(angle,preview)
-        self.assertIn("cam.project(",source)
+        self.assertIn("const Camera camera{",source)
         self.assertNotIn("case_wrap",source)
         self.assertIn("if(back&&show_face)",source)
         self.assertIn("if(!back&&show_face)",source)
