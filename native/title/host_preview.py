@@ -108,6 +108,30 @@ def make_case_art_fixtures(kit):
         side.save(output/f"{title_id}-spine.png",optimize=True)
 
 
+    # Synthetic, non-branded QA overlays verify the *real* private-template
+    # decoder, UV placement and cache. These are NOT copied to PS5 packages.
+    templates=kit/"assets"/"niak-preview-templates"
+    templates.mkdir(parents=True,exist_ok=True)
+    for family,tint in (("ps4",(14,78,163)),("ps5",(232,242,251))):
+        header=gradient(720,104,tint,tuple(min(255,n+15) for n in tint))
+        painter=ImageDraw.Draw(header)
+        painter.text((38,30),family.upper()+"  /  QA HEADER",
+                     fill=(255,255,255) if family=="ps4" else (19,51,87),
+                     font=font(40))
+        header.save(templates/f"{family}-front.png",optimize=True)
+        footer=gradient(720,295,(224,235,246),(165,188,212))
+        painter=ImageDraw.Draw(footer)
+        painter.rectangle((20,20,700,275),outline=(18,57,102),width=5)
+        painter.text((38,48),family.upper()+" / QA FOOTER",fill=(25,61,108),
+                     font=font(33))
+        footer.save(templates/f"{family}-back.png",optimize=True)
+        spine=gradient(68,820,tint,(25,49,83))
+        painter=ImageDraw.Draw(spine)
+        for i,letter in enumerate(family.upper()):
+            painter.text((17,24+i*54),letter,fill=(255,255,255),
+                         font=font(29))
+        spine.save(templates/f"{family}-spine.png",optimize=True)
+
 def one(path,old,new):
     data=path.read_text("utf8")
     if data.count(old)!=1:raise RuntimeError(f"Preview mismatch: {path}: {old[:80]}")

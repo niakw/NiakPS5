@@ -153,6 +153,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case-04-homebrew-fallback",
                       (ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("NIAK_CASE_PREVIEW_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())
+        self.assertIn("NIAK_CASE_TEMPLATE_ASSETS",(ROOT/"title"/"case_art.cpp").read_text())
+        self.assertIn("niak_load_case_template",(ROOT/"title"/"case_art.hpp").read_text())
+        self.assertIn("case_template_back",source)
+        self.assertIn("case_template_front",source)
+        self.assertIn("case_template_spine",source)
+        self.assertIn("niak-preview-templates",host)
+        self.assertIn("NIAK_CASE_TEMPLATE_ASSETS",
+                      (ROOT.parent/".github/workflows/native-title.yml").read_text())
         self.assertNotIn("face_w=bounds.w",source)
 
     def test_real_top_navigation(self):
