@@ -46,6 +46,10 @@ jobs:
         run: |
           g++ -std=c++20 -Wall -Wextra -Werror native/title/tests/icon_endpoint_policy_test.cpp -o /tmp/niak-icon-endpoint
           /tmp/niak-icon-endpoint
+      - name: Validate prioritized cover stream queue
+        run: |
+          g++ -std=c++20 -Wall -Wextra -Werror native/title/tests/cover_stream_state_test.cpp -o /tmp/niak-cover-queue
+          /tmp/niak-cover-queue
       - name: Validate bounded 3D case texture resampling
         run: |
           g++ -std=c++20 -Wall -Wextra -Werror native/title/tests/case_texture_scale_test.cpp -o /tmp/niak-case-texture

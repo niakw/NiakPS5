@@ -59,7 +59,10 @@ def patch(kit):
     # square app icon. No loading page, timer, or launch handoff is introduced.
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 28);',
                  'list.image(it.cover, art, it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv, kWhite, 28);')
-    s=exactly(s,'#include "niak/profile.hpp"', '#include "niak/profile.hpp"\n#include "niak/case_renderer.hpp"')
+    s=exactly(s,'#include "niak/profile.hpp"', '#include "niak/profile.hpp"\n#include "niak/case_renderer.hpp"\n#include "niak/asset_stats.hpp"')
+    s=exactly(s,'        if (focused_item() != shown_)',
+              '        niak::case_media_stats.preferred_index=focused_item();\n'
+              '        if (focused_item() != shown_)')
     # Show the authentic clear logo when LaunchBox provided one, AND the title.
     # Keep the name readable even if the logo scan has transparent margins.
     s=exactly(s,'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',

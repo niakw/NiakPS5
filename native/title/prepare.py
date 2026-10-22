@@ -209,7 +209,9 @@ def prepare(kit: Path, project: Path, revision: str):
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    std::size_t next_cover_to_stream_=0;\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::vector<Item> items_;')
+    replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
+                 '#include "gfx/draw_list.hpp"\n#include "niak/cover_stream_state.hpp"')
     replace_once(catalog_h,
         '    bool build_covers(gfx::Renderer &renderer, const ui::Fonts &fonts);',
         '    bool build_covers(gfx::Renderer &renderer, const ui::Fonts &fonts);\n'
@@ -236,7 +238,7 @@ def prepare(kit: Path, project: Path, revision: str):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp",
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
-                     "icon_endpoint_policy.hpp","case_texture_scale.hpp","asset_stats.hpp"):
+                     "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
@@ -309,7 +311,7 @@ def prepare(kit: Path, project: Path, revision: str):
         '    release_covers(renderer);\n    niak::case_media_stats={};\n    constexpr float kSize',
         '''    release_covers(renderer);
     niak::case_media_stats={};
-    next_cover_to_stream_=0;
+    cover_stream_.reset(items_.size());
     niak::case_media_stats.total_titles=static_cast<unsigned>(
         std::count_if(items_.begin(),items_.end(),
             [](const Item &item){return item.title_id[0]!=0;}));
@@ -322,12 +324,16 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
     constexpr float kSize''')
     replace_once(art_file,
         '    int index = 0;\n    for (Item &item : items_)\n    {\n        // Prefer the true installed app icon',
-        '''    int index = static_cast<int>(next_cover_to_stream_);
-    budget=std::min(budget,items_.size()-next_cover_to_stream_);
-    const std::size_t stop=next_cover_to_stream_+budget;
-    for(;next_cover_to_stream_<stop;++next_cover_to_stream_)
+        '''    budget=std::min(budget,cover_stream_.remaining());
+    for(std::size_t step=0;step<budget;++step)
     {
-        Item &item=items_[next_cover_to_stream_];
+        const int hint=niak::case_media_stats.preferred_index;
+        const auto priority=hint>=0?static_cast<std::size_t>(hint):
+                                    niak::CoverStreamState::invalid;
+        const auto choice=cover_stream_.take(priority);
+        if(choice==niak::CoverStreamState::invalid)break;
+        Item &item=items_[choice];
+        int index=static_cast<int>(choice);
         // Prefer the true installed app icon''')
     # Defer streaming when the user is holding a direction or pressing an
     # action, to avoid a blocking filesystem lookup during navigation.
@@ -343,7 +349,7 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
     replace_once(art_file,
         '        if (item.cover == 0)\n            return false;',
         '''        if (item.cover == 0) {
-            ++next_cover_to_stream_;
+            // Already marked attempted: avoid an endless retry loop.
             return false;
         }''')
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',

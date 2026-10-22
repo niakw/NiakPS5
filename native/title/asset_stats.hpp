@@ -7,6 +7,7 @@ namespace niak {
 struct CaseMediaStats {
     unsigned titles=0;
     unsigned total_titles=0;
+    int preferred_index=-1;
     unsigned fronts=0;
     unsigned backs=0;
     unsigned spines=0;
