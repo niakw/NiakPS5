@@ -221,3 +221,19 @@ toujours être constaté sur console ; il ne découle pas d'un CI vert.
 Jeux et Applications sont répartis par catégorie réelle si la PS5 la rend
 accessible, et triés par dernier accès puis installation. Si app.db n'est
 pas lisible, le dossier d'installation fournit une date de repli approximative.
+
+## Installation intégrée de l'ELF (optionnelle, jailbreak déjà actif)
+
+Le paquet comprend maintenant `sandbox-elevator.elf` (mécanisme ponctuel
+Eden Encore adapté à `PPSA99386`). Au démarrage du titre, si un elfldr
+compatible écoute déjà sur `127.0.0.1:9021`, NiakPS5 demande une seule
+fois l'accès au système de fichiers puis installe ou met à jour exclusivement
+son propre `niakps5.elf` et `.elf.json` dans PLDmgr. L'entrée existante
+`autoload.txt` est conservée, une ligne manquante est ajoutée sans toucher
+aux autres payloads ni au fichier de configuration globale. NiakPS5
+continue en sandbox si le helper échoue. Le journal natif contient
+`one-shot own payload install status=` : 1=mise à jour, 0=déjà installé,
+-1=helper indisponible, -2=validation/écriture refusée.
+Le processus PLDmgr déjà résident conserve son ancien code jusqu'au prochain
+démarrage : remplacer le fichier ELF sur disque n'effectue pas un rechargement
+à chaud. La disponibilité de l'elevation doit être qualifiée sur PS5 13.60.

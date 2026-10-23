@@ -243,6 +243,10 @@ def prepare(kit: Path, project: Path, revision: str):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
+    for filename in ("elevation.cpp", "elevation.hpp", "protocol.hpp",
+                     "one_shot_install.cpp", "one_shot_install.hpp"):
+        shutil.copy2(project / "native" / "title" / "elevation" / filename,
+                     src_niak / filename)
     for filename in ("lodepng.cpp", "lodepng.h"):
         shutil.copy2(project / "native" / "title" / "vendor" / filename, src_niak / filename)
     art_file = kit / "src/demo/catalog_art.cpp"
@@ -354,7 +358,12 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
             return false;
         }''')
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
-                 '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"')
+                 '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"\n#include "niak/one_shot_install.hpp"')
+    replace_once(kit / "src/main.cpp",
+        '    sys::log("[HUI] entry");',
+        '    sys::log("[HUI] entry");\n'
+        '    const int payload_install = niak::bootstrap_own_payload();\n'
+        '    sys::log("[NiakPS5] one-shot own payload install status=%d", payload_install);')
     replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',
                  '    niak_load_daily_backdrops(renderer);\n    niak_profile_load_avatar(renderer);\n    demo::Catalog catalog;')
     replace_once(aurora, '#include "ui/glyphs.hpp"',

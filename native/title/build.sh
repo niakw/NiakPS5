@@ -63,6 +63,12 @@ test -x "$sdk/bin/prospero-clang"
 "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra \
   -o "$out/tools/niakps5/niakps5.elf" "$root/native/title/autostart.c" \
   -lSceSystemService -lSceUserService -lkernel_sys
+# One-shot sandbox elevation helper adapted from Eden Encore.
+# Only an already-active, local elfldr at 127.0.0.1:9021 can run it.
+"$sdk/bin/prospero-clang++" -std=c++20 -O2 -Wall -Wextra -Werror \
+  -o "$out/sandbox-elevator.elf" \
+  "$root/native/title/elevation/helper/main.cpp"
+test -s "$out/sandbox-elevator.elf"
 python3 - "$out/tools/niakps5/niakps5.elf" <<'PY'
 import hashlib
 import json
