@@ -46,8 +46,14 @@ class AutoloadTests(unittest.TestCase):
         (self.root/"eboot.bin").write_bytes(b"title binary")
         (self.root/"sce_module").mkdir()
         (self.root/"sce_module/libc.prx").write_bytes(b"native runtime")
-        (self.root/"tools").mkdir()
-        (self.root/"tools/niakps5.elf").write_bytes(b"\x7fELFps5 test")
+        (self.root/"tools/niakps5").mkdir(parents=True)
+        payload=b"\x7fELFps5 test"
+        (self.root/"tools/niakps5/niakps5.elf").write_bytes(payload)
+        import hashlib
+        import json
+        (self.root/"tools/niakps5/niakps5.elf.json").write_text(
+            json.dumps({"name":"NiakPS5","filename":"niakps5.elf",
+                        "checksum":hashlib.sha256(payload).hexdigest()}))
     def tearDown(self):
         self.tmp.cleanup()
     def test_user_supplied_case_templates_are_private_and_checked(self):
@@ -220,13 +226,18 @@ class AutoloadTests(unittest.TestCase):
         self.assertNotIn(ftpmod.PAYLOAD,f.files)
         self.assertNotIn("/data/niakps5-autostart.enabled",f.files)
     def test_order_backup_idempotence(self):
-        initial=b"/data/pldmgr/payloads/kstuff/kstuff.elf\n!3000\n/data/pldmgr/payloads/shadow/shadow.elf\n"
+        initial=(b"nanoDNS_0.4.elf\nkstuff-lite_v1.11.elf\n"
+                 b"ShadowMountPlus_1.7beta7.elf\nftpsrv_v0.21.1.elf\n"
+                 b"BFpilot_v0.4.4.elf\n")
         config=b"AUTOLOAD_ENABLED=0\nAUTOLOAD_DELAY=5\n"
         f=FakeFTP({ftpmod.AUTOLOAD:initial,ftpmod.CONFIG:config})
         ftpmod.install(f,self.root,True,True)
         final=f.files[ftpmod.AUTOLOAD].decode()
         self.assertTrue(final.startswith(initial.decode()))
-        self.assertEqual(final.count(ftpmod.PAYLOAD),1)
+        self.assertTrue(final.endswith("BFpilot_v0.4.4.elf\nniakps5.elf\n"))
+        self.assertEqual(final.count(ftpmod.AUTOLOAD_NAME),1)
+        self.assertNotIn("!2000",final)
+        self.assertIn(ftpmod.PAYLOAD_META,f.files)
         self.assertEqual(f.files[ftpmod.AUTOLOAD+".niakps5.bak"],initial)
         self.assertEqual(f.files[ftpmod.CONFIG+".niakps5.bak"],config)
         self.assertIn("AUTOLOAD_DELAY=5",f.files[ftpmod.CONFIG].decode())
@@ -236,7 +247,7 @@ class AutoloadTests(unittest.TestCase):
         ftpmod.install(f,self.root,True,False)
         self.assertNotIn("/data/niakps5-return-after-game.enabled",f.files)
         self.assertIn("/data/niakps5-autostart.enabled",f.files)
-        self.assertEqual(f.files[ftpmod.AUTOLOAD].decode().count(ftpmod.PAYLOAD),1)
+        self.assertEqual(f.files[ftpmod.AUTOLOAD].decode().count(ftpmod.AUTOLOAD_NAME),1)
         # A repeat install must never replace the original pre-Niak backups.
         self.assertEqual(f.files[ftpmod.AUTOLOAD+".niakps5.bak"],initial)
         self.assertEqual(f.files[ftpmod.CONFIG+".niakps5.bak"],config)
@@ -562,7 +573,7 @@ class AutoloadTests(unittest.TestCase):
 
     def test_invalid_elf_refuses_changes(self):
         f=FakeFTP()
-        (self.root/"tools/niakps5.elf").write_bytes(b"Not an ELF")
+        (self.root/"tools/niakps5/niakps5.elf").write_bytes(b"Not an ELF")
         with self.assertRaises(ValueError):
             ftpmod.install(f,self.root,True)
         self.assertNotIn(ftpmod.AUTOLOAD,f.files)

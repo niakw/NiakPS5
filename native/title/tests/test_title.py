@@ -17,6 +17,8 @@ class NativeTitleTests(unittest.TestCase):
     def test_autostart_is_explicit_and_reversible(self):
         source = (ROOT / "title" / "autostart.c").read_text()
         self.assertIn("niakps5-autostart.enabled", source)
+        self.assertIn("if(is_regular_file(NIAK_DISABLED))return 0;",source)
+        self.assertNotIn("!is_regular_file(NIAK_ENABLED)",source)
         self.assertIn("niakps5-autostart.disable", source)
         self.assertIn("sceSystemServiceLaunchApp", source)
         self.assertIn("GetAppIdOfRunningBigApp", source)
@@ -57,7 +59,7 @@ class NativeTitleTests(unittest.TestCase):
                                   path.endswith("param.json") else "nonempty")
             (base / "assets").mkdir()
             (base / "tools").mkdir()
-            (base / "tools/niakps5.elf").write_bytes(b"\\x7fELF" if False else bytes([127,69,76,70]))
+            (base / "tools/niakps5/niakps5.elf").write_bytes(b"\\x7fELF" if False else bytes([127,69,76,70]))
             package=Path(temp) / "PPSA99386.zip"
             subprocess.run([sys.executable, str(ROOT / "title" / "pack_ftp.py"),
                             "--folder", str(base), "--output", str(package)], check=True)
@@ -66,8 +68,8 @@ class NativeTitleTests(unittest.TestCase):
                 self.assertEqual([n.split("/")[0] for n in z.namelist()],
                                  ["PPSA99386"] * len(z.namelist()))
                 self.assertFalse(any(n.endswith(".zip") for n in z.namelist()))
-                self.assertIn("PPSA99386/tools/niakps5.elf", z.namelist())
-                self.assertEqual((z.getinfo("PPSA99386/tools/niakps5.elf").external_attr >> 16) & 0o777, 0o755)
+                self.assertIn("PPSA99386/tools/niakps5/niakps5.elf", z.namelist())
+                self.assertEqual((z.getinfo("PPSA99386/tools/niakps5/niakps5.elf").external_attr >> 16) & 0o777, 0o755)
                 self.assertEqual((z.getinfo("PPSA99386/eboot.bin").external_attr >> 16) & 0o777, 0o755)
                 self.assertEqual((z.getinfo("PPSA99386/sce_module/libc.prx").external_attr >> 16) & 0o777, 0o644)
             (base / "assets/inner.zip").write_text("forbidden")

@@ -23,6 +23,9 @@
 #include "socket_guard.h"
 
 #define NIAK_TITLE "PPSA99386"
+/* Legacy marker is tolerated but no longer required: PLDmgr's explicit
+ * autoload.txt entry is itself the opt-in. A freshly dropped payload must
+ * not silently exit merely because ftp_install.py was never executed. */
 #define NIAK_ENABLED "/data/niakps5-autostart.enabled"
 #define NIAK_DISABLED "/data/niakps5-autostart.disable"
 #define NIAK_LOG "/data/niakps5-autostart.log"
@@ -186,7 +189,7 @@ static void serve_launch_requests(void) {
     // launch service after roughly twelve hours. Keep the opt-in broker
     // alive until the user disables it or the console shuts down.
     for(;;) {
-        if(is_regular_file(NIAK_DISABLED)||!is_regular_file(NIAK_ENABLED))break;
+        if(is_regular_file(NIAK_DISABLED))break;
         fd_set pending;FD_ZERO(&pending);FD_SET(fd,&pending);
         struct timeval tv={2,0};
         const int available=select(fd+1,&pending,NULL,NULL,&tv);
@@ -268,7 +271,7 @@ static void serve_launch_requests(void) {
     report("Local launch broker shutdown",0);
 }
 int main(void) {
-    if(!is_regular_file(NIAK_ENABLED)||is_regular_file(NIAK_DISABLED))return 0;
+    if(is_regular_file(NIAK_DISABLED))return 0;
     report("NiakPS5 optional autostart start",0);
     int profile_checked=0;
     int launcher_started=0;

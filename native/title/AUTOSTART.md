@@ -19,7 +19,7 @@ Le mini-payload :
 
 L'archive contient l'application native `PPSA99386/eboot.bin`, l'installeur
 `PPSA99386/tools/ftp_install.py` et son payload compagnon
-`PPSA99386/tools/niakps5.elf`.
+`PPSA99386/tools/niakps5/niakps5.elf`.
 
 Depuis l'ordinateur connecté à la PS5, après extraction du ZIP :
 
@@ -74,3 +74,25 @@ La redirection immédiate au bouton PS comme NiakTV nécessiterait une instrumen
 ## Authentique avatar PS5
 
 Le payload ne lit que le profil utilisateur actuellement en avant-plan via `sceUserServiceGetForegroundUser`. Il copie, lorsqu'ils sont disponibles, `/system_data/priv/cache/profile/0x%08X/avatar.png` ou à défaut `avatar128.dds`, `avatar260.dds` ou `avatar64.dds` dans le dossier d'assets de NiakPS5. Le titre lit uniquement cette copie `/app0/assets/niak-profile.png` ou `niak-profile.dds` et décode localement le DDS DXT5. Aucun fichier de profil n'est ajouté au dépôt, expédié à Steam ou transféré sur Internet. **La compatibilité du chemin, des permissions et de l'affichage de l'avatar doit encore être validée sur console.**
+
+
+## Installation manuelle PLDmgr (sans script FTP)
+
+La copie de l'application reste un dossier : placer `PPSA99386/` sous
+`/data/homebrew/`. Dans ce même dossier extrait, `tools/niakps5/`
+contient **déjà** le payload `niakps5.elf` et son `niakps5.elf.json`,
+prêts à copier ensemble sous `/data/pldmgr/payloads/niakps5/`.
+
+Le fichier existant `/data/pldmgr/autoload.txt` doit conserver ses entrées
+dans leur ordre actuel, puis se terminer par une nouvelle ligne
+`niakps5.elf` (exactement ce nom, pas le chemin absolu ; aucun `!2000`
+supplémentaire). **Aucune** commande Python, configuration parallèle ni
+marqueur `niakps5-autostart.enabled` n'est exigé. Cette inscription dans
+autoload.txt est indispensable au *premier* démarrage ; une copie passive
+dans `/data/homebrew/` ne peut pas modifier la liste PLDmgr avant que
+le payload ait été démarré.
+
+Le lancement du payload crée un courtier réseau strictement local
+`127.0.0.1:19187`, accessible par le titre `PPSA99386`. La bibliothèque
+dépend encore des droits de lecture de l'environnement, même si le
+service « Jouer » devient accessible ; aucun accès root n'est inféré.

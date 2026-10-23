@@ -42,6 +42,13 @@ Elle télécharge les dépendances épinglées et peut prendre du temps. La sour
 
 1. Conserver ton environnement jailbreak normal, avec **ShadowMountPlus** actif.
 2. Copier par FTP le **dossier entier** `PPSA99386` dans `/data/homebrew/`. Ne pas déposer `eboot.bin` dans `/data/pldmgr/`.
+3. **Une fois pour toutes**, copier le dossier fourni `PPSA99386/tools/niakps5/`
+   sous `/data/pldmgr/payloads/`, avec `niakps5.elf` **et** `niakps5.elf.json`.
+   Ajouter `niakps5.elf` en **dernière ligne** de `/data/pldmgr/autoload.txt`
+   après BFpilot. Ne pas toucher aux cinq autres lignes. Le lancement via
+   WebKit autoloader + PLDmgr reste inchangé ; aucun script n'est requis.
+   L'inscription initiale dans autoload.txt ne peut pas être provoquée par
+   une copie passive du seul dossier de l'application.
 3. Laisser ShadowMountPlus enregistrer le titre ; si nécessaire, relancer son mécanisme d'enregistrement suivant sa documentation.
 4. Lancer **NiakPS5** depuis son icône dans l'accueil Sony. Tester d'abord l'ouverture, le focus DualSense et le retour Sony.
 5. Avant d'utiliser le bouton de lancement d'un jeu, vérifier que la liste ne contient que les titres réellement installés.
@@ -82,13 +89,13 @@ Le titre tente maintenant `POST http://127.0.0.1:10101/api/v1/games` en lecture 
 
 ## Package FTP unique (sans imbriquation)
 
-La compilation fournit **exactement** `dist/PPSA99386.zip`. À l'intérieur, une seule racine : `PPSA99386/`, suivie de `eboot.bin`, `sce_sys/`, `sce_module/` et `assets/`. Les fichiers intermédiaires, le programme `niakps5_autostart.elf` et les autres ZIP ne sont **jamais** inclus dans ce paquet. Droits UNIX explicites dans l'archive et le dossier de build : dossiers 0755, `eboot.bin` et `tools/niakps5.elf` 0755, autres fichiers 0644. Le packager rejette les symlinks et les archives imbriquées.
+La compilation fournit **exactement** `dist/PPSA99386.zip`. À l'intérieur, une seule racine : `PPSA99386/`, suivie de `eboot.bin`, `sce_sys/`, `sce_module/` et `assets/`. Les fichiers intermédiaires, le programme `niakps5_autostart.elf` et les autres ZIP ne sont **jamais** inclus dans ce paquet. Droits UNIX explicites dans l'archive et le dossier de build : dossiers 0755, `eboot.bin` et `tools/niakps5/niakps5.elf` 0755, autres fichiers 0644. Le packager rejette les symlinks et les archives imbriquées.
 
-Dézipper le **seul dossier `PPSA99386`** puis le transférer vers `/data/homebrew/` par FTP. L'archive contient le déclencheur `tools/niakps5.elf`, mais son extraction seule n'active pas le démarrage automatique : l'installateur FTP embarqué configure PLDmgr. Il vérifie le titre et le payload avant tout transfert. Sa compatibilité sur firmware 13.60 reste à tester sur console. Le fonctionnement du scanner ShadowMountPlus et la récupération du vrai avatar restent à valider sur console.
+Dézipper le **seul dossier `PPSA99386`** puis le transférer vers `/data/homebrew/` par FTP. L'archive contient le déclencheur `tools/niakps5/niakps5.elf`, mais son extraction seule n'active pas le démarrage automatique : l'installateur FTP embarqué configure PLDmgr. Il vérifie le titre et le payload avant tout transfert. Sa compatibilité sur firmware 13.60 reste à tester sur console. Le fonctionnement du scanner ShadowMountPlus et la récupération du vrai avatar restent à valider sur console.
 
 ## Livraison FTP : autoload inclus dans le seul dossier
 
-Le ZIP `PPSA99386.zip` possède **une unique racine `PPSA99386/`**. L'application native reste sous cette racine. Le fichier `PPSA99386/tools/niakps5.elf` est le déclencheur de démarrage (payload classique, pas d'interface SDL). Les fichiers de configuration existants du Payload Manager ne sont jamais inclus car ils sont propres à chaque console.
+Le ZIP `PPSA99386.zip` possède **une unique racine `PPSA99386/`**. L'application native reste sous cette racine. Le fichier `PPSA99386/tools/niakps5/niakps5.elf` est le déclencheur de démarrage (payload classique, pas d'interface SDL). Les fichiers de configuration existants du Payload Manager ne sont jamais inclus car ils sont propres à chaque console.
 
 Pour installer automatiquement à partir d'un PC ayant Python 3 :
 ```sh

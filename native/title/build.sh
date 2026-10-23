@@ -55,14 +55,34 @@ out="$root/dist/$title"
 mkdir -p "$root/dist"
 rm -rf "$out"
 cp -a "$stage/dist/$title" "$out"
-# One-shot boot helper is part of the single FTP folder. It must be copied
-# separately into Payload Manager storage by the explicitly requested FTP installer.
-mkdir -p "$out/tools"
+# Ready-to-copy PLDmgr slot ships inside the SAME single-ZIP title package.
+# Copy tools/niakps5/ into /data/pldmgr/payloads/ after copying the title.
+mkdir -p "$out/tools/niakps5"
 sdk="$stage/.deps/native/ps5-payload-sdk"
 test -x "$sdk/bin/prospero-clang"
 "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra \
-  -o "$out/tools/niakps5.elf" "$root/native/title/autostart.c" \
+  -o "$out/tools/niakps5/niakps5.elf" "$root/native/title/autostart.c" \
   -lSceSystemService -lSceUserService -lkernel_sys
+python3 - "$out/tools/niakps5/niakps5.elf" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+elf = Path(sys.argv[1])
+meta = {
+    "name": "NiakPS5",
+    "filename": elf.name,
+    "description": "NiakPS5 local-only PS5 home launcher and title launch broker",
+    "version": "local-build",
+    "source": "https://github.com/niakw/NiakPS5",
+    "category": "Utilities",
+    "checksum": hashlib.sha256(elf.read_bytes()).hexdigest(),
+    "install_source": "local",
+    "install_source_detail": "Bundled in NiakPS5 PPSA99386"
+}
+elf.with_suffix(".elf.json").write_text(
+    json.dumps(meta, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+PY
 cp "$root/native/title/ftp_install.py" "$out/tools/ftp_install.py"
 cp "$root/native/title/cover_sources.py" "$out/tools/cover_sources.py"
 cp "$root/native/title/AUTOSTART.md" "$out/tools/AUTOSTART.md"

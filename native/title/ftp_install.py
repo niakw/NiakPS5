@@ -17,6 +17,8 @@ import json
 
 TITLE = "PPSA99386"
 PAYLOAD = "/data/pldmgr/payloads/niakps5/niakps5.elf"
+PAYLOAD_META = PAYLOAD + ".json"
+AUTOLOAD_NAME = "niakps5.elf"
 AUTOLOAD = "/data/pldmgr/autoload.txt"
 CONFIG = "/data/pldmgr/pldmgr_config.txt"
 
@@ -652,7 +654,7 @@ def diagnose(ftp,local_directory=None):
     print("Payload ELF :",known(present(payloads,"niakps5.elf")))
     if local_directory is not None:
         elf_match=installed_binary_matches(
-            ftp,Path(local_directory)/"tools/niakps5.elf",PAYLOAD,
+            ftp,Path(local_directory)/"tools/niakps5/niakps5.elf",PAYLOAD,
             maximum=20*1024*1024)
         print("Payload PLDmgr identique au paquet :",known(elf_match))
         if elf_match is False:
@@ -660,8 +662,9 @@ def diagnose(ftp,local_directory=None):
                   "ne peut pas être considéré comme installé.")
     autoload=retrieve(ftp,AUTOLOAD)
     config=retrieve(ftp,CONFIG)
-    configured=(autoload is not None and PAYLOAD in
-                [v.strip() for v in autoload.decode("utf8","replace").splitlines()])
+    configured=(autoload is not None and
+                any(v.strip() in (PAYLOAD,AUTOLOAD_NAME) for v in
+                    autoload.decode("utf8","replace").splitlines()))
     enabled=config is not None and "AUTOLOAD_ENABLED=1" in config.decode("utf8","replace").splitlines()
     print("PLDmgr chemin configuré :",configured if autoload is not None else "inconnu")
     print("PLDmgr AUTOLOAD_ENABLED :",enabled if config is not None else "inconnu")
@@ -738,12 +741,24 @@ def validate_install_folder(directory, autoload):
         if entry.is_file() and entry.suffix.lower()==".zip":
             raise ValueError("Nested ZIP detected; extract only the single download")
     if autoload:
-        elf=directory/"tools/niakps5.elf"
+        elf=directory/"tools/niakps5/niakps5.elf"
         if not elf.is_file() or elf.is_symlink():
             raise ValueError("One-shot payload ELF missing")
         with elf.open("rb") as stream:
             if stream.read(4)!=b"\x7fELF":
                 raise ValueError("Invalid one-shot ELF; no FTP changes made")
+        sidecar=directory/"tools/niakps5/niakps5.elf.json"
+        if not sidecar.is_file() or sidecar.is_symlink():
+            raise ValueError("PLDmgr metadata is missing")
+        try:
+            info=json.loads(sidecar.read_text("utf-8"))
+        except (UnicodeDecodeError, OSError, ValueError) as exc:
+            raise ValueError("PLDmgr metadata is malformed") from exc
+        import hashlib
+        if not isinstance(info,dict) or info.get("filename")!=elf.name or (
+            info.get("checksum")!=hashlib.sha256(elf.read_bytes()).hexdigest()
+        ):
+            raise ValueError("PLDmgr sidecar doesn't match the bundled ELF")
 
 
 def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None, art_limit=150):
@@ -766,7 +781,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     if not autoload:
         print("Titre installe. L'autoload n'est pas active sans --autoload.")
         return
-    elf = directory / "tools/niakps5.elf"
+    elf = directory / "tools/niakps5/niakps5.elf"
     # ELF identity verified before the first FTP write.
 
     # Preflight both PLDmgr files BEFORE writing payload, configuration or
@@ -782,9 +797,12 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
         lines = (raw or b"").decode("utf-8").splitlines()
     except UnicodeDecodeError as exc:
         raise ValueError("Unexpected PLDmgr text encoding; left untouched") from exc
-    already_installed = PAYLOAD in [line.strip() for line in entries]
-    if not already_installed:
-        entries += ["!2000", PAYLOAD]
+    # The user's PLDmgr uses slot basenames, not absolute paths. Preserve
+    # every pre-existing line and payload ordering; move ours to the END.
+    prior_keys=(PAYLOAD,AUTOLOAD_NAME)
+    already_installed=any(line.strip() in prior_keys for line in entries)
+    entries=[line for line in entries if line.strip() not in prior_keys]
+    entries.append(AUTOLOAD_NAME)
     body = ("\n".join(entries).rstrip() + "\n").encode()
     if len(body)>4095:
         raise ValueError("Autoload file too large; no changes")
@@ -806,6 +824,9 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
         # written, rather than leaving a partially reconfigured installation.
         ftp.delete(return_flag)
     upload(ftp, PAYLOAD, elf.read_bytes())
+    metadata=directory/"tools/niakps5/niakps5.elf.json"
+    if metadata.is_file():
+        upload(ftp, PAYLOAD_META, metadata.read_bytes())
     upload(ftp, AUTOLOAD, body)
     upload(ftp, CONFIG, config_body)
     # Activate only once both the binary and the autoload configuration exist.
