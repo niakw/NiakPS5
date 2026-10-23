@@ -12,7 +12,7 @@ Le mini-payload :
 - attend que le titre soit enregistré puis appelle \`sceSystemServiceLaunchApp("PPSA99386")\` dans la session de l'utilisateur ;
 - refuse d'interrompre un autre titre déjà au premier plan ;
 - réessaie au maximum 12 fois (3 s entre essais), puis abandonne ;
-- ne fait rien tant que le fichier \`/data/niakps5-autostart.enabled\` est absent ;
+- fonctionne depuis l'entrée explicite dans \`/data/pldmgr/autoload.txt\` ; le marqueur historique \`/data/niakps5-autostart.enabled\` n'est plus requis ;
 - ne fait rien si \`/data/niakps5-autostart.disable\` existe.
 
 ## Installation actuelle (une seule commande)

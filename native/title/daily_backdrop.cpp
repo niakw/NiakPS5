@@ -42,7 +42,7 @@ void save_day_choice(int day) {
     const char *tmp="/download0/niak-wallpaper-choice.txt.tmp";
     FILE *file=std::fopen(tmp,"wb");
     if(!file)return;
-    const int wrote=std::fprintf(file,"%d %d\\n",day,override_offset);
+    const int wrote=std::fprintf(file,"%d %d\n",day,override_offset);
     const int flushed=std::fflush(file);
     const int closed=std::fclose(file);
     if(wrote<0 || flushed!=0 || closed!=0 ||
