@@ -37,6 +37,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_title_is_launchable(",source)
         self.assertIn("title_permissions.h",source)
         self.assertIn("serve_launch_requests();",source)
+        self.assertIn('memcmp(request,"GAMES\\n",6)',source)
+        self.assertIn("niak_broker_inventory(titles",source)
         self.assertNotIn("!launcher_started || !is_regular_file(NIAK_RESUME)",source)
         self.assertIn('niak_socket_guard(client)',source)
         self.assertIn('niak_socket_send(client,"PONG\\n",5)',source)
@@ -97,6 +99,16 @@ class NativeTitleTests(unittest.TestCase):
                 subprocess.run([sys.executable, str(ROOT / "title" / "pack_ftp.py"),
                                 "--folder", str(base), "--output", str(package)],
                                check=True, capture_output=True)
+
+    def test_broker_catalogue_fallback_without_privileged_gui(self):
+        staging=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn('"broker_catalog.cpp","broker_catalog.hpp"',staging)
+        self.assertIn("broker_count=niak_scan_broker_games(",staging)
+        impl=(ROOT/"title"/"broker_catalog.cpp").read_text()
+        self.assertIn('"GAMES\\n"',impl)
+        self.assertIn('std::strncmp(response,"GAMES\\n",6)',impl)
+        self.assertIn("niak_socket_guard(fd)",impl)
+        self.assertNotIn("app.db",impl)
 
     def test_standalone_native_title(self):
         source = (ROOT / "title" / "build.sh").read_text()

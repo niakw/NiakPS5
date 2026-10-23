@@ -18,6 +18,10 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog
           /tmp/niak-catalog
+      - name: Validate bounded PLDmgr read-only game enumeration
+        run: |
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror native/title/tests/broker_inventory_test.c -o /tmp/niak-inventory
+          /tmp/niak-inventory
       - name: Validate one-shot game-to-home redirect gate
         run: |
           cc -std=c11 -Wall -Wextra -Werror native/title/tests/redirect_gate_test.c -o /tmp/niak-redirect-gate
