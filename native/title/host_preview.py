@@ -89,7 +89,7 @@ def make_case_art_fixtures(kit):
         # QA: Humankind has genuine front but NO retail back; Anno has
         # genuine back but NO retail front. Independent fallbacks must show
         # each missing face without overwriting the other authentic side.
-        if title_id!="PPSA04716":
+        if title_id not in ("PPSA04716","PPSA06186"):
             front.save(output/f"{title_id}-front.png",optimize=True)
         rear=gradient(480,640,(235,240,247),(161,192,217))
         paint=ImageDraw.Draw(rear)
@@ -221,18 +221,20 @@ def patch(kit):
 {
 #ifdef __linux__
     // Offline host preview only. Never packaged in the native PS5 title.
-    const char *names[]={"EA SPORTS FC 27","Humankind","ZZZ PS4 boxed demo",
-                         "Anno 1800 Console Edition","NiakPS5"};
-    const char *ids[]={"PPSA34015","PPSA06186","CUSA00053","PPSA04716","PPSA99386"};
-    for(int n=0;n<5;++n) {
+    // Two deterministic titles WITHOUT official scans. Their PS4/PS5
+    // mastheads, legal backs and spines are rendered from fixed templates.
+    const char *names[]={"SHADOWFALL","Humankind"};
+    const char *ids[]={"CUSA00053","PPSA06186"};
+    for(int n=0;n<2;++n) {
         owned_titles_.emplace_back(names[n]);
         Item item{};
         item.title=owned_titles_.back().c_str();
         item.studio="Aperçu hors console";
-        item.genre=n==4?"HOMEBREW":ids[n][0]=='C'?"PS4":"PS5";
-        item.blurb="Aperçu C++/OpenGL hors console. Catalogue utilisateur non accessible.";
-        item.homebrew=n==4;
-        item.application=n==4; // Exercise the real apps/homebrew second row.
+        item.genre=ids[n][0]=='C'?"PS4":"PS5";
+        item.blurb="Un jeu d'aventure avec des environnements varies, "
+                   "des personnages et des captures de gameplay.";
+        item.homebrew=false;
+        item.application=false;
         std::snprintf(item.title_id,sizeof(item.title_id),"%s",ids[n]);
         item.dark=gfx::Color::rgb(0x081719);
         item.mid=gfx::Color::rgb(0x183e44);
@@ -249,20 +251,15 @@ def patch(kit):
     # reached the GPU. The real PS5 stream remains incremental; only the
     # OFFLINE preview fixture is drained before starting screenshot tours.
     one(main, '    // HUI_ICON=<file.png>: draw the 512x512 launcher icon with the kit and stop.',
-        '''    // Host preview only: fully populate real front/back/spine fixture
-    // textures before snapshot assertions. The native PS5 main remains idle-
-    // streamed and is never patched by this test helper.
+        '''    // Force both missing faces and their fixed back/spine overlays.
+    // These counters represent genuine retail scans, not mockups.
     (void)catalog.stream_next_covers(renderer,fonts,catalog.size());
-    // Assert the host QA fixtures were actually decoded and uploaded.
-    // Exactly TWO authentic spine fixtures must remain. The PS4 demo and
-    // PS5 Humankind intentionally lack a scanned spine to exercise the
-    // immutable owner's templates in the real OpenGL captures.
     const auto &media=niak::case_media_stats;
-    if(media.titles!=5 || media.fronts<2 ||
-       media.backs<2 || media.spines!=2) {
+    if(media.titles!=2 || media.fronts!=0 || media.backs!=0 ||
+       media.spines!=0 || media.templates!=2) {
         std::fprintf(stderr,
-            "case art fixtures incomplete: titles=%u front=%u back=%u spine=%u\\n",
-            media.titles,media.fronts,media.backs,media.spines);
+            "six-view fixtures invalid: titles=%u front=%u back=%u spine=%u templates=%u\n",
+            media.titles,media.fronts,media.backs,media.spines,media.templates);
         return 1;
     }
     // HUI_ICON=<file.png>: draw the 512x512 launcher icon with the kit and stop.''')
@@ -279,98 +276,27 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
 ''',"utf8")
     # Capture a SEALED case from four real OpenGL angles, never its inside.
     one(main, '    if (const char *strip = std::getenv("HUI_STRIP"))', """    if (std::getenv("NIAK_CASE_TOUR")) {
+        // Exactly TWO titles, one PS4 then one PS5: no commercial box
+        // scans for any of their three faces. These are real GL snapshots.
         hui::InputFrame idle;
-        idle.connected = true;
-        shell.show(0, false);
-        for(int frame=0;frame<475;++frame) {
-            if(frame==91) {
-                hui::InputFrame r1;
-                r1.connected=true;
-                r1.pressed=hui::action_bit(hui::Action::page_next);
-                shell.update(r1,kDt);
-                render("case-05-r1-menu");
-            } else shell.update(idle,kDt);
-            if(frame==90)render("case-00-front");
-            if(frame==202)render("case-01-spine");
-            if(frame==330)render("case-02-back");
-            if(frame==445)render("case-03-return");
-        }
-        // Visit the real Applications/homebrew shelf. The fifth title has
-        // NO retail scans, intentionally testing the generic physical box.
-        hui::InputFrame next;
-        next.connected=true;
-        next.nav=hui::Direction::down;
-        shell.update(next,kDt);
-        for(int frame=0;frame<100;++frame) shell.update(idle,kDt);
-        render("case-04-homebrew-fallback");
-        // Visit PS4 first-shelf item with no scans; real platform header and
-        // private back footer must be mapped in the same renderer.
-        hui::InputFrame up;
-        up.connected=true;
-        up.nav=hui::Direction::up;
-        shell.update(up,kDt);
-        for(int frame=0;frame<20;++frame)shell.update(idle,kDt);
+        idle.connected=true;
+        shell.show(0,false);
+        auto capture=[&](const std::string &platform) {
+            // yaw_at(): front held through 2.7 s, spine near 3.375 s,
+            // back fully visible after 4.05 s. Stable positions only.
+            for(int n=0;n<20;++n)shell.update(idle,kDt);
+            render(platform+"-front");
+            for(int n=20;n<203;++n)shell.update(idle,kDt);
+            render(platform+"-spine");
+            for(int n=203;n<270;++n)shell.update(idle,kDt);
+            render(platform+"-back");
+        };
+        capture("ps4");
         hui::InputFrame right;
         right.connected=true;
         right.nav=hui::Direction::right;
-        for(int move=0;move<4;++move) {
-            shell.update(right,kDt);
-            for(int frame=0;frame<20;++frame)shell.update(idle,kDt);
-        }
-        // The first-shelf game at this point is the PS4 CUSA00053.
-        // It has neither an authentic front nor an authentic back.
-        render("case-07-ps4-missing-front");
-        // The selected PS4 game has no scanned spine. At ~3.38 seconds, the
-        // physical box turns edge-on and must display the owner's PS4 strip.
-        for(int frame=0;frame<203;++frame)shell.update(idle,kDt);
-        render("case-15-ps4-missing-spine");
-        for(int frame=0;frame<32;++frame)shell.update(idle,kDt);
-        render("case-08-ps4-missing-back");
-        // Move left twice to PPSA34015, whose front AND back are authentic.
-        hui::InputFrame backwards;
-        backwards.connected=true;
-        backwards.nav=hui::Direction::left;
-        for(int move=0;move<2;++move) {
-            shell.update(backwards,kDt);
-            for(int frame=0;frame<23;++frame)shell.update(idle,kDt);
-        }
-        render("case-09-ps5-both-official-front");
-        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
-        render("case-10-ps5-both-official-back");
-        // Move one game right to Humankind: its authentic FRONT remains,
-        // its missing BACK has to be assembled above the immutable PS5 footer.
-        hui::InputFrame next_game;
-        next_game.connected=true;
-        next_game.nav=hui::Direction::right;
-        shell.update(next_game,kDt);
-        for(int frame=0;frame<24;++frame)shell.update(idle,kDt);
-        render("case-11-ps5-official-front");
-        // This PS5 game has an authentic FRONT but neither back nor spine.
-        // A side-on capture proves the real PS5 spine template is reachable.
-        for(int frame=0;frame<203;++frame)shell.update(idle,kDt);
-        render("case-16-ps5-missing-spine");
-        for(int frame=0;frame<32;++frame)shell.update(idle,kDt);
-        render("case-12-ps5-missing-back");
-        // From Humankind advance two game positions to Anno 1800:
-        // missing FRONT reconstructed, genuine BACK kept intact.
-        for(int move=0;move<2;++move) {
-            shell.update(next_game,kDt);
-            for(int frame=0;frame<24;++frame)shell.update(idle,kDt);
-        }
-        render("case-13-ps5-missing-front");
-        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
-        render("case-14-ps5-official-back");
-        hui::InputFrame down;
-        down.connected=true;
-        down.nav=hui::Direction::down;
-        shell.update(down,kDt);
-        for(int frame=0;frame<25;++frame)shell.update(idle,kDt);
-        hui::InputFrame touchpad;
-        touchpad.connected=true;
-        touchpad.pressed=hui::action_bit(hui::Action::touch);
-        shell.update(touchpad,kDt);
-        for(int frame=0;frame<32;++frame) shell.update(idle,kDt);
-        render("case-06-touchpad-details");
+        shell.update(right,kDt);
+        capture("ps5");
         return ok ? 0 : 1;
     }
     if (const char *strip = std::getenv("HUI_STRIP"))""")

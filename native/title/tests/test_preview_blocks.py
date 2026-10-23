@@ -38,8 +38,9 @@ class PreviewBlocksTests(unittest.TestCase):
         self.assertNotIn('" / QA FOOTER"',host)
         self.assertIn("NIAK_CASE_ORIGINAL_BLOCKS",host)
         self.assertIn("00-fixed-elements-PS4-PS5.png",host)
-        self.assertIn("00-fixed-elements-PS4-PS5.png",validator)
-        self.assertIn("00-fixed-elements-PS4-PS5.png build/niak-preview/",workflow)
+        self.assertIn("Expected exactly 6 PNG captures",validator)
+        self.assertNotIn("00-fixed-elements-PS4-PS5.png build/niak-preview/",workflow)
+        self.assertIn("NIAK_CASE_TOUR=1",workflow)
         self.assertIn("NiakPS5-OpenGL-interface-preview",workflow)
         self.assertIn("NIAK_CASE_TEMPLATE_ASSETS",workflow)
 

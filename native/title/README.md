@@ -1,5 +1,15 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
+## Aperçu OpenGL GitHub — six captures uniquement
+
+L'artefact `NiakPS5-OpenGL-interface-preview` contient strictement
+`ps4-front.png`, `ps4-back.png`, `ps4-spine.png`,
+`ps5-front.png`, `ps5-back.png` et `ps5-spine.png`.
+Les deux jeux de test n'ont volontairement aucun scan commercial :
+les éléments fixes fournis PS4/PS5 apparaissent uniquement sur les faces
+manquantes. Le back doit afficher un bloc image au-dessus de son footer.
+Le pipeline refuse tout PNG supplémentaire.
+
 ## Aperçu OpenGL standard : tes éléments fixes PS4 et PS5
 
 L'artefact GitHub **NiakPS5-OpenGL-interface-preview** contient maintenant
