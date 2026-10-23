@@ -40,6 +40,7 @@ extern int sceUserServiceInitialize(void *params);
 extern int sceSystemServiceLaunchApp(const char *title_id,
                                      const char **arguments,
                                      NiakLaunchContext *params);
+extern int sceLncUtilInitialize(void);
 extern int sceLncUtilLaunchApp(const char *title_id,
                               const char **arguments,
                               NiakLaunchContext *params);
@@ -392,6 +393,10 @@ int main(void) {
      * Without this, GetForegroundUser fails with 0x80960002. */
     const int user_service_rc=sceUserServiceInitialize(NULL);
     report("UserService initialize",user_service_rc);
+    /* LncUtil has a separate initializer on firmware 13.60. The fallback
+     * cannot be assumed usable merely because UserService is initialized. */
+    const int lnc_init_rc=sceLncUtilInitialize();
+    report("LncUtil initialize",lnc_init_rc);
     // The local broker becomes available before console autostart attempts.
     // A manually launched UI can contact it even while the payload is still
     // waiting for the current foreground user or a free big-app slot.

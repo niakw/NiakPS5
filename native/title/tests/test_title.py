@@ -378,6 +378,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("is_regular_file(NIAK_DISABLED)",broker)
         self.assertIn("PING\\n",(ROOT/"title"/"autostart.c").read_text())
         self.assertIn("sceUserServiceInitialize(NULL)",broker)
+        self.assertIn("sceLncUtilInitialize()",broker)
+        self.assertIn('report("LncUtil initialize",lnc_init_rc)',broker)
         self.assertIn("SYS_thr_set_name",broker)
         self.assertIn("Local broker already running",broker)
         self.assertIn("niak_scan_local_inventory",source)

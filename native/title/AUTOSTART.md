@@ -123,3 +123,7 @@ Le lancement du payload crée un courtier réseau strictement local
 `127.0.0.1:19187`, accessible par le titre `PPSA99386`. La bibliothèque
 dépend encore des droits de lecture de l'environnement, même si le
 service « Jouer » devient accessible ; aucun accès root n'est inféré.
+
+## Initialisation du service de lancement
+
+Le payload initialise maintenant `sceLncUtilInitialize()` après `sceUserServiceInitialize()` et journalise son code retour. Si `sceSystemServiceLaunchApp` renvoie `0x80940005`, le chemin `sceLncUtilLaunchApp` du même titre est sélectionné. Les logs `LncUtil initialize`, `sceLncUtilLaunchApp accepted app id` ou `sceLncUtilLaunchApp refused` permettent de distinguer une installation d'ELF ancienne d'un échec du repli. La présence d'un `NiakPS5 broker heartbeat PID` après deux minutes atteste que le broker est toujours résident ; un message `ready` isolé ne suffit pas.
