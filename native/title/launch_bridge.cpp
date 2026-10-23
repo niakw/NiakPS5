@@ -86,7 +86,7 @@ void mark_probe(int stage,int error) {
 }
 
 const char *niak_launch_broker_diagnostic() {
-    static char message[100];
+    static char message[196];
     const char *step="non testé";
     switch(kProbeStage) {
     case 1:step="socket";break;
@@ -102,20 +102,33 @@ const char *niak_launch_broker_diagnostic() {
     // Settings redraws every frame. Cache filesystem snapshot checks so
     // a denied /app0 or /data read cannot stall the GPU/dual-sense UI at 60 Hz.
     static bool catalogue_readable=false;
+    static int snapshot_errors[3]{};
     static std::time_t snapshot_checked_at=0;
     const std::time_t now=std::time(nullptr);
     if(!snapshot_checked_at || now<snapshot_checked_at ||
        now-snapshot_checked_at>=3) {
         NiakGame probe{};
-        catalogue_readable=
-            niak_snapshot_read(NIAK_SNAPSHOT_APP_FILE,&probe,1)>=0 ||
-            niak_snapshot_read(NIAK_SNAPSHOT_APP_SOURCE,&probe,1)>=0 ||
-            niak_snapshot_read(NIAK_SNAPSHOT_FILE,&probe,1)>=0;
+        const char *const sources[]={
+            NIAK_SNAPSHOT_APP_FILE,NIAK_SNAPSHOT_APP_SOURCE,
+            NIAK_SNAPSHOT_FILE};
+        catalogue_readable=false;
+        for(int i=0;i<3;++i) {
+            errno=0;
+            const int result=niak_snapshot_read(sources[i],&probe,1);
+            snapshot_errors[i]=result>=0?-1:errno;
+            catalogue_readable|=result>=0;
+        }
         snapshot_checked_at=now;
     }
-    std::snprintf(message,sizeof(message),"PING %s (errno %d)%s",
-                  step,kProbeError,
-                  catalogue_readable ? "; catalogue local lisible" : "");
+    if(catalogue_readable)
+        std::snprintf(message,sizeof(message),
+                      "PING %s (errno %d); catalogue local lisible",
+                      step,kProbeError);
+    else
+        std::snprintf(message,sizeof(message),
+                      "PING %s (errno %d); snapshots app0:%d source:%d data:%d",
+                      step,kProbeError,snapshot_errors[0],
+                      snapshot_errors[1],snapshot_errors[2]);
     // A readable catalogue does NOT imply that launching games over TCP works.
     return message;
 }
