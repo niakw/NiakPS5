@@ -23,8 +23,8 @@ ps4_front=Path(sys.argv[1])/"case-07-ps4-template-front.png"
 ps4_back=Path(sys.argv[1])/"case-08-ps4-template-back.png"
 if not ps4_front.exists() or not ps4_back.exists():
     raise SystemExit("Missing platform-specific PS4 fallback case captures")
-wallpaper=Path(sys.argv[1])/"case-05-wallpaper-r1.png"
-if not wallpaper.exists():raise SystemExit("Missing R1 wallpaper capture")
+menu_r1=Path(sys.argv[1])/"case-05-r1-menu.png"
+if not menu_r1.exists():raise SystemExit("Missing R1 tab navigation capture")
 detail=Path(sys.argv[1])/"case-06-touchpad-details.png"
 if not detail.exists():raise SystemExit("Missing touchpad details capture")
 if not fallback.exists():raise SystemExit("Missing no-retail-art homebrew case preview")
@@ -33,14 +33,21 @@ changes=[]
 for x,y in zip(frames,frames[1:]):
     delta=sum(ImageStat.Stat(ImageChops.difference(x,y)).mean)
     changes.append(delta)
-# R1 must visibly change the real wallpaper while keeping the same title.
-# Crop to scenery, outside the title/case panels. A successful build without
-# distinct wallpaper assets is NOT a valid success for this feature.
-with Image.open(wallpaper) as _after, Image.open(required[0]) as _before_image:
-    _background=_after.convert("RGB").crop((865,105,1115,480))
-    _before=_before_image.convert("RGB").crop((865,105,1115,480))
-    if sum(ImageStat.Stat(ImageChops.difference(_before,_background)).mean)<4:
-        raise SystemExit("R1 did not visibly switch the wallpaper")
+# R1 must change the active menu tab but NOT change the daily wallpaper.
+# The two captures are adjacent frames, avoiding time-of-day drift.
+with Image.open(menu_r1) as _after_image, Image.open(required[0]) as _before_image:
+    _after=_after_image.convert("RGB")
+    _before=_before_image.convert("RGB")
+    _tab_region=(70,50,1320,164)
+    _tab_change=sum(ImageStat.Stat(ImageChops.difference(
+        _before.crop(_tab_region),_after.crop(_tab_region))).mean)
+    if _tab_change<0.25:
+        raise SystemExit("R1 did not visibly switch the menu tab")
+    _wall_region=(865,205,1115,470)
+    _wall_change=sum(ImageStat.Stat(ImageChops.difference(
+        _before.crop(_wall_region),_after.crop(_wall_region))).mean)
+    if _wall_change>3.5:
+        raise SystemExit("R1 unexpectedly changed the daily wallpaper")
 # Touchpad must open the NiakPS5 detail sheet (large in-panel overlay),
 # not the upstream English developer panel or an inert screen.
 with Image.open(detail) as touch,Image.open(fallback) as before_touch:

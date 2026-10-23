@@ -284,7 +284,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("media.spines<3",host)
         self.assertIn("Host preview only",host)
         self.assertIn("case-04-homebrew-fallback",host)
-        self.assertIn("case-05-wallpaper-r1",host)
+        self.assertIn("case-05-r1-menu",host)
         self.assertIn("case-06-touchpad-details",host)
         self.assertIn("case-07-ps4-template-front",host)
         self.assertIn('ids[n][0]==\'C\'?"PS4":"PS5"',host)
@@ -292,7 +292,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("PS4 front and back overlays rendered identically",
                       (ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("Touchpad click did not open",(ROOT/"title"/"validate_preview.py").read_text())
-        self.assertIn("R1 did not visibly switch",(ROOT/"title"/"validate_preview.py").read_text())
+        self.assertIn("R1 did not visibly switch the menu tab",(ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("item.application=n==4",host)
         self.assertIn("case-04-homebrew-fallback",
                       (ROOT/"title"/"validate_preview.py").read_text())
@@ -369,8 +369,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("PING\\n",(ROOT/"title"/"autostart.c").read_text())
         self.assertIn("niak_launch_broker_ready",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn('std::strcmp(game.title,"Mes vidéos")==0',source)
-        self.assertIn('if (input.is_pressed(Action::page_next))',
-                      (ROOT/"title"/"patch_home.py").read_text())
+        navigation=(ROOT/"title"/"patch_home.py").read_text()
+        self.assertIn("Action::page_prev",navigation)
+        self.assertIn("Action::page_next",navigation)
+        self.assertIn("case 8: niak_next_daily_backdrop()",navigation)
+        self.assertEqual(navigation.count("niak_next_daily_backdrop();"),1)
         # Wallpapers should not be almost invisible under stacked overlays.
         wallpaper_ui=(ROOT/"title"/"patch_home.py").read_text()
         self.assertIn("kWhite.with_alpha(0.85f)",wallpaper_ui)

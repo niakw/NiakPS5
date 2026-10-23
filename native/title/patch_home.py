@@ -15,13 +15,18 @@ def patch(kit):
     file = kit / "src/concepts/aurora.cpp"
     text = file.read_text()
     text = once(text, "        if (sheet_open_)\n            update_sheet(input, feedback);\n        else\n            update_shelves(input, feedback);",
-    """        // R1 deliberately cycles available packaged wallpapers.
-        // Calendar-day selection remains automatic until R1 is pressed.
-        // R1 also works while a details panel is visible or another
-        // top-level tab has focus. It must not silently do nothing there.
-        if (input.is_pressed(Action::page_next))
+    """        // L1/R1 navigate the four top-level menu tabs in either direction.
+        // They never touch the daily wallpaper or alter a game's saved state.
+        const bool l1 = input.is_pressed(Action::page_prev);
+        const bool r1 = input.is_pressed(Action::page_next);
+        if (l1 != r1)
         {
-            niak_next_daily_backdrop();
+            active_tab_ = (active_tab_ + (r1 ? 1 : 3)) % 4;
+            selected_tab_ = active_tab_;
+            top_focus_ = false;
+            sheet_open_ = false;
+            settings_cursor_ = 0;
+            row_ = (active_tab_ == 2 && shelves_.size() > 1) ? 1 : 0;
             feedback.play(audio::Cue::tab);
         }
         if (sheet_open_)
@@ -42,9 +47,8 @@ def patch(kit):
         // Keep the animated aurora/smoke behind real game artwork.
         if (const std::uint32_t wallpaper = niak_daily_backdrop())
         {
-            // Previously the 0.59 image alpha combined with 0.68–0.81
-            // darkening left only ~11–19% of the wallpaper visible. R1 could
-            // appear ineffective even with a successfully changed texture.
+            // Keep one wallpaper for the calendar day. L1/R1 only switch
+            // top tabs; the Settings action alone changes today's choice.
             // Keep a dark readability veil while preserving actual scenery.
             list.image(wallpaper, {0, 0, gfx::kVirtualWidth, gfx::kVirtualHeight},
                        gfx::kFullUv, kWhite.with_alpha(0.85f));
@@ -113,7 +117,7 @@ def patch(kit):
         if (input.nav == Direction::up || input.nav == Direction::down)
         {
             settings_cursor_ = std::clamp(settings_cursor_ +
-                (input.nav == Direction::down ? 1 : -1), 0, 8);
+                (input.nav == Direction::down ? 1 : -1), 0, 9);
             feedback.play(audio::Cue::focus);
         }
         if (input.is_pressed(Action::confirm))
@@ -129,7 +133,8 @@ def patch(kit):
             case 5: s.haptics = !s.haptics; break;
             case 6: s.light_bar = !s.light_bar; break;
             case 7: s.sfx_volume = (s.sfx_volume + 1) % 11; break;
-            case 8: sys::quit(); return; // Return to Sony Home to access native settings
+            case 8: niak_next_daily_backdrop(); feedback.play(audio::Cue::complete); return;
+            case 9: sys::quit(); return; // Return to Sony Home to access native settings
 
             }
             context_.settings_changed = true;
@@ -186,10 +191,11 @@ def patch(kit):
                                 "Animations reduites", "Afficher FPS",
                                 "Vibrations DualSense", "Couleur lumineuse",
                                 "Volume des effets sonores",
+                                "Changer le fond du jour",
                                 "Retour à l’accueil Sony"};
         const auto &s=context_.settings;
         char value[40];
-        for (int i=0;i<9;++i)
+        for (int i=0;i<10;++i)
         {
             const float y = 255.0f + 68.0f * static_cast<float>(i);
             const bool focused = !top_focus_ && settings_cursor_ == i;
@@ -206,7 +212,8 @@ def patch(kit):
                               i==1 ? s.ui_volume : i==2 ? s.music_volume : s.sfx_volume);
                 display=value;
             }
-            else if(i==8) display="QUITTER NIAKPS5";
+            else if(i==8) display="CHANGER";
+            else if(i==9) display="QUITTER NIAKPS5";
             else
             {
                 const bool on=i==3 ? s.reduced_motion : i==4 ? s.show_fps :
@@ -215,7 +222,7 @@ def patch(kit):
             }
             ui::text(list, fonts.semibold, labels[i], 130, y+39, 24, kWhite);
             ui::text(list, fonts.semibold, display, 1350, y+39, 21,
-                     i==8 ? palette_[3].value() : kWhite.with_alpha(0.75f),
+                     i==9 ? palette_[3].value() : kWhite.with_alpha(0.75f),
                      gfx::Align::right);
         }
         // Detect the local marker only; the title sandbox cannot certify that

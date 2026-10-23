@@ -6,7 +6,7 @@ Accueil graphique **expérimental** pour PS5 jailbreakée (titre `PPSA99386`), d
 
 | Fonction | État |
 | --- | --- |
-| Interface native OpenGL et navigation DualSense | Testées sur la console de développement |
+| Interface native OpenGL et navigation DualSense | Testées sur la console de développement ; L1/R1 changent les onglets |
 | Catalogue via ShadowMountPlus 1.7 sur `127.0.0.1:10101` | Découverte des identifiants confirmée sur la console |
 | Véritables icônes de jeux | Intégrées avec `GET /api/v1/games/icon`, **validation console en attente** |
 | Noms des jeux | API ShadowMountPlus + `app.db` en lecture seule quand accessible, certains titres peuvent encore afficher l'ID |
@@ -23,6 +23,13 @@ Accueil graphique **expérimental** pour PS5 jailbreakée (titre `PPSA99386`), d
 | Fonds jeux récents | Sélection quotidienne dans un lot Steam préparé à la compilation ; pas de téléchargement live PS5 |
 
 Les validations GitHub prouvent les tests hôte, la compilation native et les captures OpenGL sur Mesa, **pas** le lancement des jeux ni la compatibilité matérielle sur une console PS5 13.60. Une demande de lancement acceptée n'est pas une preuve que le jeu a réellement démarré.
+
+## Navigation et fond d'écran
+
+**L1/R1** naviguent entre NIAK, Jeux, Multimédia et Réglages. Ils ne changent jamais le fond.
+Le fond d'écran est sélectionné automatiquement selon la date locale (une sélection
+par jour). **Réglages → Changer le fond du jour** permet de forcer une autre image
+pour la journée ; aucune autre commande ne déclenche cette action.
 
 ## Un seul ZIP FTP
 

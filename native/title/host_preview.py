@@ -214,7 +214,7 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
                 r1.connected=true;
                 r1.pressed=hui::action_bit(hui::Action::page_next);
                 shell.update(r1,kDt);
-                render("case-05-wallpaper-r1");
+                render("case-05-r1-menu");
             } else shell.update(idle,kDt);
             if(frame==90)render("case-00-front");
             if(frame==202)render("case-01-spine");
