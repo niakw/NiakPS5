@@ -254,11 +254,12 @@ def patch(kit):
     // streamed and is never patched by this test helper.
     (void)catalog.stream_next_covers(renderer,fonts,catalog.size());
     // Assert the host QA fixtures were actually decoded and uploaded.
-    // A screenshot of a generic blue sleeve is not evidence that its
-    // private scan front/back/spine code works on a real renderer.
+    // Exactly TWO authentic spine fixtures must remain. The PS4 demo and
+    // PS5 Humankind intentionally lack a scanned spine to exercise the
+    // immutable owner's templates in the real OpenGL captures.
     const auto &media=niak::case_media_stats;
     if(media.titles!=5 || media.fronts<2 ||
-       media.backs<2 || media.spines<3) {
+       media.backs<2 || media.spines!=2) {
         std::fprintf(stderr,
             "case art fixtures incomplete: titles=%u front=%u back=%u spine=%u\\n",
             media.titles,media.fronts,media.backs,media.spines);
@@ -319,11 +320,11 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         // The first-shelf game at this point is the PS4 CUSA00053.
         // It has neither an authentic front nor an authentic back.
         render("case-07-ps4-missing-front");
-        // The selected PS4 game has no scanned spine. At ~3.4 seconds, the
+        // The selected PS4 game has no scanned spine. At ~3.38 seconds, the
         // physical box turns edge-on and must display the owner's PS4 strip.
-        for(int frame=0;frame<185;++frame)shell.update(idle,kDt);
+        for(int frame=0;frame<203;++frame)shell.update(idle,kDt);
         render("case-15-ps4-missing-spine");
-        for(int frame=0;frame<50;++frame)shell.update(idle,kDt);
+        for(int frame=0;frame<32;++frame)shell.update(idle,kDt);
         render("case-08-ps4-missing-back");
         // Move left twice to PPSA34015, whose front AND back are authentic.
         hui::InputFrame backwards;
@@ -346,9 +347,9 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         render("case-11-ps5-official-front");
         // This PS5 game has an authentic FRONT but neither back nor spine.
         // A side-on capture proves the real PS5 spine template is reachable.
-        for(int frame=0;frame<185;++frame)shell.update(idle,kDt);
+        for(int frame=0;frame<203;++frame)shell.update(idle,kDt);
         render("case-16-ps5-missing-spine");
-        for(int frame=0;frame<50;++frame)shell.update(idle,kDt);
+        for(int frame=0;frame<32;++frame)shell.update(idle,kDt);
         render("case-12-ps5-missing-back");
         // From Humankind advance two game positions to Anno 1800:
         // missing FRONT reconstructed, genuine BACK kept intact.
