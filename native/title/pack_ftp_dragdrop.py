@@ -11,7 +11,6 @@ import json
 import os
 from pathlib import Path
 import shutil
-import stat
 
 TITLE="PPSA99386"
 OWN_PAYLOAD="niakps5"
@@ -75,66 +74,9 @@ def stage(title:Path,output:Path):
     print("FTP drop-in staged: copy data/ to PS5 FTP / (merge existing folders)")
     print("The package does NOT include or change autoload.txt.")
 
-def package_zip(folder:Path,destination:Path):
-    """Keep executable bits in an *inner* ZIP: GitHub artifact ZIP resets them.
-
-    The owner only extracts archives in the file manager, then drags data/ into
-    FTP root. Never executes a script to install the application on the PS5.
-    """
-    from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED,ZIP_STORED
-    folder=folder.resolve(strict=True)
-    destination=destination.absolute()
-    if not (folder/"data/homebrew"/TITLE/"eboot.bin").is_file():
-        raise ValueError("Staged drop-in tree missing")
-    if destination.is_relative_to(folder):
-        raise ValueError("Archive destination inside staging tree")
-    _owned_paths(folder)
-    destination.parent.mkdir(parents=True,exist_ok=True)
-    temporary=destination.with_suffix(".zip.tmp")
-    try:
-        with ZipFile(temporary,"w",compression=ZIP_DEFLATED,compresslevel=6) as z:
-            for p in [folder/"data",*sorted((folder/"data").rglob("*"))]:
-                directory=p.is_dir()
-                name=p.relative_to(folder).as_posix()+("/" if directory else "")
-                mode=(stat.S_IFDIR|0o755 if directory else
-                      stat.S_IFREG|(0o755 if p.name in
-                              ("eboot.bin","niakps5.elf","sandbox-elevator.elf")
-                              else 0o644))
-                meta=ZipInfo(name,(2026,1,1,0,0,0))
-                meta.create_system=3
-                meta.external_attr=(mode<<16)|(0x10 if directory else 0)
-                meta.compress_type=ZIP_STORED if directory else ZIP_DEFLATED
-                if directory:z.writestr(meta,b"")
-                else:z.write(p,arcname=name,compress_type=ZIP_DEFLATED,
-                             compresslevel=6)
-        with ZipFile(temporary) as z:
-            names=z.namelist()
-            if z.testzip() is not None or len(names)!=len(set(names)):
-                raise ValueError("Invalid drag-and-drop ZIP")
-            if not all(name.startswith("data/") for name in names):
-                raise ValueError("Unexpected ZIP root")
-            if any(name=="data/pldmgr/autoload.txt" or
-                   name=="data/pldmgr/pldmgr_config.txt" for name in names):
-                raise ValueError("PLDmgr configuration bundled unexpectedly")
-            for path in ("data/homebrew/PPSA99386/eboot.bin",
-                         "data/pldmgr/payloads/niakps5/niakps5.elf",
-                         "data/pldmgr/payloads/niakps5/niakps5.elf.json"):
-                if path not in names:raise ValueError("Missing required FTP path")
-            for path in ("data/homebrew/PPSA99386/eboot.bin",
-                         "data/pldmgr/payloads/niakps5/niakps5.elf"):
-                if (z.getinfo(path).external_attr>>16)&0o777!=0o755:
-                    raise ValueError("Lost executable file permissions")
-        os.replace(temporary,destination)
-    finally:
-        if temporary.exists():temporary.unlink()
-    print(f"FTP no-command ZIP with executable metadata: {destination}")
-
-
 if __name__=="__main__":
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--title",type=Path,required=True)
     p.add_argument("--output",type=Path,required=True)
-    p.add_argument("--archive",type=Path)
     args=p.parse_args()
     stage(args.title,args.output)
-    if args.archive:package_zip(args.output,args.archive)
