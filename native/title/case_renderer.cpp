@@ -198,14 +198,11 @@ void outer_face(DrawList &list,const Camera &camera,
                 {item.case_shot1,item.case_shot1_aspect},
                 {item.case_shot2,item.case_shot2_aspect}
             });
-            if(!chosen.first.texture) {
-                if(item.case_scene)
-                    chosen.first={item.case_scene,item.case_scene_aspect};
-                else if(item.case_hero)
-                    chosen.first={item.case_hero,item.case_hero_aspect};
-                else if(item.cover_is_image && item.cover)
-                    chosen.first={item.cover,1.f};
-            }
+            // Only dedicated LaunchBox back media belongs on a recreated
+            // reverse cover. The installed icon/pic1 can match the main
+            // library art: NEVER repeat it on the back as fake gameplay.
+            if(!chosen.first.texture && item.case_hero)
+                chosen.first={item.case_hero,item.case_hero_aspect};
             if(chosen.first.texture) {
                 if(chosen.second.texture) {
                     panel(chosen.first.texture,chosen.first.aspect,

@@ -121,7 +121,8 @@ class NativeTitleTests(unittest.TestCase):
     def test_reconstructed_case_avoids_generated_placeholder_as_artwork(self):
         renderer=(ROOT/"title"/"case_renderer.cpp").read_text()
         self.assertIn("(item.cover_is_image?item.cover:0)",renderer)
-        self.assertIn("else if(item.cover_is_image && item.cover)",renderer)
+        self.assertNotIn("else if(item.cover_is_image && item.cover)",renderer)
+        self.assertIn("if(!chosen.first.texture && item.case_hero)",renderer)
         self.assertIn("Color::rgb(0x0c1727)",renderer)
         self.assertIn("Color::rgb(0x12243b)",renderer)
 
