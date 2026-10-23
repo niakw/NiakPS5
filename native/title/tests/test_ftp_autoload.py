@@ -544,6 +544,40 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("Titre param.json cohérent : False",out.getvalue())
         self.assertIn("inscription non vérifiable",out.getvalue())
 
+    def test_read_only_app_db_registration_evidence(self):
+        import sqlite3
+        from io import StringIO
+        from contextlib import redirect_stdout
+        location="/system_data/priv/mms/app.db"
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE tbl_contentinfo(titleId TEXT, titleName TEXT)")
+        db.execute("INSERT INTO tbl_contentinfo VALUES (?,?)",
+                   (ftpmod.TITLE,"NiakPS5"))
+        image=db.serialize()
+        db.close()
+        for blob,expected in [
+            (image,"PPSA99386 trouvé"),
+            (b"invalid","inconnu"),
+        ]:
+            with self.subTest(expected=expected):
+                ftp=FakeFTP({location:blob})
+                previous=ftp.files.copy()
+                output=StringIO()
+                with redirect_stdout(output):
+                    ftpmod.diagnose_appdb_registration(ftp)
+                self.assertEqual(ftp.files,previous)
+                self.assertIn(expected,output.getvalue())
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE tbl_contentinfo(titleId TEXT)")
+        missing=db.serialize()
+        db.close()
+        ftp=FakeFTP({location:missing})
+        output=StringIO()
+        with redirect_stdout(output):
+            ftpmod.diagnose_appdb_registration(ftp)
+        self.assertIn("absent de la copie reçue",output.getvalue())
+        self.assertEqual(ftp.files,{location:missing})
+
     def test_read_only_status_never_changes_console(self):
         from contextlib import redirect_stdout
         from io import StringIO

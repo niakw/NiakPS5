@@ -4,7 +4,10 @@
 
 Le diagnostic FTP `--status` vérifie désormais `sce_sys/param.json` et
 les chemins `scanpath=` dans `/data/shadowmount/config.ini`, en **lecture
-seule**. Si des chemins personnalisés sont configurés et excluent
+seule**. Il interroge aussi une **copie SQLite en mémoire** de
+`/system_data/priv/mms/app.db`, sous une limite de 64 Mio. Un résultat
+inaccessible ou un schéma inconnu reste « indéterminé » ; l'outil n'écrit
+jamais dans app.db. Si des chemins personnalisés sont configurés et excluent
 `/data/homebrew`, ShadowMountPlus ne découvrira pas `PPSA99386` à cet
 emplacement. La présence de fichiers et un param.json valide ne prouvent
 pas à eux seuls que le titre a été enregistré. NiakPS5 ne modifie jamais

@@ -638,6 +638,51 @@ def diagnose_title_registration(ftp):
     print("ShadowMountPlus : scanpath contrôlé, inscription effective encore inconnue")
 
 
+def diagnose_appdb_registration(ftp):
+    """Check title registration against a bounded, read-only app.db snapshot.
+
+    A file in /data/homebrew is not proof of registration. Queries operate
+    ONLY on a separate in-memory SQLite snapshot, never on the console DB.
+    Unreadable, oversized, WAL-inconsistent or unfamiliar DBs stay UNKNOWN.
+    """
+    import sqlite3
+    try:
+        image=_bounded_retrieve(ftp,"/system_data/priv/mms/app.db",
+                                limit=64*1024*1024)
+    except (OSError,ValueError):
+        image=None
+    if not image or not image.startswith(b"SQLite format 3\x00"):
+        print("Enregistrement app.db : inconnu (FTP inaccessible ou DB non exploitable)")
+        return
+    db=None
+    try:
+        db=sqlite3.connect(":memory:")
+        db.deserialize(image)
+        db.execute("PRAGMA query_only=ON")
+        recognized=0
+        for table in ("tbl_contentinfo","tbl_appbrowse","tbl_appinfo"):
+            try:
+                found=db.execute(
+                    f"SELECT 1 FROM {table} WHERE titleId=? LIMIT 1",
+                    (TITLE,)).fetchone()
+                recognized+=1
+                if found:
+                    print("Enregistrement app.db : PPSA99386 trouvé "
+                          f"(copie en lecture seule, {table})")
+                    return
+            except sqlite3.DatabaseError:
+                continue
+        if recognized:
+            print("Enregistrement app.db : PPSA99386 absent de la copie reçue "
+                  "(possiblement non enregistré ou instantané incomplet)")
+        else:
+            print("Enregistrement app.db : schéma inconnu ; résultat indéterminé")
+    except (sqlite3.Error,AttributeError,MemoryError):
+        print("Enregistrement app.db : copie illisible ; résultat indéterminé")
+    finally:
+        if db is not None:db.close()
+
+
 def diagnose(ftp,local_directory=None):
     """Read-only PS5 deployment report. Never edit system/app databases."""
     app=f"/data/homebrew/{TITLE}"
@@ -657,6 +702,7 @@ def diagnose(ftp,local_directory=None):
     print("NiakPS5 — diagnostic local (aucun fichier modifié)")
     print("Titre eboot.bin :",known(present(files,"eboot.bin")))
     diagnose_title_registration(ftp)
+    diagnose_appdb_registration(ftp)
     if local_directory is not None:
         comparison=installed_binary_matches(
             ftp,Path(local_directory)/"eboot.bin")
