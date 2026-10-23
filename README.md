@@ -36,10 +36,8 @@ commande ne déclenche cette action.
 ## Installation par FTP : **glisser-déposer uniquement**
 
 Dans les artifacts du dernier run vert, télécharger **NiakPS5-PPSA99386**.
-GitHub fournit une première archive ; l'extraire, puis extraire le ZIP
-`NiakPS5-FTP-glisser-deposer.zip` qu'elle contient. Cette deuxième archive
-conserve les droits exécutables `0755` (GitHub les efface dans la première).
-On obtient un seul dossier **`data/`** :
+GitHub fournit **une seule archive ZIP à extraire une seule fois**.
+Elle contient directement le dossier **`data/`**, sans autre ZIP :
 
 ```text
 data/
@@ -62,6 +60,10 @@ en choisissant FUSIONNER les dossiers existants**. Ne pas choisir une option
 supprimant le dossier `data` actuel ! Aucun terminal, Python ou script
 d'installation n'est nécessaire. Ne pas recopier `data/` dans `/data/`,
 ce qui créerait par erreur `/data/data/`.
+
+Les artefacts GitHub ne garantissent pas de préserver les permissions Unix :
+en cas de refus de lancement, vérifier les droits de `eboot.bin` et
+`niakps5.elf` avec l'interface du client FTP (pas de commande nécessaire).
 
 Le paquet **ne contient pas** `autoload.txt`, `pldmgr_config.txt` ni
 de fichier système Sony : ta configuration PLDmgr existante reste intacte.
