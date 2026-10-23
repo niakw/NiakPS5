@@ -315,6 +315,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case-12-ps5-missing-back",host)
         self.assertIn("case-13-ps5-missing-front",host)
         self.assertIn("case-14-ps5-official-back",host)
+        self.assertIn("case-15-ps4-missing-spine",host)
+        self.assertIn("case-16-ps5-missing-spine",host)
+        validator=(ROOT/"title"/"validate_preview.py").read_text()
+        self.assertIn("ps4_spine_fallback",validator)
+        self.assertIn("ps5_spine_fallback",validator)
+        self.assertIn("fixed spine does not appear",validator)
+        self.assertIn('if title_id!="PPSA06186":',host)
         self.assertIn("PS4 both missing",
                       (ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("Touchpad click did not open",(ROOT/"title"/"validate_preview.py").read_text())
