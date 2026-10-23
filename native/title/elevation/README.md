@@ -18,4 +18,8 @@ The FTP installer must stage the two verified payload assets into
 source path to exist. It does this only with `--autoload` or
 `--preserve-autoload`; `--no-autoload` leaves this opt-in step disabled.
 No installer Python script is uploaded to the console title.
+The in-app one-shot helper copies ONLY the app's own PLDmgr ELF/JSON.
+It checks the existing autoload entry read-only; the application NEVER
+edits autoload.txt itself. A missing entry requires the explicit FTP
+installer --autoload operation (or the owner's own PLDmgr setup).
 Firmware 13.60 behavior requires real console qualification.

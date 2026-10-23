@@ -433,6 +433,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('elevation::Capability::filesystem', installer)
         self.assertIn('"/data/pldmgr/payloads/niakps5"',installer)
         self.assertIn('configure_autoload()',installer)
+        # The GUI may copy its own ELF but is forbidden to modify existing
+        # PLDmgr configuration; only the explicit FTP --autoload does that.
+        segment=installer.split('bool configure_autoload() {',1)[1].split(
+            '} // namespace',1)[0]
+        self.assertIn('has_autoload_entry(config)',segment)
+        self.assertNotIn('mkstemp(',segment)
+        self.assertNotIn('rename(',segment)
+        self.assertNotIn('config+="niakps5.elf',segment)
         self.assertIn('PPSA99386',(ROOT/"title"/"elevation"/"helper/main.cpp").read_text())
         self.assertNotIn('PPSA99008',(ROOT/"title"/"elevation"/"helper/main.cpp").read_text())
         self.assertIn('report("LncUtil initialize",lnc_init_rc)',broker)

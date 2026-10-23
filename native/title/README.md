@@ -342,8 +342,10 @@ Eden Encore adapté à `PPSA99386`). Au démarrage du titre, si un elfldr
 compatible écoute déjà sur `127.0.0.1:9021`, NiakPS5 demande une seule
 fois l'accès au système de fichiers puis installe ou met à jour exclusivement
 son propre `niakps5.elf` et `.elf.json` dans PLDmgr. L'entrée existante
-`autoload.txt` est conservée, une ligne manquante est ajoutée sans toucher
-aux autres payloads ni au fichier de configuration globale. NiakPS5
+`autoload.txt` est **uniquement lue**, jamais modifiée par l'application.
+Une entrée manquante doit être configurée via l'installateur FTP avec
+`--autoload` (sans `--preserve-autoload`), pas par un changement implicite
+des droits au lancement. NiakPS5
 continue en sandbox si le helper échoue. Le journal natif contient
 `one-shot own payload install status=` : 1=mise à jour, 0=déjà installé,
 -1=helper indisponible, -2=validation/écriture refusée.

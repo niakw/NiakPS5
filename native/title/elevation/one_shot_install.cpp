@@ -108,8 +108,10 @@ bool has_autoload_entry(const std::string &text) {
     }
     return false;
 }
+// Strict read-only check: the FTP installer owns PLDmgr configuration.
+// A GUI launch, including one with temporary filesystem privilege, must
+// NEVER rewrite the user's existing autoload list or silently append itself.
 bool configure_autoload() {
-    // Do NOT replace or reorder the user's existing PLDmgr setup.
     struct stat st{};
     if(lstat(kAutoload,&st)!=0 || !S_ISREG(st.st_mode) ||
        st.st_size<0 || st.st_size>3500)return false;
@@ -121,27 +123,11 @@ bool configure_autoload() {
         config.append(buffer,n);
     const int read_error=std::ferror(in);
     std::fclose(in);
-    if(read_error || config.find('\0')!=std::string::npos)return false;
-    if(has_autoload_entry(config))return true;
-    if(!config.empty() && config.back()!='\n')config+='\n';
-    config+="niakps5.elf\n";
-    if(config.size()>4095)return false;
-    char temp[]="/data/pldmgr/.niak-autoload-XXXXXX";
-    int fd=mkstemp(temp);
-    if(fd<0)return false;
-    bool ok=true;std::size_t done=0;
-    while(done<config.size()) {
-        const ssize_t wrote=write(fd,config.data()+done,config.size()-done);
-        if(wrote<0&&errno==EINTR)continue;
-        if(wrote<=0){ok=false;break;}
-        done+=std::size_t(wrote);
-    }
-    if(ok && (fchmod(fd,0644)!=0 || fsync(fd)!=0))ok=false;
-    if(close(fd)!=0)ok=false;
-    if(ok)ok=rename(temp,kAutoload)==0;
-    if(!ok)unlink(temp);
-    return ok;
+    // No fallback creation: report pending PLDmgr setup and keep UI alive.
+    return !read_error && config.find('\\0')==std::string::npos &&
+           has_autoload_entry(config);
 }
+
 } // namespace
 #endif
 
