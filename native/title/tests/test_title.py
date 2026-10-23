@@ -171,6 +171,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_daily_backdrop", native)
         self.assertIn("std::localtime", native)
 
+    def test_long_launchbox_media_lines_keep_the_overview(self):
+        meta=(ROOT/"title"/"title_meta.cpp").read_text()
+        self.assertIn("char line[8192]",meta)
+        self.assertIn("niak_title_overview",meta)
+
     def test_wallpaper_attribution_and_right_rail(self):
         ui=(ROOT/"title"/"patch_home.py").read_text()
         source=(ROOT/"title"/"daily_backdrop.cpp").read_text()

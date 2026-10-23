@@ -147,7 +147,9 @@ std::string niak_title_overview(const char *id) {
        "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv","rb");
    if(!f) f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
    if(!f)return data;
-   char line[1800];
+   // Regional assets can occupy several KB per title. Keep the overview
+   // even when front/back/hero each list multiple valid CDN candidates.
+   char line[8192];
    while(std::fgets(line,sizeof(line),f)) {
      if(!std::strchr(line,'\n')&&!std::feof(f)) {
        int ch;while((ch=std::fgetc(f))!=EOF&&ch!='\n'){}
