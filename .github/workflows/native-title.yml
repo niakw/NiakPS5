@@ -42,11 +42,25 @@ jobs:
           EGL_PLATFORM: surfaceless
           GALLIUM_DRIVER: llvmpipe
           USE_CCACHE: '0'
-          NIAK_CASE_PREVIEW_ASSETS: .build/ps5-title-kit/assets/niak-preview-cases
-          NIAK_CASE_TEMPLATE_ASSETS: .build/ps5-title-kit/assets/niak-preview-templates
-          NIAK_CASE_PREVIEW_MEDIA: .build/ps5-title-kit/assets/niak-preview-media
+          NIAK_CASE_PREVIEW_ASSETS: ${{ github.workspace }}/.build/ps5-title-kit/assets/niak-preview-cases
+          NIAK_CASE_TEMPLATE_ASSETS: ${{ github.workspace }}/.build/ps5-title-kit/assets/niak-preview-templates
+          NIAK_CASE_PREVIEW_MEDIA: ${{ github.workspace }}/.build/ps5-title-kit/assets/niak-preview-media
         run: |
           python3 native/title/host_preview.py --kit .build/ps5-title-kit
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from PIL import Image
+          home=Path(os.environ["NIAK_CASE_TEMPLATE_ASSETS"])
+          for family in ("ps4","ps5"):
+              for side in ("front","back","spine"):
+                  path=home/f"{family}-{side}.png"
+                  if not path.is_file():
+                      raise SystemExit(f"Missing fixed preview template: {path}")
+                  with Image.open(path) as art:
+                      art.verify()
+                  print(f"CI template ready: {path.name}")
+          PY
           rm -rf build/niak-preview
           NIAK_CASE_TOUR=1 USE_CCACHE=0 bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
           python3 native/title/validate_preview.py build/niak-preview

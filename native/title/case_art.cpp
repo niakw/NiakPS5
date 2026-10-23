@@ -112,6 +112,15 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  if(template_attempted[index])return template_textures[index];
  template_attempted[index]=true;
  char file[512]{};
+#if defined(__linux__)
+ const auto fail=[&](const char *reason)->std::uint32_t{
+     std::fprintf(stderr,"[NiakPS5 preview] fixed template %s-%s: %s [%s]\\n",
+                  platform,part,reason,file);
+     return 0;
+ };
+#else
+ const auto fail=[&](const char *)->std::uint32_t{return 0;};
+#endif
  FILE *fp=nullptr;
 #if defined(__linux__)
  const char *fixture=std::getenv("NIAK_CASE_TEMPLATE_ASSETS");
@@ -130,7 +139,7 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
         "/app0/assets/niak-templates/%s-%s.png",platform,part);
      fp=std::fopen(file,"rb");
  }
- if(!fp)return 0; // Offline installations still use the procedural fallback.
+ if(!fp)return fail("not found"); // Optional on offline PS5, required in CI.
  if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
  const long size=std::ftell(fp);
  if(size<33 || size>3*1024*1024 || std::fseek(fp,0,SEEK_SET)!=0)
@@ -148,16 +157,33 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  const bool valid=side==2?(width>=40 && width<=200 && height>=350 && height<=1600):
                   side==0?(width>=450 && width<=2000 && height>=60 && height<=400):
                           (width>=450 && width<=1600 && height>=220 && height<=900);
- if(!valid || std::size_t(width)*height>2500000u)return 0;
+ if(!valid || std::size_t(width)*height>2500000u) {
+#if defined(__linux__)
+     std::fprintf(stderr,
+       "[NiakPS5 preview] %s-%s invalid template geometry %ux%u\\n",
+       platform,part,width,height);
+#endif
+     return fail("invalid dimensions");
+ }
  std::vector<unsigned char> pixels;
  unsigned w=0,h=0;
- if(lodepng::decode(pixels,w,h,bytes)!=0||w!=width||h!=height||
-    pixels.size()!=std::size_t(w)*h*4)return 0;
+ const unsigned decode_error=lodepng::decode(pixels,w,h,bytes);
+ if(decode_error || w!=width || h!=height ||
+    pixels.size()!=std::size_t(w)*h*4) {
+#if defined(__linux__)
+    std::fprintf(stderr,
+        "[NiakPS5 preview] decode %s-%s error=%u expected=%ux%u decoded=%ux%u\\n",
+        platform,part,decode_error,width,height,w,h);
+#endif
+    return fail("PNG decoding failed");
+ }
  // Shared mastheads/footers also avoid needless original-size GPU textures.
  if(!niak_scale_case_rgba(pixels,w,h,side==2?96u:1024u,
-                          side==2?768u:512u))return 0;
+                          side==2?768u:512u))return fail("resampling failed");
  template_textures[index]=renderer.create_texture(int(w),int(h),pixels.data());
  if(template_textures[index])
      niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
+ else
+     return fail("GPU texture allocation failed");
  return template_textures[index];
 }

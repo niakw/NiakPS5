@@ -350,6 +350,9 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case_template_back",source)
         self.assertIn("case_template_front",source)
         self.assertIn("case_template_spine",source)
+        self.assertIn("[NiakPS5 preview] fixed template",
+                      (ROOT/"title"/"case_art.cpp").read_text())
+        self.assertIn('github.workspace', (ROOT.parent/".github/workflows/native-title.yml").read_text())
         self.assertIn("niak-preview-templates",host)
         self.assertIn("NIAK_CASE_TEMPLATE_ASSETS",
                       (ROOT.parent/".github/workflows/native-title.yml").read_text())
