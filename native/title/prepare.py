@@ -239,7 +239,8 @@ def prepare(kit: Path, project: Path, revision: str):
     for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp",
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
                      "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp",
-                     "broker_catalog.cpp","broker_catalog.hpp","local_inventory.h"):
+                     "broker_catalog.cpp","broker_catalog.hpp","local_inventory.h",
+                     "launch_log_status.h"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
@@ -363,6 +364,7 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
         '    sys::log("[HUI] entry");',
         '    sys::log("[HUI] entry");\n'
         '    const int payload_install = niak::bootstrap_own_payload();\n'
+        '    niak::payload_install_status = payload_install;\n'
         '    sys::log("[NiakPS5] one-shot own payload install status=%d", payload_install);')
     replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',
                  '    niak_load_daily_backdrops(renderer);\n    niak_profile_load_avatar(renderer);\n    demo::Catalog catalog;')

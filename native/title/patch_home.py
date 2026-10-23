@@ -14,6 +14,10 @@ def once(text, before, after):
 def patch(kit):
     file = kit / "src/concepts/aurora.cpp"
     text = file.read_text()
+    text = once(text, '#include "niak/daily_backdrop.hpp"',
+                '#include "niak/daily_backdrop.hpp"\n'
+                '#include "niak/one_shot_install.hpp"\n'
+                '#include "niak/launch_log_status.h"')
     text = once(text, "        if (sheet_open_)\n            update_sheet(input, feedback);\n        else\n            update_shelves(input, feedback);",
     """        // L1/R1 navigate the four top-level menu tabs in either direction.
         // They never touch the daily wallpaper or alter a game's saved state.
@@ -160,6 +164,9 @@ def patch(kit):
                      kWhite.with_alpha(0.55f));
             return;
         }
+        // Display the one-shot helper result independently from the live
+        // PLDmgr broker. A copied ELF does not imply that it is resident.
+        const int install_status=niak::payload_install_status;
         // These are actual GPU textures loaded by this application, not
         // files merely visible through the separate FTP server.
         const auto &media=niak::case_media_stats;
@@ -186,6 +193,19 @@ def patch(kit):
         ui::paragraph(list,fonts.regular,
                       "0 signifie non chargé ou accès refusé, pas forcément absent du FTP.",
                       1430,520,17,410,23,kWhite.with_alpha(0.65f),3);
+        ui::text(list,fonts.semibold,"Installation du payload ELF",
+                 1430,612,20,kWhite);
+        const char *install_label= install_status==1
+            ? "Fichiers mis à jour. Relancer la chaîne jailbreak."
+            : install_status==0
+            ? "Payload identique au paquet installé."
+            : install_status==-1
+            ? "elfldr ou élévation indisponible (port 9021)."
+            : install_status==-2
+            ? "Installation refusée : fichiers ou droits invalides."
+            : "Pas de tentative (aperçu hôte).";
+        ui::paragraph(list,fonts.regular,install_label,
+                      1430,650,18,420,27,kWhite.with_alpha(0.78f),3);
         const char *labels[] = {"Resolution d'affichage (redemarrage)",
                                 "Volume de l'interface", "Musique de fond",
                                 "Animations reduites", "Afficher FPS",
@@ -259,21 +279,20 @@ def patch(kit):
                 const std::size_t count=std::fread(buffer,1,sizeof(buffer)-1,log);
                 std::fclose(log);
                 buffer[count]=0;
-                const char *attempt=nullptr;
-                for(const char *p=buffer;(p=std::strstr(p,
-                         "NiakPS5 optional autostart start"));++p)
-                    attempt=p;
-                if(!attempt)return "Aucune exécution identifiable";
-                const char *result=nullptr;
-                for(const char *p=attempt;(p=std::strstr(p,
-                         "sceSystemServiceLaunchApp rc="));++p)
-                    result=p;
-                if(!result)return "Dernière tentative sans lancement confirmé";
-                return std::strncmp(result,
-                    "sceSystemServiceLaunchApp rc=0x00000000",
-                    sizeof("sceSystemServiceLaunchApp rc=0x00000000")-1)==0
-                        ? "Dernier lancement OK (journal historique)"
-                        : "Dernier lancement en erreur (journal)";
+                switch(niak_last_launch_result(buffer)) {
+                case NIAK_LAUNCH_LOG_SYSTEM_OK:
+                    return "SystemService : lancement accepté (journal)";
+                case NIAK_LAUNCH_LOG_LNC_OK:
+                    return "LncUtil : lancement accepté (journal)";
+                case NIAK_LAUNCH_LOG_LNC_FAILED:
+                    return "SystemService + LncUtil refusés (journal)";
+                case NIAK_LAUNCH_LOG_SYSTEM_FAILED:
+                    return "SystemService refusé ; repli non confirmé";
+                case NIAK_LAUNCH_LOG_NO_ATTEMPT:
+                    return "Aucune tentative de lancement récente";
+                default:
+                    return "Aucun démarrage du payload identifiable";
+                }
             };
             std::snprintf(journal_status,sizeof(journal_status),"%s",read_status());
         }
@@ -285,7 +304,7 @@ def patch(kit):
                  disabled ? "Désactivé" :
                  live_broker ? "Payload actif (service local joignable)" :
                  enabled ? "Marqueur présent, mais service indisponible" :
-                           "Service absent : vérifier PLDmgr/autoload.txt",
+                           "Service local non joignable (PING échoué)",
                  500, 882, 20, kWhite.with_alpha(0.78f));
         ui::text(list, fonts.regular,
                  live_broker && std::strcmp(journal_status,"Journal inaccessible")==0

@@ -381,6 +381,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sceLncUtilInitialize()",broker)
         self.assertIn('sandbox-elevator.elf', (ROOT/"title"/"build.sh").read_text())
         self.assertIn('niak::bootstrap_own_payload()', source)
+        self.assertIn('niak::payload_install_status = payload_install;', source)
+        self.assertIn('niak_last_launch_result(buffer)',(ROOT/"title"/"patch_home.py").read_text())
         installer=(ROOT/"title"/"elevation"/"one_shot_install.cpp").read_text()
         self.assertIn('elevation::Capability::filesystem', installer)
         self.assertIn('"/data/pldmgr/payloads/niakps5"',installer)
