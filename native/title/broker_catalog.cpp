@@ -2,6 +2,7 @@
 #include "niak/broker_catalog.hpp"
 #include "niak/socket_guard.h"
 #include "niak/loopback_connect.h"
+#include "niak/broker_snapshot.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -10,7 +11,7 @@
 #include <cstdio>
 #include <cstring>
 
-int niak_scan_broker_games(NiakGame *games,std::size_t cap) {
+static int niak_scan_broker_socket(NiakGame *games,std::size_t cap) {
  if(!games||!cap)return -1;
  const int fd=socket(AF_INET,SOCK_STREAM,0);
  if(fd<0)return -1;
@@ -54,4 +55,15 @@ int niak_scan_broker_games(NiakGame *games,std::size_t cap) {
   p=end+1;
  }
  return std::strncmp(p,"END\n",4)==0?int(found):-1;
+}
+
+int niak_scan_broker_games(NiakGame *games,std::size_t cap) {
+    if(!games || !cap)return -1;
+    const int live=niak_scan_broker_socket(games,cap);
+    if(live>=0)return live;
+    // The PS5 title is sandboxed and may have no TCP/fcntl permissions.
+    // The PLDmgr broker writes this small fixed-root inventory periodically;
+    // file reading is read-only, checked for freshness, and never launches
+    // code or accepts commands from untrusted clients.
+    return niak_snapshot_read(NIAK_SNAPSHOT_FILE,games,cap);
 }
