@@ -10,7 +10,6 @@
 #include <cerrno>
 #include <cstdint>
 #include <time.h>
-#include <fcntl.h>
 #include <sys/select.h>
 #include <cstdio>
 #include <cstring>
@@ -89,7 +88,7 @@ const char *niak_launch_broker_diagnostic() {
     const char *step="non testé";
     switch(kProbeStage) {
     case 1:step="socket";break;
-    case 2:step="fcntl";break;
+    case 2:step="ioctl FIONBIO";break;
     case 3:step="connect";break;
     case 4:step="send";break;
     case 5:step="recv";break;
@@ -122,39 +121,15 @@ bool niak_launch_broker_ready() {
     int fd=::socket(AF_INET,SOCK_STREAM,0);
     if(fd<0){mark_probe(1,errno);return false;}
     niak_socket_guard(fd);
-    const int flags=::fcntl(fd,F_GETFL,0);
-    if(flags<0 || ::fcntl(fd,F_SETFL,flags|O_NONBLOCK)<0) {
-        const int error=errno;
-        ::close(fd);mark_probe(2,error);return false;
-    }
     sockaddr_in peer{};
     peer.sin_family=AF_INET;
     peer.sin_port=htons(kPort);
     peer.sin_addr.s_addr=htonl(0x7f000001u);
-    int result=::connect(fd,reinterpret_cast<sockaddr*>(&peer),sizeof(peer));
-    int issue=result!=0?errno:0;
-    if(result!=0 && (issue==EINPROGRESS || issue==EWOULDBLOCK)) {
-        fd_set writable;FD_ZERO(&writable);FD_SET(fd,&writable);
-        timeval connect_timeout{0,120000};
-        const int selected=::select(fd+1,nullptr,&writable,nullptr,
-                                    &connect_timeout);
-        if(selected==1 && FD_ISSET(fd,&writable)) {
-            int socket_error=0;
-            socklen_t size=sizeof(socket_error);
-            if(::getsockopt(fd,SOL_SOCKET,SO_ERROR,&socket_error,&size)==0) {
-                result=socket_error==0?0:-1;
-                issue=socket_error;
-            } else issue=errno;
-        } else issue=selected==0?ETIMEDOUT:errno;
-    }
-    if(result!=0) {
-        ::close(fd);
-        mark_probe(3,issue);
-        return false;
-    }
-    if(::fcntl(fd,F_SETFL,flags)<0) {
-        const int error=errno;
-        ::close(fd);mark_probe(2,error);return false;
+    int stage=2;
+    if(niak_connect_bounded_ex(fd,reinterpret_cast<sockaddr*>(&peer),
+                               sizeof(peer),120,&stage)<0) {
+        const int issue=errno;
+        ::close(fd);mark_probe(stage,issue);return false;
     }
     timeval io_timeout{0,120000};
     (void)::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&io_timeout,sizeof(io_timeout));
