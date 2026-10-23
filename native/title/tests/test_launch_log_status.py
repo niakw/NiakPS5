@@ -23,6 +23,10 @@ int main(void) {
         "sceSystemServiceLaunchApp rc=0x80940005\n"
         "sceLncUtilLaunchApp refused rc=0x80940031\n";
     assert(niak_last_launch_result(still_fail)==NIAK_LAUNCH_LOG_LNC_FAILED);
+    const char *invalid="NiakPS5 optional autostart start rc=0x00000000\n"
+        "sceSystemServiceLaunchApp rc=0x80940005\n"
+        "sceLncUtilLaunchApp returned invalid app id rc=0x00000000\n";
+    assert(niak_last_launch_result(invalid)==NIAK_LAUNCH_LOG_LNC_FAILED);
     const char *after="NiakPS5 optional autostart start rc=0x00000000\n"
         "sceSystemServiceLaunchApp rc=0x80940005\n"
         "sceLncUtilLaunchApp accepted app id rc=0x00007777\n"

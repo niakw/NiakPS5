@@ -33,8 +33,10 @@ static inline NiakLaunchLogStatus niak_last_launch_result(const char *buffer) {
         return NIAK_LAUNCH_LOG_SYSTEM_OK;
     const char *accepted=strstr(latest,"sceLncUtilLaunchApp accepted app id rc=");
     const char *refused=strstr(latest,"sceLncUtilLaunchApp refused rc=");
-    if(accepted && (!refused || accepted>refused))return NIAK_LAUNCH_LOG_LNC_OK;
-    if(refused)return NIAK_LAUNCH_LOG_LNC_FAILED;
+    const char *invalid=strstr(latest,"sceLncUtilLaunchApp returned invalid app id rc=");
+    if(accepted && (!refused || accepted>refused) &&
+       (!invalid || accepted>invalid))return NIAK_LAUNCH_LOG_LNC_OK;
+    if(refused || invalid)return NIAK_LAUNCH_LOG_LNC_FAILED;
     return NIAK_LAUNCH_LOG_SYSTEM_FAILED;
 }
 #endif

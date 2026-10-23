@@ -287,7 +287,7 @@ def patch(kit):
                 case NIAK_LAUNCH_LOG_LNC_OK:
                     return "LncUtil : lancement accepté (journal)";
                 case NIAK_LAUNCH_LOG_LNC_FAILED:
-                    return "SystemService + LncUtil refusés (journal)";
+                    return "LncUtil refusé ou identifiant invalide (journal)";
                 case NIAK_LAUNCH_LOG_SYSTEM_FAILED:
                     return "SystemService refusé ; repli non confirmé";
                 case NIAK_LAUNCH_LOG_NO_ATTEMPT:
