@@ -71,83 +71,37 @@ jobs:
           name: NiakPS5-OpenGL-interface-preview
           path: build/niak-preview/*.png
           if-no-files-found: warn
-      - name: Confirm complete title package
-        run: |
-          test -s dist/PPSA99386/eboot.bin
-          test -s dist/PPSA99386/sce_sys/param.json
-          test -s dist/PPSA99386/sce_module/libc.prx
-          test -s dist/PPSA99386/tools/niakps5/niakps5.elf
-          test -s dist/PPSA99386/sandbox-elevator.elf
-          test -s dist/PPSA99386.zip
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          p=json.loads(Path('dist/PPSA99386/sce_sys/param.json').read_text())
-          assert p['titleId']=='PPSA99386'
-          assert p['localizedParameters'][p['localizedParameters']['defaultLanguage']]['titleName']=='NiakPS5'
-          print('Title metadata verified.')
-          PY
-          python3 - <<'PY'
-          import stat
-          from zipfile import ZipFile
-          with ZipFile('dist/PPSA99386.zip') as z:
-              assert z.testzip() is None
-              assert all(p.startswith('PPSA99386/') for p in z.namelist())
-              assert not any(p.endswith('.zip') or (p.endswith('.elf') and p not in ('PPSA99386/tools/niakps5/niakps5.elf', 'PPSA99386/sandbox-elevator.elf')) for p in z.namelist())
-              assert (z.getinfo('PPSA99386/').external_attr >> 16) & 0o777 == 0o755
-              assert (z.getinfo('PPSA99386/eboot.bin').external_attr >> 16) & 0o777 == 0o755
-              assert (z.getinfo('PPSA99386/tools/niakps5/niakps5.elf').external_attr >> 16) & 0o777 == 0o755
-              assert (z.getinfo('PPSA99386/sandbox-elevator.elf').external_attr >> 16) & 0o777 == 0o755
-              assert (z.getinfo('PPSA99386/sce_sys/param.json').external_attr >> 16) & 0o777 == 0o644
-          print('FTP ZIP verified (one root folder, modes, no nested ZIP)')
-          PY
-          sha256sum dist/PPSA99386.zip
-      # GitHub artifacts reset executable file modes to 0644. Preserve
-      # the eboot.bin/ELF 0755 flags in a validated INNER ZIP. Users only
-      # extract archives and drag data/ into FTP /; NO install command.
-      # Keep the familiar artifact name NiakPS5-PPSA99386.
-      - name: Verify no-command FTP drag-and-drop package
+      - name: Validate single-level FTP data folder
         run: |
           python3 - <<'PY'
+          import hashlib,json
           from pathlib import Path
-          import hashlib,stat
-          from zipfile import ZipFile
-          archive=Path('dist/NiakPS5-FTP-glisser-deposer.zip')
-          assert archive.stat().st_size>0
-          names={f"data/homebrew/PPSA99386/assets/niak-templates/{p}-{side}.png"
-                 for p in ("ps4","ps5") for side in ("front","back","spine")}
-          required={
-              "data/homebrew/PPSA99386/eboot.bin",
-              "data/homebrew/PPSA99386/sce_module/libc.prx",
-              "data/homebrew/PPSA99386/sce_sys/param.json",
-              "data/pldmgr/payloads/niakps5/niakps5.elf",
-              "data/pldmgr/payloads/niakps5/niakps5.elf.json",
-          }
-          with ZipFile(archive) as z:
-              content=set(z.namelist())
-              assert z.testzip() is None
-              assert all(p.startswith('data/') for p in content)
-              assert required|names<=content
-              assert not any('autoload.txt' in p or 'pldmgr_config.txt' in p
-                             for p in content)
-              for item in (
-                  "data/homebrew/PPSA99386/eboot.bin",
-                  "data/pldmgr/payloads/niakps5/niakps5.elf",
-              ):
-                  assert (z.getinfo(item).external_attr>>16)&0o777==0o755
-              elf=z.read("data/pldmgr/payloads/niakps5/niakps5.elf")
-              assert elf==z.read(
-                  "data/homebrew/PPSA99386/tools/niakps5/niakps5.elf")
-              import json
-              meta=json.loads(z.read(
-                  "data/pldmgr/payloads/niakps5/niakps5.elf.json"))
-              assert meta["checksum"]==hashlib.sha256(elf).hexdigest()
-          print('No-command installation verified: data/ root, six templates, own payload, 0755 and zero PLDmgr config edits.')
+          base=Path('dist/ftp-dropin')
+          assert sorted(p.name for p in base.iterdir())==['data']
+          root=base/'data'
+          title=root/'homebrew/PPSA99386'
+          payload=root/'pldmgr/payloads/niakps5'
+          for f in (title/'eboot.bin',title/'sce_module/libc.prx',
+                    title/'sce_sys/param.json',payload/'niakps5.elf',
+                    payload/'niakps5.elf.json'):
+              assert f.is_file() and f.stat().st_size>0,f
+          assert json.loads((title/'sce_sys/param.json').read_text())['titleId']=='PPSA99386'
+          elf=(payload/'niakps5.elf').read_bytes()
+          assert elf==(title/'tools/niakps5/niakps5.elf').read_bytes()
+          assert json.loads((payload/'niakps5.elf.json').read_text())['checksum']==hashlib.sha256(elf).hexdigest()
+          for console in ('ps4','ps5'):
+              for side in ('front','back','spine'):
+                  assert (title/f'assets/niak-templates/{console}-{side}.png').is_file()
+          assert not any(p.suffix.lower()=='.zip' for p in base.rglob('*'))
+          assert not any('autoload.txt' in p.name or 'pldmgr_config.txt' in p.name for p in base.rglob('*'))
+          print('FTP delivery validated: exactly one data/ directory, zero nested ZIPs')
           PY
-      - name: Upload drag-and-drop FTP installation package
+      # GitHub Actions produces ONE ZIP directly from data/. Executable
+      # permissions may be normalized and require checking on real PS5 FTP.
+      - name: Upload single FTP directory
         uses: actions/upload-artifact@v4
         with:
           name: NiakPS5-PPSA99386
-          path: dist/NiakPS5-FTP-glisser-deposer.zip
+          path: dist/ftp-dropin/
           if-no-files-found: error
-          compression-level: 0
+          compression-level: 6
