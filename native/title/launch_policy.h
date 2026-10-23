@@ -27,10 +27,12 @@ typedef struct {
     unsigned method; /* 0 failed, 1 system service, 2 LncUtil */
 } NiakLaunchResult;
 
-/* SystemService returns 0 on success. LncUtil normally returns a positive
- * app_id on success; the caller's wire protocol needs both normalized to 0.
- * Other SystemService errors are NOT retried by a different API: a missing
- * registration needs installation, not blind elevation.
+/* SystemService can return a NONNEGATIVE app/process identifier (as
+ * observed on PS5 with 0x18 and 0x2018), not just zero. Negative values with
+ * the high bit set represent errors. Normalize API acceptance to zero for
+ * our existing wire protocol, but do not claim the app is fully running.
+ * LncUtil also returns a positive app ID on acceptance.
+ * The LncUtil fallback is intentionally limited to error 0x80940005.
  */
 static inline NiakLaunchResult niak_launch_with_fallback(
     const char *title,int user,NiakLaunchFunction system_launch,
@@ -44,8 +46,9 @@ static inline NiakLaunchResult niak_launch_with_fallback(
     ctx.user_id=(uint32_t)user;
     result.system_rc=system_launch(title,0,&ctx);
     result.result=result.system_rc;
-    if(result.system_rc==0) {
+    if(result.system_rc>=0) {
         result.method=1;
+        result.result=0; // API accepted; physical launch still unverified.
         return result;
     }
     /* PS5 mounted/fake titles may be refused by SystemService with
