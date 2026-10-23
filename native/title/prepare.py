@@ -204,6 +204,30 @@ def prepare(kit: Path, project: Path, revision: str):
             f'    forwarded.{action} &= ~kShellActions;',
             f'    if (concepts_.size()>1) forwarded.{action} &= ~kShellActions;')
 
+    # The UI must rebuild its shelf indices after a late-arriving catalogue;
+    # replacing the Catalog alone would leave Aurora's old placeholder index.
+    shell_h = kit / "src/app/shell.hpp"
+    replace_once(shell_h,
+        '    void update(const InputFrame &input, float dt);',
+        '    void update(const InputFrame &input, float dt);\n'
+        '    void reload_catalog_views();')
+    replace_once(shell, 'audio::SoundSet Shell::sound_set() const', '''void Shell::reload_catalog_views()
+{
+    // Destroy concepts BEFORE they can dereference old catalogue item strings.
+    // Keep Settings, telemetry, audio and renderer ownership unchanged.
+    concepts_.clear();
+    for (ConceptFactory factory : concept_registry())
+        concepts_.push_back(factory(context_));
+    current_ = previous_ = 0;
+    transition_.running = false;
+    info_open_ = false;
+    banner_ = 0.0f;
+    if (!concepts_.empty())
+        concepts_[0]->enter();
+}
+
+audio::SoundSet Shell::sound_set() const''')
+
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
@@ -215,8 +239,12 @@ def prepare(kit: Path, project: Path, revision: str):
     replace_once(catalog_h,
         '    bool build_covers(gfx::Renderer &renderer, const ui::Fonts &fonts);',
         '    bool build_covers(gfx::Renderer &renderer, const ui::Fonts &fonts);\n'
+        '    bool refresh_if_unavailable(gfx::Renderer &renderer,\n'
+        '                                const ui::Fonts &fonts);\n'
         '    bool stream_next_covers(gfx::Renderer &renderer, const ui::Fonts &fonts,\n'
         '                            std::size_t budget);')
+    replace_once(catalog_h, '  private:\n    std::vector<Item> items_;',
+        '  private:\n    void reload();\n    std::vector<Item> items_;')
 
     src_niak = kit / "src/niak"
     src_niak.mkdir(parents=True, exist_ok=True)
@@ -349,7 +377,19 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
         '''        shell.update(input, dt);
         if(frames>0 && frames%4u==0 && input.nav==Direction::none &&
            input.pressed==0 && input.held==0 && !input.focus_lost)
-            (void)catalog.stream_next_covers(renderer,fonts,1);''')
+            (void)catalog.stream_next_covers(renderer,fonts,1);
+        // PLDmgr or title-mount services may start AFTER Catalog construction.
+        // Poll at most once per ~600 frames while the UI is idle. Rebuild both
+        // catalogue art and Aurora shelves on this same renderer thread; no
+        // app restart, unsafe borrowed pointers or per-frame socket traffic.
+        if(!tour && frames>0 && frames%600u==0 &&
+           input.nav==Direction::none && input.pressed==0 &&
+           input.held==0 && !input.focus_lost &&
+           catalog.refresh_if_unavailable(renderer,fonts)) {
+            shell.reload_catalog_views();
+            sys::log("[NiakPS5] late broker catalogue recovered: %zu titles",
+                     catalog.size());
+        }'''))
     # A single failed procedural GPU upload must not leave the progressive
     # loader retrying the same title forever on every subsequent idle frame.
     replace_once(art_file,
@@ -549,6 +589,28 @@ extern "C" {
 namespace hui::demo
 {
 Catalog::Catalog()
+{
+    reload();
+}
+
+bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
+                                     const ui::Fonts &fonts)
+{
+    // Only a synthetic placeholder can be refreshed here. Existing shelves
+    // and real installed game identities must never be replaced mid-session.
+    if(items_.size()!=1 || items_[0].title_id[0]!=0)return false;
+    NiakGame probe{};
+    if(niak_scan_broker_games(&probe,1)<=0)return false;
+    release_covers(renderer);
+    items_.clear();
+    owned_titles_.clear();
+    owned_blurbs_.clear();
+    reload();
+    (void)build_covers(renderer,fonts);
+    return true; // Tell Shell to rebuild every borrowed shelf index.
+}
+
+void Catalog::reload()
 {
     std::vector<NiakGame> games(NIAKPS5_MAX_GAMES);
     const int db_count = niak_scan_games("/system_data/priv/mms/app.db", "",

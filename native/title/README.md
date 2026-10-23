@@ -1,5 +1,16 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
+## Récupération de la bibliothèque après le démarrage
+
+Si le service de lancement PLDmgr arrive après la création de l'interface, un
+catalogue initialement « Bibliothèque indisponible » peut maintenant récupérer
+automatiquement la liste des identifiants installés. La vérification est bornée
+et espacée (une tentative sur 600 images au plus, lorsque la manette est
+inactive). Si le courtier transmet des titres, NiakPS5 reconstruit ses
+rayons et recharge progressivement leurs visuels, **sans** redémarrer le
+titre ni modifier la base de données Sony. L'inventaire reste limité aux
+identifiants validés ; un titre absent des sources n'est pas inventé.
+
 ## Ce que l'on installe
 
 **Un seul dossier de titre**, et non plusieurs ELF de Payload Manager :

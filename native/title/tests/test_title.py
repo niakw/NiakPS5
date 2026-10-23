@@ -355,6 +355,18 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("startup_attempts<=12?3000u:30000u",broker)
         self.assertIn("if(running<=0)",broker)
 
+    def test_late_broker_catalogue_recovery(self):
+        source=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn("Catalog::refresh_if_unavailable(",source)
+        self.assertIn("if(niak_scan_broker_games(&probe,1)<=0)return false;",source)
+        self.assertIn("release_covers(renderer);",source)
+        self.assertIn("owned_titles_.clear();",source)
+        self.assertIn("shell.reload_catalog_views();",source)
+        self.assertIn("frames%600u==0",source)
+        self.assertIn("void Shell::reload_catalog_views()",source)
+        self.assertIn("concepts_.clear();",source)
+        self.assertIn("catalog.refresh_if_unavailable(renderer,fonts)",source)
+
     def test_real_catalog_only(self):
         source = (ROOT / "title" / "prepare.py").read_text()
         self.assertIn('niak_scan_games("/system_data/priv/mms/app.db"', source)
