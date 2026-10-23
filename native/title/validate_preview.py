@@ -24,6 +24,8 @@ from PIL import ImageChops
 fallback=Path(sys.argv[1])/"case-04-homebrew-fallback.png"
 ps4_front=Path(sys.argv[1])/"case-07-ps4-missing-front.png"
 ps4_back=Path(sys.argv[1])/"case-08-ps4-missing-back.png"
+ps4_spine_fallback=Path(sys.argv[1])/"case-15-ps4-missing-spine.png"
+ps5_spine_fallback=Path(sys.argv[1])/"case-16-ps5-missing-spine.png"
 ps5_retail_front=Path(sys.argv[1])/"case-09-ps5-both-official-front.png"
 ps5_retail_back=Path(sys.argv[1])/"case-10-ps5-both-official-back.png"
 ps5_front_original=Path(sys.argv[1])/"case-11-ps5-official-front.png"
@@ -33,8 +35,9 @@ ps5_back_original=Path(sys.argv[1])/"case-14-ps5-official-back.png"
 if not all(p.exists() for p in (
     ps4_front,ps4_back,ps5_retail_front,ps5_retail_back,
     ps5_front_original,ps5_back_fallback,
-    ps5_front_fallback,ps5_back_original)):
-    raise SystemExit("Missing one of four official/fallback combinations")
+    ps5_front_fallback,ps5_back_original,
+    ps4_spine_fallback,ps5_spine_fallback)):
+    raise SystemExit("Missing one of four official/fallback combinations or fixed-spine captures")
 menu_r1=Path(sys.argv[1])/"case-05-r1-menu.png"
 if not menu_r1.exists():raise SystemExit("Missing R1 tab navigation capture")
 detail=Path(sys.argv[1])/"case-06-touchpad-details.png"
@@ -83,6 +86,19 @@ for front,back,label in pairs:
             a.convert("RGB").crop(crop),b.convert("RGB").crop(crop))).mean)
         if diff<6:
             raise SystemExit(f"{label}: front/back rendered identically")
+# Confirm both generations expose the FIXED spindle artwork on the actual
+# 3D rotating case (not merely in the separate six-template proof sheet).
+# The screenshots are captured at ~3.4 s: midway through the front->back
+# turn, where the spine is physically visible.
+for front,spine,label in ((ps4_front,ps4_spine_fallback,"PS4"),
+                          (ps5_front_original,ps5_spine_fallback,"PS5")):
+    with Image.open(front) as first,Image.open(spine) as side:
+        crop=(1160,90,1850,760)
+        diff=sum(ImageStat.Stat(ImageChops.difference(
+            first.convert("RGB").crop(crop),
+            side.convert("RGB").crop(crop))).mean)
+        if diff<7:
+            raise SystemExit(f"{label} fixed spine does not appear during case rotation")
 # A fallback case must be distinguishable from the commercial scan.
 with Image.open(fallback) as _fallback:
     _box=_fallback.convert("RGB").crop((1160,90,1850,760))
