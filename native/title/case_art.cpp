@@ -16,7 +16,8 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  if(!niak_valid_title_id(id)||!side ||
     (std::strcmp(side,"front") && std::strcmp(side,"back") &&
      std::strcmp(side,"logo") && std::strcmp(side,"spine") &&
-     std::strcmp(side,"poster")))return 0;
+     std::strcmp(side,"poster") && std::strcmp(side,"hero") &&
+     std::strcmp(side,"shot1") && std::strcmp(side,"shot2")))return 0;
  char file[384];
  // Linux CI loads explicit non-commercial QA art. Never shipped in PS5 ZIP.
  // The native PS5 title always loads the locally installed private scans.
@@ -57,11 +58,16 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
                        (unsigned(png[22])<<8)|png[23];
  const bool logo=std::strcmp(side,"logo")==0;
  const bool spine=std::strcmp(side,"spine")==0;
+ const bool landscape=std::strcmp(side,"hero")==0 ||
+                      std::strcmp(side,"shot1")==0 ||
+                      std::strcmp(side,"shot2")==0;
  if(width<(logo?32u:spine?16u:64u)||height<(logo?20u:100u)||
-    width>(logo?1400u:1024u)||height>1536u)return 0;
+    width>(logo?1400u:landscape?2048u:1024u)||height>1536u)return 0;
  if(!logo) {
     const float aspect=float(width)/float(height);
-    if(spine ? aspect>0.25f : (aspect<0.55f || aspect>0.90f))
+    if(spine ? aspect>0.25f :
+       landscape ? (aspect<1.15f || aspect>3.1f) :
+       (aspect<0.55f || aspect>0.90f))
         return 0;  // Never stretch square app icons or landscape backdrops.
  }
  std::vector<unsigned char> pixels;unsigned w=0,h=0;
@@ -69,8 +75,8 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
     pixels.size()!=std::size_t(w)*h*4)return 0;
  // A 1024x1536 source was consuming 6 MiB of permanent VRAM per cover.
  // Projected sleeves never use that resolution: keep 512x768 at most.
- const unsigned max_w=logo?768u:spine?96u:512u;
- const unsigned max_h=logo?768u:768u;
+ const unsigned max_w=logo?768u:spine?96u:landscape?768u:512u;
+ const unsigned max_h=landscape?512u:768u;
  if(!niak_scale_case_rgba(pixels,w,h,max_w,max_h))return 0;
  const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
  if(handle) {
