@@ -625,14 +625,24 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
     // and real installed game identities must never be replaced mid-session.
     if(items_.size()!=1 || items_[0].title_id[0]!=0)return false;
     NiakGame probe{};
-    if(niak_scan_broker_games(&probe,1)<=0)return false;
+    // The PLDmgr socket may be blocked by the title sandbox even when
+    // ShadowMount or an installed game directory becomes readable later.
+    // Do not permanently require the broker as the ONLY recovery gate.
+    const bool available=
+        niak_scan_broker_games(&probe,1)>0 ||
+        niak_scan_installed_folders("",&probe,1)>0 ||
+        niak_scan_homebrews("",&probe,1)>0 ||
+        niak_scan_shadowmount(&probe,1)>0 ||
+        niak_scan_games("/system_data/priv/mms/app.db","",&probe,1)>0;
+    if(!available)return false;
     release_covers(renderer);
     items_.clear();
     owned_titles_.clear();
     owned_blurbs_.clear();
     reload();
     (void)build_covers(renderer,fonts);
-    return true; // Tell Shell to rebuild every borrowed shelf index.
+    return !items_.empty() && items_[0].title_id[0]!=0;
+    // Only signal a view rebuild when real game identities were restored.
 }
 
 void Catalog::reload()
