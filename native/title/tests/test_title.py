@@ -119,6 +119,21 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_socket_guard(fd)",impl)
         self.assertNotIn("app.db",impl)
 
+    def test_generated_preview_cpp_diagnostic_has_literal_newline_escape(self):
+        import ast
+        host=(ROOT/"title"/"host_preview.py").read_text()
+        tree=ast.parse(host)
+        generated=[
+            node.value for node in ast.walk(tree)
+            if isinstance(node,ast.Constant) and isinstance(node.value,str)
+            and "six-view fixtures invalid" in node.value
+        ]
+        self.assertEqual(len(generated),1)
+        # Python must NOT interpret \\n into a physical newline inside a
+        # generated C++ quoted string. Check the evaluated AST constant.
+        self.assertIn(r"templates=%u\n",generated[0])
+        self.assertNotIn("templates=%u\n",generated[0])
+
     def test_standalone_native_title(self):
         source = (ROOT / "title" / "build.sh").read_text()
         self.assertIn("PPSA99386", source)
