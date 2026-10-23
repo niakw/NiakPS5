@@ -722,17 +722,31 @@ void Catalog::reload()
             }
         }
     }
-    // An FTP-observed private snapshot is a last resort if *every* live
-    // scanner failed. Do not merge historical IDs into a successful live scan.
-    int cached_count=-1;
-    if(count==0) {
+    // Local FTP metadata enriches ONLY live IDs: never resurrect stale apps.
+    std::vector<NiakGame> observed(games.size());
+    int cached_count=niak_scan_local_inventory(
+        "/app0/assets/niak-local-titles.tsv",observed.data(),observed.size());
+    if(cached_count<0)
         cached_count=niak_scan_local_inventory(
-            "/app0/assets/niak-local-titles.tsv",games.data(),games.size());
-        if(cached_count<0)
-            cached_count=niak_scan_local_inventory(
-                "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
-                games.data(),games.size());
-        if(cached_count>0)count=static_cast<std::size_t>(cached_count);
+            "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+            observed.data(),observed.size());
+    if(count>0 && cached_count>0) {
+        for(int j=0;j<cached_count;++j) {
+            const auto &record=observed[static_cast<std::size_t>(j)];
+            for(std::size_t i=0;i<count;++i)
+                if(std::strcmp(games[i].id,record.id)==0) {
+                    if(record.application_category)
+                        games[i].application_category=record.application_category;
+                    if(std::strcmp(games[i].title,games[i].id)==0 && record.title[0])
+                        std::snprintf(games[i].title,sizeof(games[i].title),
+                                      "%s",record.title);
+                    break;
+                }
+        }
+    } else if(count==0 && cached_count>0) {
+        // Last-known FTP list is fallback only, not a live inventory.
+        for(int j=0;j<cached_count && count<games.size();++j)
+            games[count++]=observed[static_cast<std::size_t>(j)];
     }
     sys::log("[NiakPS5] cached FTP fallback: %d titles (historical snapshot)",
              cached_count);

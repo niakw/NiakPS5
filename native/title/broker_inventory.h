@@ -9,15 +9,26 @@
 #include <string.h>
 #include <stddef.h>
 #include <sys/stat.h>
+#include "title_category.h"
 static inline int niak_broker_id(const char *id) {
  if(!id||strlen(id)!=9)return 0;
  if(strncmp(id,"PPSA",4)&&strncmp(id,"CUSA",4)&&
-    strncmp(id,"LAPY",4)&&strncmp(id,"FAKE",4))return 0;
+    strncmp(id,"LAPY",4)&&strncmp(id,"FAKE",4)&&
+    strncmp(id,"NPXS",4))return 0;
  for(int i=4;i<9;i++)if(id[i]<'0'||id[i]>'9')return 0;
  return 1;
 }
 static inline int niak_broker_is_file(const char *p) {
  struct stat st;return lstat(p,&st)==0&&S_ISREG(st.st_mode);
+}
+/* NPXS includes shell services: expose only explicitly categorized media. */
+static inline int niak_broker_media(const char *path,const char *id) {
+ FILE *f=fopen(path,"rb");if(!f)return 0;
+ char json[32769];const size_t n=fread(json,1,sizeof(json),f);
+ const int complete=feof(f);fclose(f);
+ if(!complete || n<10 || n>=sizeof(json))return 0;
+ json[n]=0;
+ return niak_is_installed_media_category_for_title(json,id);
 }
 static inline int niak_broker_is_dir(const char *p) {
  struct stat st;return lstat(p,&st)==0&&S_ISDIR(st.st_mode);
@@ -48,6 +59,8 @@ static inline int niak_broker_inventory(char *out,size_t cap,const char *root) {
    snprintf(pkg,sizeof(pkg),"%s/app.pkg",base);
    if(!niak_broker_is_file(meta)&&!niak_broker_is_file(eboot)&&
       !niak_broker_is_file(pkg))continue;
+   if(strncmp(id,"NPXS",4)==0 &&
+      (!niak_broker_is_file(meta)||!niak_broker_media(meta,id)))continue;
    int duplicate=0;
    for(size_t pos=0;pos+10<=used;pos+=10)
     if(memcmp(out+pos,id,9)==0){duplicate=1;break;}

@@ -29,7 +29,8 @@
 static inline int niak_snapshot_valid_id(const char *id) {
     if(!id || strlen(id)!=9 ||
        (strncmp(id,"PPSA",4)&&strncmp(id,"CUSA",4)&&
-        strncmp(id,"LAPY",4)&&strncmp(id,"FAKE",4)))return 0;
+        strncmp(id,"LAPY",4)&&strncmp(id,"FAKE",4)&&
+        strncmp(id,"NPXS",4)))return 0;
     for(int i=4;i<9;i++)if(id[i]<'0'||id[i]>'9')return 0;
     return strcmp(id,"PPSA99386")!=0;
 }
