@@ -248,9 +248,22 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
             shell.update(right,kDt);
             for(int frame=0;frame<20;++frame)shell.update(idle,kDt);
         }
-        render("case-07-ps4-template-front");
+        render("case-07-ps5-missing-front");
         for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
-        render("case-08-ps4-template-back");
+        render("case-08-ps5-genuine-back");
+        // A separately chosen PS5 title keeps its genuine FRONT but must
+        // synthesize only the BACK. The following directional navigation
+        // walks Anno -> PS4 unboxed -> Humankind front-only.
+        hui::InputFrame backwards;
+        backwards.connected=true;
+        backwards.nav=hui::Direction::left;
+        for(int move=0;move<2;++move) {
+            shell.update(backwards,kDt);
+            for(int frame=0;frame<23;++frame)shell.update(idle,kDt);
+        }
+        render("case-09-ps5-genuine-front");
+        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
+        render("case-10-ps5-missing-back");
         hui::InputFrame down;
         down.connected=true;
         down.nav=hui::Direction::down;
