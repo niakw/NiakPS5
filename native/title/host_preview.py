@@ -235,6 +235,12 @@ def patch(kit):
                    "des personnages et des captures de gameplay.";
         item.homebrew=false;
         item.application=false;
+        // The real shelf sorts by most-recent play, then alphabetically.
+        // "Humankind" otherwise sorts BEFORE "SHADOWFALL" and silently
+        // swaps PS4/PS5 filenames in the six-capture artifact.
+        // Explicit local-only timestamps guarantee PS4 at shelf index 0.
+        std::snprintf(item.recently_used,sizeof(item.recently_used),"%s",
+                      n==0?"2026-10-23T12:00:00":"2026-10-22T12:00:00");
         std::snprintf(item.title_id,sizeof(item.title_id),"%s",ids[n]);
         item.dark=gfx::Color::rgb(0x081719);
         item.mid=gfx::Color::rgb(0x183e44);

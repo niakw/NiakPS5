@@ -293,6 +293,9 @@ class NativeTitleTests(unittest.TestCase):
                           "Surface flap(", "Motion {", "motion.opening"):
             self.assertNotIn(forbidden,source)
         preview=(ROOT/"title"/"host_preview.py").read_text()
+        self.assertIn('n==0?"2026-10-23T12:00:00":"2026-10-22T12:00:00"',preview)
+        self.assertIn('std::snprintf(item.recently_used',preview)
+        self.assertIn('const char *ids[]={"CUSA00053","PPSA06186"}',preview)
         self.assertIn('capture("ps4")',preview)
         self.assertIn('capture("ps5")',preview)
         self.assertNotIn("case-00-front",preview)
