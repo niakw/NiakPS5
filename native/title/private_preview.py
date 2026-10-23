@@ -8,6 +8,7 @@ Sony title files, console data or PLDmgr configuration.
 from __future__ import annotations
 
 import argparse
+from importlib.util import module_from_spec, spec_from_file_location
 import os
 from pathlib import Path
 import subprocess
@@ -15,11 +16,20 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[2]
 
+def sibling_module(name:str):
+    location=Path(__file__).resolve().with_name(name+".py")
+    spec=spec_from_file_location("niak_"+name,location)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Missing NiakPS5 Python module: "+name)
+    module=module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
 def stage_private_templates(kit:Path, archive:Path):
-    from ftp_install import TEMPLATE_NAMES, load_private_template_zip
-    images=load_private_template_zip(archive)
-    if set(images)!=set(TEMPLATE_NAMES):
-        missing=set(TEMPLATE_NAMES)-set(images)
+    installer=sibling_module("ftp_install")
+    images=installer.load_private_template_zip(archive)
+    if set(images)!=set(installer.TEMPLATE_NAMES):
+        missing=set(installer.TEMPLATE_NAMES)-set(images)
         raise ValueError("Six exact PS4/PS5 templates required; missing: "+
                          ", ".join(sorted(missing)))
     target=kit/"assets"/"niak-preview-templates"
@@ -33,8 +43,7 @@ def render_private_preview(kit:Path, archive:Path, output:Path):
         raise ValueError("Host renderer kit absent. Build NiakPS5 first.")
     main=kit/"host"/"snapshot_main.cpp"
     if "NIAK_CASE_TOUR" not in main.read_text("utf-8"):
-        from host_preview import patch
-        patch(kit)  # One-time patch of pinned upstream OpenGL host renderer.
+        sibling_module("host_preview").patch(kit)  # One-time patch of pinned upstream OpenGL host renderer.
     fixtures=stage_private_templates(kit,archive)
     env=os.environ.copy()
     env.update({

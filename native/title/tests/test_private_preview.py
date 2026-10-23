@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Private OpenGL preview uses the actual six templates, never synthetic QA."""
 import importlib.util
-from io import BytesIO
 from pathlib import Path
+import struct
 import tempfile
 import unittest
 from zipfile import ZipFile
-from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location("niak_private_preview",
@@ -27,10 +26,10 @@ class PrivatePreviewTests(unittest.TestCase):
             archive=temp/"private.zip"
             with ZipFile(archive,"w") as output:
                 for name,size in sizes.items():
-                    pixels=Image.new("RGB",size,(70,120,160))
-                    stream=BytesIO()
-                    pixels.save(stream,format="PNG")
-                    images[name]=stream.getvalue()
+                    width,height=size
+                    images[name]=(b"\x89PNG\r\n\x1a\n"+
+                                  b"\0"*8+struct.pack(">II",width,height)+
+                                  b"\0"*14)
                     output.writestr("PPSA99386/assets/niak-templates/"+name,
                                     images[name])
             kit=temp/"kit"
@@ -47,12 +46,12 @@ class PrivatePreviewTests(unittest.TestCase):
     def test_refuses_partial_user_supplied_assets(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
-            stream=BytesIO()
-            Image.new("RGB",(949,136)).save(stream,format="PNG")
+            png=(b"\x89PNG\r\n\x1a\n"+b"\0"*8+
+                 struct.pack(">II",949,136)+b"\0"*14)
             path=root/"partial.zip"
             with ZipFile(path,"w") as out:
                 out.writestr("PPSA99386/assets/niak-templates/ps4-front.png",
-                             stream.getvalue())
+                             png)
             with self.assertRaisesRegex(ValueError,"Six exact"):
                 module.stage_private_templates(root/"kit",path)
 
