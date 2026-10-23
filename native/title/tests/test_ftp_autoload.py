@@ -520,11 +520,11 @@ class AutoloadTests(unittest.TestCase):
         param="/data/homebrew/PPSA99386/sce_sys/param.json"
         config="/data/shadowmount/config.ini"
         samples=[
-            (b"# scanpath=/data/homebrew\\nscanpath=/mnt/ext0/games\\n",
+            (b"# scanpath=/data/homebrew\nscanpath=/mnt/ext0/games\n",
              "ATTENTION : scanpath personnalisé sans /data/homebrew"),
-            (b"scanpath=/mnt/ext0/games\\nscanpath=/data/homebrew/\\n",
+            (b"scanpath=/mnt/ext0/games\nscanpath=/data/homebrew/\n",
              "/data/homebrew présent dans scanpath"),
-            (b"scan_interval_seconds=15\\n; scanpath=/mnt/ext0\\n",
+            (b"scan_interval_seconds=15\n; scanpath=/mnt/ext0\n",
              "chemins de scan par défaut"),
         ]
         for content,expected in samples:
