@@ -110,7 +110,11 @@ def make_case_art_fixtures(kit):
             paint.text((13,12+index*40),letter,fill=(12,49,108),
                        font=font(24))
         paint.line((11,172,11,585),fill=(31,99,177),width=3)
-        side.save(output/f"{title_id}-spine.png",optimize=True)
+        # Humankind has no scanned spine: force the real PS5 fixed template
+        # to appear on the rotated physical sleeve in the standard artifact.
+        # FC27/Anno/Tropico keep their separate existing spine scans.
+        if title_id!="PPSA06186":
+            side.save(output/f"{title_id}-spine.png",optimize=True)
 
 
     # The STANDARD GitHub artifact MUST render the user's actual PS4/PS5
@@ -315,7 +319,11 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         // The first-shelf game at this point is the PS4 CUSA00053.
         // It has neither an authentic front nor an authentic back.
         render("case-07-ps4-missing-front");
-        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
+        // The selected PS4 game has no scanned spine. At ~3.4 seconds, the
+        // physical box turns edge-on and must display the owner's PS4 strip.
+        for(int frame=0;frame<185;++frame)shell.update(idle,kDt);
+        render("case-15-ps4-missing-spine");
+        for(int frame=0;frame<50;++frame)shell.update(idle,kDt);
         render("case-08-ps4-missing-back");
         // Move left twice to PPSA34015, whose front AND back are authentic.
         hui::InputFrame backwards;
@@ -336,7 +344,11 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         shell.update(next_game,kDt);
         for(int frame=0;frame<24;++frame)shell.update(idle,kDt);
         render("case-11-ps5-official-front");
-        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
+        // This PS5 game has an authentic FRONT but neither back nor spine.
+        // A side-on capture proves the real PS5 spine template is reachable.
+        for(int frame=0;frame<185;++frame)shell.update(idle,kDt);
+        render("case-16-ps5-missing-spine");
+        for(int frame=0;frame<50;++frame)shell.update(idle,kDt);
         render("case-12-ps5-missing-back");
         // From Humankind advance two game positions to Anno 1800:
         // missing FRONT reconstructed, genuine BACK kept intact.
