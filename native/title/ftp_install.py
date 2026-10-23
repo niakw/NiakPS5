@@ -834,6 +834,51 @@ TEMPLATE_NAMES={f"{platform}-{side}.png"
                 for platform in ("ps4","ps5")
                 for side in ("front","back","spine")}
 
+def load_private_template_zip(path):
+    """Strictly validate the user's private six-image overlay before FTP writes."""
+    from zipfile import ZipFile, BadZipFile
+    if path is None:return {}
+    source=Path(path)
+    if not source.is_file() or source.is_symlink() or source.stat().st_size>16*1024*1024:
+        raise ValueError("Invalid private templates archive")
+    result={}
+    prefix=f"{TITLE}/assets/niak-templates/"
+    try:
+        with ZipFile(source) as z:
+            for entry in z.infolist():
+                name=entry.filename
+                if entry.is_dir() or name=="HOW_TO_INSTALL.txt":continue
+                if (not name.startswith(prefix) or name.count("/")!=3 or
+                    ((entry.external_attr>>16)&0o170000)==0o120000):
+                    raise ValueError("Unexpected private template ZIP entry")
+                filename=name[len(prefix):]
+                if filename in result or filename not in TEMPLATE_NAMES or not 33<=entry.file_size<=3*1024*1024:
+                    raise ValueError("Unknown or oversize private template")
+                with z.open(entry) as contents:
+                    png=contents.read(3*1024*1024+1)
+                if len(png)!=entry.file_size or png[:8]!=b"\x89PNG\r\n\x1a\n":
+                    raise ValueError("Invalid private template PNG")
+                width=int.from_bytes(png[16:20],"big")
+                height=int.from_bytes(png[20:24],"big")
+                part=filename.split("-",1)[1].split(".",1)[0]
+                valid=(40<=width<=200 and 350<=height<=1600) if part=="spine" else (
+                    (450<=width<=2000 and 60<=height<=400) if part=="front" else
+                    (450<=width<=1600 and 220<=height<=900))
+                if not valid or width*height>2500000:
+                    raise ValueError("Invalid private template proportions")
+                result[filename]=png
+    except (BadZipFile,OSError,EOFError) as exc:
+        raise ValueError("Invalid private templates archive") from exc
+    if not result:raise ValueError("Private templates archive is empty")
+    return result
+
+
+def upload_private_template_zip(ftp,images):
+    for name,content in sorted(images.items()):
+        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-templates/{name}",content)
+    if images:print(f"Boîtiers 3D : {len(images)}/6 gabarits privés intégrés.")
+
+
 def upload_case_templates(ftp,directory):
     """Send only recognized, bounded PNG templates to the owner's PS5."""
     folder=directory/"assets"/"niak-templates"
@@ -902,10 +947,11 @@ def validate_install_folder(directory, autoload):
 
 
 def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None, art_limit=150,
-            preserve_autoload=False):
+            preserve_autoload=False, case_templates=None):
     # Preserve the user's already-working PLDmgr configuration when requested.
     # This mode still replaces the companion ELF and its checksum sidecar.
     validate_install_folder(directory, autoload or preserve_autoload)
+    private_templates=load_private_template_zip(case_templates)
     for local in sorted(directory.rglob("*")):
         if local.is_symlink():
             raise ValueError("Symlinks are not accepted")
@@ -926,6 +972,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
     copy_avatar_for_ftp(ftp,avatar_user_id)
     upload_case_templates(ftp,directory)
+    upload_private_template_zip(ftp,private_templates)
     upload_local_homebrew_names(ftp)
     stage_installed_artwork(ftp,art_limit)
     fetch_retail_covers(ftp,directory,art_limit)
@@ -1017,6 +1064,8 @@ def main():
                      help="Installer et activer le démarrage automatique (défaut)")
     cli.add_argument("--no-autoload", dest="autoload", action="store_false",
                      help="Transférer seulement le titre sans modifier Payload Manager")
+    cli.add_argument("--case-templates", type=Path,
+                     help="ZIP privé de gabarits PS4/PS5, conservé hors GitHub")
     cli.add_argument("--preserve-autoload", action="store_true",
                      help="Installer le titre ET remplacer niakps5.elf, sans modifier la configuration PLDmgr")
     cli.add_argument("--status", action="store_true",
@@ -1032,6 +1081,8 @@ def main():
     args = cli.parse_args()
     if not 1<=args.art_limit<=300:
         cli.error("--art-limit doit être entre 1 et 300")
+    if args.case_templates and args.status:
+        cli.error("--case-templates n'est pas utilisable avec --status")
     if args.force_art and not args.refresh_art:
         cli.error("--force-art exige --refresh-art")
     if args.return_after_game and (not args.autoload or args.preserve_autoload) and not args.refresh_art and not args.status:
@@ -1045,6 +1096,7 @@ def main():
             diagnose(ftp,directory)
         elif args.refresh_art:
             upload_case_templates(ftp,directory)
+            upload_private_template_zip(ftp,load_private_template_zip(args.case_templates))
             upload_local_homebrew_names(ftp)
             stage_installed_artwork(ftp,args.art_limit,force=args.force_art)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
@@ -1054,7 +1106,8 @@ def main():
         else:
             install(ftp, directory, args.autoload and not args.preserve_autoload,
                     args.return_after_game,args.avatar_user_id,args.art_limit,
-                    preserve_autoload=args.preserve_autoload)
+                    preserve_autoload=args.preserve_autoload,
+                    case_templates=args.case_templates)
 
 if __name__ == "__main__":
     main()
