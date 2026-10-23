@@ -258,7 +258,7 @@ def patch(kit):
     if(media.titles!=2 || media.fronts!=0 || media.backs!=0 ||
        media.spines!=0 || media.templates!=2) {
         std::fprintf(stderr,
-            "six-view fixtures invalid: titles=%u front=%u back=%u spine=%u templates=%u\n",
+            "six-view fixtures invalid: titles=%u front=%u back=%u spine=%u templates=%u\\n",
             media.titles,media.fronts,media.backs,media.spines,media.templates);
         return 1;
     }
