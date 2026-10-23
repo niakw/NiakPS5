@@ -221,23 +221,31 @@ Le titre tente maintenant `POST http://127.0.0.1:10101/api/v1/games` en lecture 
 
 **État actuel :** le lot de fonds est renouvelé à la compilation et le client PS5 tente aussi une mise à jour HTTPS quotidienne vers un cache privé dans `/download0`. Le client revient automatiquement aux images embarquées si l'API réseau ou le serveur n'est pas disponible. Ce rafraîchissement n'a pas encore été confirmé sur une véritable console avec le firmware cible ; l'interface ne prétend pas qu'une récupération en ligne a eu lieu quand seul le fond de secours est affiché. Les captures appartiennent à leurs éditeurs ; leurs droits doivent être respectés.
 
-## Package FTP unique (sans imbriquation)
+## Livraison FTP actuelle : un seul dossier `data/`
 
-La compilation fournit **exactement** `dist/PPSA99386.zip`. À l'intérieur, une seule racine : `PPSA99386/`, suivie de `eboot.bin`, `sce_sys/`, `sce_module/` et `assets/`. Les fichiers intermédiaires, le programme `niakps5_autostart.elf` et les autres ZIP ne sont **jamais** inclus dans ce paquet. Droits UNIX explicites dans l'archive et le dossier de build : dossiers 0755, `eboot.bin` et `tools/niakps5/niakps5.elf` 0755, autres fichiers 0644. Le packager rejette les symlinks et les archives imbriquées.
+L'artefact GitHub Actions **`NiakPS5-PPSA99386`** contient un seul dossier
+`data/`, prêt à fusionner à la racine FTP `/`. Il installe le titre natif
+`/data/homebrew/PPSA99386/`, les six gabarits PS4/PS5 et le payload
+`/data/pldmgr/payloads/niakps5/niakps5.elf` avec son fichier JSON.
+Aucune archive ZIP imbriquée et aucun fichier `autoload.txt` n'est livré.
 
-Dézipper le **seul dossier `PPSA99386`** puis le transférer vers `/data/homebrew/` par FTP. L'archive contient le déclencheur `tools/niakps5/niakps5.elf`, mais son extraction seule n'active pas le démarrage automatique : l'installateur FTP embarqué configure PLDmgr. Il vérifie le titre et le payload avant tout transfert. Sa compatibilité sur firmware 13.60 reste à tester sur console. Le fonctionnement du scanner ShadowMountPlus et la récupération du vrai avatar restent à valider sur console.
+Une copie FTP passive ne peut **pas** ajouter sans risque l'entrée
+`niakps5.elf` à une configuration PLDmgr qui appartient à la console.
+Si elle est déjà présente, la mise à jour ne nécessite que la fusion de
+`data/`. Sinon, pour configurer le premier autoload, l'installateur FTP
+fourni dans `PPSA99386/tools/ftp_install.py` ajoute l'entrée en dernière
+position, conserve les autres entrées et sauvegarde les configurations
+avant modification :
 
-## Livraison FTP : autoload inclus dans le seul dossier
-
-Le ZIP `PPSA99386.zip` possède **une unique racine `PPSA99386/`**. L'application native reste sous cette racine. Le fichier `PPSA99386/tools/niakps5/niakps5.elf` est le déclencheur de démarrage (payload classique, pas d'interface SDL). Les fichiers de configuration existants du Payload Manager ne sont jamais inclus car ils sont propres à chaque console.
-
-Pour installer automatiquement à partir d'un PC ayant Python 3 :
 ```sh
 python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --port 2121 --autoload
 ```
-Le script dépose le dossier dans `/data/homebrew/PPSA99386/`, copie le payload dans `/data/pldmgr/payloads/niakps5/niakps5.elf`, ajoute **son chemin absolu en dernier** dans `/data/pldmgr/autoload.txt` et active AUTOLOAD_ENABLED dans la configuration existante. Les versions actuelles de Payload Manager acceptent les chemins absolus sous `/data/pldmgr`. Il sauvegarde les deux fichiers de configuration avant changement (`.niakps5.bak`) et ne modifie pas Kstuff ou ShadowMountPlus. **À lancer seulement si le titre graphique est déjà testé.**
 
-Le bouton PS reste géré par le shell Sony. Le démarrage reste one-shot. L'option `--return-after-game` arme séparément la surveillance d'un jeu explicitement lancé par NiakPS5, avec dix secondes de grâce. Son fonctionnement sur console 13.60, tout comme le chargement de l'avatar privé, reste à valider.
+L'installateur ajoute le **nom** `niakps5.elf`, et non un chemin absolu.
+Ne pas supposer qu'un dossier copié équivaut à l'enregistrement du titre
+par ShadowMountPlus, ni que le payload est exécuté uniquement parce qu'il
+existe. Le bouton PS demeure géré par le shell de Sony et le mode de retour
+après un jeu reste facultatif.
 
 ### Sources supplémentaires pour les jaquettes
 

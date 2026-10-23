@@ -1,4 +1,4 @@
-# NiakPS5 : démarrage via PLDmgr (configuré par défaut, réversible)
+# NiakPS5 : démarrage via PLDmgr (installation réversible)
 
 ## Principe et limite
 

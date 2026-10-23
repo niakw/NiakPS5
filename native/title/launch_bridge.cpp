@@ -98,11 +98,20 @@ const char *niak_launch_broker_diagnostic() {
     default:break;
     }
     if(kProbeStage==7)return "PING confirme : service joignable";
-    NiakGame probe{};
-    const bool catalogue_readable=
-        niak_snapshot_read(NIAK_SNAPSHOT_APP_FILE,&probe,1)>=0 ||
-        niak_snapshot_read(NIAK_SNAPSHOT_APP_SOURCE,&probe,1)>=0 ||
-        niak_snapshot_read(NIAK_SNAPSHOT_FILE,&probe,1)>=0;
+    // Settings redraws every frame. Cache filesystem snapshot checks so
+    // a denied /app0 or /data read cannot stall the GPU/dual-sense UI at 60 Hz.
+    static bool catalogue_readable=false;
+    static std::time_t snapshot_checked_at=0;
+    const std::time_t now=std::time(nullptr);
+    if(!snapshot_checked_at || now<snapshot_checked_at ||
+       now-snapshot_checked_at>=3) {
+        NiakGame probe{};
+        catalogue_readable=
+            niak_snapshot_read(NIAK_SNAPSHOT_APP_FILE,&probe,1)>=0 ||
+            niak_snapshot_read(NIAK_SNAPSHOT_APP_SOURCE,&probe,1)>=0 ||
+            niak_snapshot_read(NIAK_SNAPSHOT_FILE,&probe,1)>=0;
+        snapshot_checked_at=now;
+    }
     std::snprintf(message,sizeof(message),"PING %s (errno %d)%s",
                   step,kProbeError,
                   catalogue_readable ? "; catalogue local lisible" : "");
