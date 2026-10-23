@@ -15,7 +15,8 @@ extern "C" {
 std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side,float *aspect){
  if(!niak_valid_title_id(id)||!side ||
     (std::strcmp(side,"front") && std::strcmp(side,"back") &&
-     std::strcmp(side,"logo") && std::strcmp(side,"spine")))return 0;
+     std::strcmp(side,"logo") && std::strcmp(side,"spine") &&
+     std::strcmp(side,"poster")))return 0;
  char file[384];
  // Linux CI loads explicit non-commercial QA art. Never shipped in PS5 ZIP.
  // The native PS5 title always loads the locally installed private scans.

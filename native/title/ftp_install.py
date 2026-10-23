@@ -485,6 +485,7 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
         if not name:continue
         paths={side:f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
                for side in ("front","back")}
+        poster=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-poster.png"
         missing={side for side,path in paths.items()
                  if force or posixpath.basename(path) not in cached}
         if not missing:continue
@@ -500,7 +501,8 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
                     yield "thegamesdb",{}
             # Query the community provider ONLY after the physical-cover
             # provider has actually failed to deliver a valid FRONT scan.
-            if sgdb and "front" in missing:
+            if sgdb and "front" in missing and (
+                force or posixpath.basename(poster) not in cached):
                 requests+=1
                 try:
                     yield "steamgriddb",providers.steamgriddb_portrait_url(name,sgdb)
@@ -523,8 +525,11 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
                     if not raw or len(raw)>5*1024*1024:continue
                     png=_decode_retail_image(raw,side)
                     if not png or len(png)>3*1024*1024:continue
-                    upload(ftp,paths[side],png)
-                    cached.add(posixpath.basename(paths[side]))
+                    # Community portrait art is NOT a commercial front cover.
+                    # Save it separately so the console banner still applies.
+                    target=poster if source=="steamgriddb" else paths[side]
+                    upload(ftp,target,png)
+                    cached.add(posixpath.basename(target))
                     missing.remove(side)
                     used[source]+=1
                     total+=1

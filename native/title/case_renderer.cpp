@@ -151,9 +151,10 @@ void outer_face(DrawList &list,const Camera &camera,
             // to the plastic's bottom. Never lay a centered app icon on top
             // of an already full-width illustration.
             block(0.f,0.f,1.f,1.f,Color::rgb(0x0c1727));
-            const auto art=item.case_scene?item.case_scene:item.cover;
-            const float art_aspect=item.case_scene?
-                item.case_scene_aspect:1.0f;
+            const auto art=item.case_poster?item.case_poster:
+                item.case_scene?item.case_scene:item.cover;
+            const float art_aspect=item.case_poster?item.poster_aspect:
+                item.case_scene?item.case_scene_aspect:1.0f;
             panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
             if(item.case_template_front) {
                 // The masthead is invariant and occupies only the top ~10.8%.

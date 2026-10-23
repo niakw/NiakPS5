@@ -231,8 +231,8 @@ audio::SoundSet Shell::sound_set() const''')
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
-                 '    float case_scene_aspect = 16.0f/9.0f;\n    float logo_art_aspect = 3.0f;\n'
-                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
+                 '    float case_scene_aspect = 16.0f/9.0f;\n    float logo_art_aspect = 3.0f;\n    float poster_aspect = 0.72f;\n'
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
@@ -289,7 +289,7 @@ audio::SoundSet Shell::sound_set() const''')
         item.cover = 0;''',
                  '''        for(std::uint32_t *texture : {&item.case_front, &item.case_back,
                                       &item.case_spine, &item.case_scene,
-                                      &item.logo_art}) {
+                                      &item.logo_art,&item.case_poster}) {
             if(*texture)renderer.destroy_texture(*texture);
             *texture=0;
         }
@@ -323,6 +323,8 @@ audio::SoundSet Shell::sound_set() const''')
                     renderer,platform,"front");
                 item.logo_art=niak_load_case_art(
                     renderer,item.title_id,"logo",&item.logo_art_aspect);
+                item.case_poster=niak_load_case_art(
+                    renderer,item.title_id,"poster",&item.poster_aspect);
             }
             if(!item.case_back)
                 item.case_template_back=niak_load_case_template(
