@@ -65,5 +65,10 @@ int niak_scan_broker_games(NiakGame *games,std::size_t cap) {
     // The PLDmgr broker writes this small fixed-root inventory periodically;
     // file reading is read-only, checked for freshness, and never launches
     // code or accepts commands from untrusted clients.
+    const int mounted=niak_snapshot_read(NIAK_SNAPSHOT_APP_FILE,games,cap);
+    if(mounted>=0)return mounted;
+    // Some PS5 title setups expose /data/homebrew directly rather than /app0.
+    const int direct=niak_snapshot_read(NIAK_SNAPSHOT_APP_SOURCE,games,cap);
+    if(direct>=0)return direct;
     return niak_snapshot_read(NIAK_SNAPSHOT_FILE,games,cap);
 }

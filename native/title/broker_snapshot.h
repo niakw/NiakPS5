@@ -15,7 +15,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+/* The payload can update the native title's own existing assets folder.
+ * The sandboxed UI reads the same bytes via its mounted /app0 path.
+ * Keep /data as a backward-compatible fallback on older installations.
+ */
 #define NIAK_SNAPSHOT_FILE "/data/niakps5-games.snapshot"
+#define NIAK_SNAPSHOT_APP_SOURCE "/data/homebrew/PPSA99386/assets/niakps5-games.snapshot"
+#define NIAK_SNAPSHOT_APP_FILE "/app0/assets/niakps5-games.snapshot"
 #define NIAK_SNAPSHOT_MAX_AGE 600LL
 #define NIAK_SNAPSHOT_MAX_GAMES 512
 #define NIAK_SNAPSHOT_VERSION "NIAKPS5-GAMES-1"
@@ -37,9 +43,12 @@ static inline int niak_snapshot_write(const char *path,const char *ids,
     if(!path || !ids || count<0 || count>NIAK_SNAPSHOT_MAX_GAMES ||
        epoch<=0 || strlen(ids)>8192)return -1;
     char temp[256];
-    if(snprintf(temp,sizeof(temp),"%s.tmp.%ld",path,(long)getpid())>=
-       (int)sizeof(temp))return -1;
-    int fd=open(temp,O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW,0644);
+    const int name_len=snprintf(temp,sizeof(temp),"%s.XXXXXX",path);
+    if(name_len<=0 || name_len>=(int)sizeof(temp))return -1;
+    /* A crashed broker must never leave a predictable PID-named temp that
+     * prevents all subsequent refreshes. mkstemp creates a unique O_EXCL file.
+     */
+    int fd=mkstemp(temp);
     if(fd<0)return -1;
     int ok=fchmod(fd,0644)==0;
     FILE *out=fdopen(fd,"wb");
@@ -89,13 +98,18 @@ static inline int niak_snapshot_read(const char *path,NiakGame *games,
         if(now<=0 || stamp>(long long)now+60 ||
            (long long)now-stamp>NIAK_SNAPSHOT_MAX_AGE)goto done;
     }
+    /* Validate ALL IDs, not only the caller's cap: a small catalogue probe
+     * must not accidentally accept duplicates beyond its output buffer.
+     */
+    char seen[NIAK_SNAPSHOT_MAX_GAMES][10];
     for(int i=0;i<count;++i) {
         if(!fgets(line,sizeof(line),in)||strlen(line)!=10 ||
            line[9]!='\n')goto done;
         line[9]=0;
         if(!niak_snapshot_valid_id(line))goto done;
-        for(int k=0;k<i && (size_t)k<cap;++k)
-            if(strcmp(games[k].id,line)==0)goto done;
+        for(int k=0;k<i;++k)
+            if(strcmp(seen[k],line)==0)goto done;
+        memcpy(seen[i],line,10);
         if((size_t)i<cap) {
             memset(&games[i],0,sizeof(games[i]));
             memcpy(games[i].id,line,9);

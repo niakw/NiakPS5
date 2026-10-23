@@ -25,6 +25,19 @@ int main(int argc,char **argv) {
   assert(strcmp(games[0].id,"PPSA12345")==0);
   assert(strcmp(games[1].id,"CUSA54321")==0);
   assert(niak_snapshot_read(path,games,1)==1);
+  /* A crashed older writer may have left its PID-named temp behind. */
+  char old_temp[512];
+  snprintf(old_temp,sizeof(old_temp),"%s.tmp.%ld",path,(long)getpid());
+  FILE *orphan=fopen(old_temp,"wb");assert(orphan);
+  fputs("stale",orphan);fclose(orphan);
+  assert(niak_snapshot_write(path,"PPSA12345\n",1,now)==0);
+  assert(niak_snapshot_read(path,games,1)==1);
+  unlink(old_temp);
+  /* Even a cap=1 reader must reject duplicates elsewhere in the file. */
+  FILE *duplicate=fopen(path,"wb");assert(duplicate);
+  fprintf(duplicate,"NIAKPS5-GAMES-1 %lld 2\nPPSA12345\nPPSA12345\nEND\n",now);
+  fclose(duplicate);
+  assert(niak_snapshot_read(path,games,1)==-1);
   assert(niak_snapshot_write(path,"PPSA12345\n",1,now-2000)==0);
   assert(niak_snapshot_read(path,games,4)==-1);
   assert(niak_snapshot_write(path,"PPSA12345\n",1,now+2000)==0);

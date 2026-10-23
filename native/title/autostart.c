@@ -272,10 +272,17 @@ static void serve_launch_requests(void) {
             char inventory[8192]={0};
             const int count=niak_broker_inventory(inventory,sizeof(inventory),"");
             if(count>=0) {
-                if(niak_snapshot_write(NIAK_SNAPSHOT_FILE,inventory,count,
-                                       (long long)time(NULL))==0)
-                    report("NiakPS5 snapshot installed titles",count);
-                else report("NiakPS5 inventory snapshot write refused",errno);
+                const long long stamp=(long long)time(NULL);
+                /* Stage to the mounted title's assets so /app0 can read it
+                 * without depending on sandbox access to the /data root. */
+                if(niak_snapshot_write(NIAK_SNAPSHOT_APP_SOURCE,inventory,
+                                       count,stamp)==0)
+                    report("NiakPS5 app snapshot installed titles",count);
+                else report("NiakPS5 app snapshot write refused",errno);
+                if(niak_snapshot_write(NIAK_SNAPSHOT_FILE,inventory,
+                                       count,stamp)==0)
+                    report("NiakPS5 legacy snapshot installed titles",count);
+                else report("NiakPS5 legacy snapshot write refused",errno);
             } else report("NiakPS5 broker inventory roots inaccessible",count);
             report("NiakPS5 broker heartbeat PID",(int)getpid());
             // Timestamp each heartbeat so offline FTP diagnostics can tell

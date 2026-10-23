@@ -5,6 +5,7 @@
 #include "niak/launch_bridge.hpp"
 #include "niak/socket_guard.h"
 #include "niak/loopback_connect.h"
+#include "niak/broker_snapshot.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <cerrno>
@@ -97,8 +98,15 @@ const char *niak_launch_broker_diagnostic() {
     default:break;
     }
     if(kProbeStage==7)return "PING confirme : service joignable";
-    std::snprintf(message,sizeof(message),"PING %s (errno %d)",
-                  step,kProbeError);
+    NiakGame probe{};
+    const bool catalogue_readable=
+        niak_snapshot_read(NIAK_SNAPSHOT_APP_FILE,&probe,1)>=0 ||
+        niak_snapshot_read(NIAK_SNAPSHOT_APP_SOURCE,&probe,1)>=0 ||
+        niak_snapshot_read(NIAK_SNAPSHOT_FILE,&probe,1)>=0;
+    std::snprintf(message,sizeof(message),"PING %s (errno %d)%s",
+                  step,kProbeError,
+                  catalogue_readable ? "; catalogue local lisible" : "");
+    // A readable catalogue does NOT imply that launching games over TCP works.
     return message;
 }
 
