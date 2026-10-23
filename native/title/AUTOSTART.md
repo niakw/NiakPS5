@@ -49,7 +49,15 @@ python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5
 Cette commande installe le titre et **configure PLDmgr par défaut** pour charger
 le payload compagnon en dernier, après les autres payloads conservés. Elle active
 son marqueur privé et peut copier les jaquettes ainsi que les gabarits présents.
-Pour une simple installation sans modification de PLDmgr, utiliser
+Pour une installation complète qui **remplace aussi niakps5.elf**
+sans réécrire `autoload.txt`, la configuration PLDmgr ni les marqueurs
+existants (mode conseillé si PLDmgr est déjà configuré) :
+
+```sh
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --preserve-autoload
+```
+
+Pour transférer uniquement le titre sans le payload, utiliser
 `--no-autoload`. Pour une inspection strictement en lecture seule, utiliser
 `--status`.
 

@@ -66,6 +66,15 @@ installation ni l'enregistrement du titre. Le journal distingue les deux
 codes de retour, indique le PID du courtier, et émet un heartbeat toutes
 les deux minutes lorsque le service reste actif.
 
+## Mise à jour sans réécriture de PLDmgr
+
+Lorsque la chaîne d'autoload est déjà configurée, utiliser
+`python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --preserve-autoload`.
+Ce mode installe l'interface et la nouvelle version du payload `niakps5.elf`
+avec son sidecar, mais ne réécrit ni `autoload.txt`, ni la configuration
+PLDmgr, ni les marqueurs de démarrage. Le mode normal évite également
+de réécrire une configuration PLDmgr inchangée.
+
 ## Résolution des erreurs de démarrage et du catalogue
 
 L'ELF PLDmgr initialise explicitement UserService avant de demander le profil

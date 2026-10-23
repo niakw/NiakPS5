@@ -761,8 +761,11 @@ def validate_install_folder(directory, autoload):
             raise ValueError("PLDmgr sidecar doesn't match the bundled ELF")
 
 
-def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None, art_limit=150):
-    validate_install_folder(directory, autoload)
+def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=None, art_limit=150,
+            preserve_autoload=False):
+    # Preserve the user's already-working PLDmgr configuration when requested.
+    # This mode still replaces the companion ELF and its checksum sidecar.
+    validate_install_folder(directory, autoload or preserve_autoload)
     for local in sorted(directory.rglob("*")):
         if local.is_symlink():
             raise ValueError("Symlinks are not accepted")
@@ -778,11 +781,18 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     stage_installed_artwork(ftp,art_limit)
     fetch_retail_covers(ftp,directory,art_limit)
     fetch_alternative_covers(ftp,directory,art_limit)
-    if not autoload:
-        print("Titre installe. L'autoload n'est pas active sans --autoload.")
+    if not autoload and not preserve_autoload:
+        print("Titre installe sans modification du payload ou de PLDmgr.")
         return
     elf = directory / "tools/niakps5/niakps5.elf"
     # ELF identity verified before the first FTP write.
+    if preserve_autoload:
+        upload(ftp, PAYLOAD, elf.read_bytes())
+        metadata=directory/"tools/niakps5/niakps5.elf.json"
+        if metadata.is_file():
+            upload(ftp, PAYLOAD_META, metadata.read_bytes())
+        print("Titre + niakps5.elf mis à jour. autoload.txt, config et marqueurs conserves.")
+        return
 
     # Preflight both PLDmgr files BEFORE writing payload, configuration or
     # markers. A malformed config must not leave half-enabled autoload.
@@ -801,15 +811,22 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     # every pre-existing line and payload ordering; move ours to the END.
     prior_keys=(PAYLOAD,AUTOLOAD_NAME)
     already_installed=any(line.strip() in prior_keys for line in entries)
-    entries=[line for line in entries if line.strip() not in prior_keys]
-    entries.append(AUTOLOAD_NAME)
-    body = ("\n".join(entries).rstrip() + "\n").encode()
+    if already_installed:
+        # Never rewrite or reorder a correct existing autoload.txt.
+        body=original
+    else:
+        entries=[line for line in entries if line.strip() not in prior_keys]
+        entries.append(AUTOLOAD_NAME)
+        body = ("\n".join(entries).rstrip() + "\n").encode()
     if len(body)>4095:
         raise ValueError("Autoload file too large; no changes")
 
-    lines = [line for line in lines if not line.startswith("AUTOLOAD_ENABLED=")]
-    lines.append("AUTOLOAD_ENABLED=1")
-    config_body=("\n".join(lines)+"\n").encode()
+    if "AUTOLOAD_ENABLED=1" in lines:
+        config_body=raw  # Keep existing working PLDmgr settings byte-for-byte.
+    else:
+        lines = [line for line in lines if not line.startswith("AUTOLOAD_ENABLED=")]
+        lines.append("AUTOLOAD_ENABLED=1")
+        config_body=("\n".join(lines)+"\n").encode()
 
     # Preserve FIRST-install backups across subsequent runs. Backing up an
     # already modified config would destroy the only useful rollback copy.
@@ -827,8 +844,10 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     metadata=directory/"tools/niakps5/niakps5.elf.json"
     if metadata.is_file():
         upload(ftp, PAYLOAD_META, metadata.read_bytes())
-    upload(ftp, AUTOLOAD, body)
-    upload(ftp, CONFIG, config_body)
+    if original!=body:
+        upload(ftp, AUTOLOAD, body)
+    if raw!=config_body:
+        upload(ftp, CONFIG, config_body)
     # Activate only once both the binary and the autoload configuration exist.
     upload(ftp, "/data/niakps5-autostart.enabled", b"")
     if return_after_game:
@@ -849,6 +868,8 @@ def main():
                      help="Installer et activer le démarrage automatique (défaut)")
     cli.add_argument("--no-autoload", dest="autoload", action="store_false",
                      help="Transférer seulement le titre sans modifier Payload Manager")
+    cli.add_argument("--preserve-autoload", action="store_true",
+                     help="Installer le titre ET remplacer niakps5.elf, sans modifier la configuration PLDmgr")
     cli.add_argument("--status", action="store_true",
                      help="Vérifier les fichiers sur la PS5 sans rien modifier")
     cli.add_argument("--art-limit", type=int, default=150,
@@ -864,8 +885,8 @@ def main():
         cli.error("--art-limit doit être entre 1 et 300")
     if args.force_art and not args.refresh_art:
         cli.error("--force-art exige --refresh-art")
-    if args.return_after_game and not args.autoload and not args.refresh_art and not args.status:
-        cli.error("--return-after-game requires --autoload")
+    if args.return_after_game and (not args.autoload or args.preserve_autoload) and not args.refresh_art and not args.status:
+        cli.error("--return-after-game requires --autoload without --preserve-autoload")
     directory = Path(__file__).resolve().parent.parent
     password = "" if args.user == "anonymous" else getpass("Mot de passe FTP: ")
     with FTP() as ftp:
@@ -882,8 +903,9 @@ def main():
             # with a community grid or another provider.
             fetch_alternative_covers(ftp, directory, args.art_limit)
         else:
-            install(ftp, directory, args.autoload, args.return_after_game,
-                    args.avatar_user_id, args.art_limit)
+            install(ftp, directory, args.autoload and not args.preserve_autoload,
+                    args.return_after_game,args.avatar_user_id,args.art_limit,
+                    preserve_autoload=args.preserve_autoload)
 
 if __name__ == "__main__":
     main()

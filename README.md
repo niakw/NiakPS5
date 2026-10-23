@@ -81,6 +81,14 @@ L'assemblage récupère une révision figée de [PS5_VKHomebrewUI](https://githu
 
 Les polices Manrope et Instrument Serif sont utilisées avec leurs licences OFL. Le décodeur PNG tiers (LodePNG) conserve sa licence dans ses sources. La base graphique amont reste GPL-3.0-or-later.
 
+## Installation complète sans toucher à PLDmgr
+
+Si PLDmgr est déjà configuré, remplacer **ensemble** `eboot.bin` et
+`niakps5.elf` avec la commande :
+`python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --preserve-autoload`.
+Ce mode n'écrit pas sur `autoload.txt` ni sur la configuration PLDmgr
+et ne redémarre pas les services de la console.
+
 ## Correctif du lancement automatique
 
 Le payload qui démarre avec PLDmgr initialise UserService, lance les applications

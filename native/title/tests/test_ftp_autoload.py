@@ -225,6 +225,47 @@ class AutoloadTests(unittest.TestCase):
         self.assertNotIn(ftpmod.AUTOLOAD,f.files)
         self.assertNotIn(ftpmod.PAYLOAD,f.files)
         self.assertNotIn("/data/niakps5-autostart.enabled",f.files)
+    def test_preserve_autoload_updates_payload_without_rewriting_configuration(self):
+        class TrackingFTP(FakeFTP):
+            def __init__(self,files):
+                super().__init__(files)
+                self.writes=[]
+            def storbinary(self,command,buf):
+                self.writes.append(command[5:])
+                return super().storbinary(command,buf)
+        autoload=b"ftpsrv.elf\\nniakps5.elf\\n"
+        settings=b"AUTOLOAD_DELAY=10\\nAUTOLOAD_ENABLED=1\\n"
+        f=TrackingFTP({ftpmod.AUTOLOAD:autoload,ftpmod.CONFIG:settings,
+                       ftpmod.PAYLOAD:b"stale-payload"})
+        ftpmod.install(f,self.root,False,preserve_autoload=True)
+        self.assertEqual(f.files[ftpmod.PAYLOAD],
+                         (self.root/"tools/niakps5/niakps5.elf").read_bytes())
+        self.assertIn(ftpmod.PAYLOAD_META,f.writes)
+        self.assertIn("/data/homebrew/PPSA99386/eboot.bin",f.writes)
+        for protected in (ftpmod.AUTOLOAD,ftpmod.CONFIG,
+                          "/data/niakps5-autostart.enabled"):
+            self.assertNotIn(protected,f.writes)
+        self.assertEqual(f.files[ftpmod.AUTOLOAD],autoload)
+        self.assertEqual(f.files[ftpmod.CONFIG],settings)
+
+    def test_reinstall_preserves_existing_autoload_bytes_and_order(self):
+        class TrackingFTP(FakeFTP):
+            def __init__(self,files):
+                super().__init__(files)
+                self.writes=[]
+            def storbinary(self,command,buf):
+                self.writes.append(command[5:])
+                return super().storbinary(command,buf)
+        autoload=b"niakps5.elf\\nother.elf\\n"
+        settings=b"AUTOLOAD_ENABLED=1\\nAUTOLOAD_DELAY=7\\n"
+        f=TrackingFTP({ftpmod.AUTOLOAD:autoload,ftpmod.CONFIG:settings})
+        ftpmod.install(f,self.root,True)
+        self.assertEqual(f.files[ftpmod.AUTOLOAD],autoload)
+        self.assertEqual(f.files[ftpmod.CONFIG],settings)
+        self.assertNotIn(ftpmod.AUTOLOAD,f.writes)
+        self.assertNotIn(ftpmod.CONFIG,f.writes)
+        self.assertIn(ftpmod.PAYLOAD,f.writes)
+
     def test_order_backup_idempotence(self):
         initial=(b"nanoDNS_0.4.elf\nkstuff-lite_v1.11.elf\n"
                  b"ShadowMountPlus_1.7beta7.elf\nftpsrv_v0.21.1.elf\n"
