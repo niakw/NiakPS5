@@ -52,10 +52,10 @@ class SnapshotTests(unittest.TestCase):
             shutil.copyfile(ROOT.parent/"catalog.h",root/"niak"/"catalog.h")
             (root/"test.c").write_text(SOURCE,encoding="utf-8")
             binary=root/"test"
-            subprocess.run([cc,"-std=c11","-Wall","-Wextra","-Werror",
-                            "-I",str(root),str(root/"test.c"),
-                            "-o",str(binary)],check=True,
-                           capture_output=True,text=True)
+            compiled=subprocess.run([cc,"-std=c11","-Wall","-Wextra","-Werror",
+                                     "-I",str(root),str(root/"test.c"),
+                                     "-o",str(binary)],capture_output=True,text=True)
+            self.assertEqual(compiled.returncode,0,compiled.stderr)
             subprocess.run([str(binary),str(root/"snapshot.txt")],
                            check=True,capture_output=True,text=True)
 if __name__=="__main__":
