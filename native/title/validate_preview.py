@@ -19,15 +19,19 @@ required=[Path(sys.argv[1]) / f"case-{i:02d}-{suffix}.png" for i,suffix in
 if not all(p.exists() for p in required):raise SystemExit("Missing rotating case C++ frames")
 from PIL import ImageChops
 fallback=Path(sys.argv[1])/"case-04-homebrew-fallback.png"
-ps5_front=Path(sys.argv[1])/"case-07-ps5-missing-front.png"
-ps5_back=Path(sys.argv[1])/"case-08-ps5-genuine-back.png"
-ps5_front_original=Path(sys.argv[1])/"case-09-ps5-genuine-front.png"
-ps5_back_fallback=Path(sys.argv[1])/"case-10-ps5-missing-back.png"
-ps4_front=Path(sys.argv[1])/"case-11-ps4-fallback-front.png"
-ps4_back=Path(sys.argv[1])/"case-12-ps4-fallback-back.png"
-if not all(p.exists() for p in (ps5_front,ps5_back,ps5_front_original,
-                                 ps5_back_fallback,ps4_front,ps4_back)):
-    raise SystemExit("Missing mixed official/fallback PS5 captures")
+ps4_front=Path(sys.argv[1])/"case-07-ps4-missing-front.png"
+ps4_back=Path(sys.argv[1])/"case-08-ps4-missing-back.png"
+ps5_retail_front=Path(sys.argv[1])/"case-09-ps5-both-official-front.png"
+ps5_retail_back=Path(sys.argv[1])/"case-10-ps5-both-official-back.png"
+ps5_front_original=Path(sys.argv[1])/"case-11-ps5-official-front.png"
+ps5_back_fallback=Path(sys.argv[1])/"case-12-ps5-missing-back.png"
+ps5_front_fallback=Path(sys.argv[1])/"case-13-ps5-missing-front.png"
+ps5_back_original=Path(sys.argv[1])/"case-14-ps5-official-back.png"
+if not all(p.exists() for p in (
+    ps4_front,ps4_back,ps5_retail_front,ps5_retail_back,
+    ps5_front_original,ps5_back_fallback,
+    ps5_front_fallback,ps5_back_original)):
+    raise SystemExit("Missing one of four official/fallback combinations")
 menu_r1=Path(sys.argv[1])/"case-05-r1-menu.png"
 if not menu_r1.exists():raise SystemExit("Missing R1 tab navigation capture")
 detail=Path(sys.argv[1])/"case-06-touchpad-details.png"
@@ -61,24 +65,21 @@ with Image.open(detail) as touch,Image.open(fallback) as before_touch:
         touch.convert("RGB").crop(region),
         before_touch.convert("RGB").crop(region))).mean)
     if change<11:raise SystemExit("Touchpad click did not open NiakPS5 details")
-# Missing front vs genuine back must be distinguishable in OpenGL.
-with Image.open(ps5_front) as a, Image.open(ps5_back) as b:
-    left=a.convert("RGB").crop((1200,120,1800,580))
-    right=b.convert("RGB").crop((1200,120,1800,580))
-    diff=sum(ImageStat.Stat(ImageChops.difference(left,right)).mean)
-    if diff<6:raise SystemExit("Missing-front and official-back faces rendered identically")
-# The other PS5 title shows its TRUE front and a generated missing back.
-with Image.open(ps5_front_original) as original,Image.open(ps5_back_fallback) as rebuilt:
-    crop=(1200,120,1800,580)
-    gap=sum(ImageStat.Stat(ImageChops.difference(
-        original.convert("RGB").crop(crop),rebuilt.convert("RGB").crop(crop))).mean)
-    if gap<6:raise SystemExit("Genuine-front / fallback-back previews indistinguishable")
-# Missing BOTH PS4 faces must still have different front/back compositions.
-with Image.open(ps4_front) as a,Image.open(ps4_back) as b:
-    region=(1200,120,1800,580)
-    different=sum(ImageStat.Stat(ImageChops.difference(
-        a.convert("RGB").crop(region),b.convert("RGB").crop(region))).mean)
-    if different<6:raise SystemExit("PS4 fallback front/back are indistinguishable")
+# Four real OpenGL screenshot pairs exercise independent face priority,
+# not just image geometry: PS4 none, PS5 both, PS5 front-only, PS5 back-only.
+pairs=(
+    (ps4_front,ps4_back,"PS4 both missing"),
+    (ps5_retail_front,ps5_retail_back,"PS5 both official"),
+    (ps5_front_original,ps5_back_fallback,"PS5 missing back"),
+    (ps5_front_fallback,ps5_back_original,"PS5 missing front"),
+)
+for front,back,label in pairs:
+    with Image.open(front) as a,Image.open(back) as b:
+        crop=(1200,120,1800,580)
+        diff=sum(ImageStat.Stat(ImageChops.difference(
+            a.convert("RGB").crop(crop),b.convert("RGB").crop(crop))).mean)
+        if diff<6:
+            raise SystemExit(f"{label}: front/back rendered identically")
 # A fallback case must be distinguishable from the commercial scan.
 with Image.open(fallback) as _fallback:
     _box=_fallback.convert("RGB").crop((1160,90,1850,760))

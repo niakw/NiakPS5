@@ -278,12 +278,12 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
             shell.update(right,kDt);
             for(int frame=0;frame<20;++frame)shell.update(idle,kDt);
         }
-        render("case-07-ps5-missing-front");
+        // The first-shelf game at this point is the PS4 CUSA00053.
+        // It has neither an authentic front nor an authentic back.
+        render("case-07-ps4-missing-front");
         for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
-        render("case-08-ps5-genuine-back");
-        // A separately chosen PS5 title keeps its genuine FRONT but must
-        // synthesize only the BACK. The following directional navigation
-        // walks Anno -> PS4 unboxed -> Humankind front-only.
+        render("case-08-ps4-missing-back");
+        // Move left twice to PPSA34015, whose front AND back are authentic.
         hui::InputFrame backwards;
         backwards.connected=true;
         backwards.nav=hui::Direction::left;
@@ -291,19 +291,28 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
             shell.update(backwards,kDt);
             for(int frame=0;frame<23;++frame)shell.update(idle,kDt);
         }
-        render("case-09-ps5-genuine-front");
+        render("case-09-ps5-both-official-front");
         for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
-        render("case-10-ps5-missing-back");
-        // PS4: neither face was downloaded, so front AND back require the
-        // correct PS4-only fixed masthead and lower footer.
-        hui::InputFrame next_ps4;
-        next_ps4.connected=true;
-        next_ps4.nav=hui::Direction::right;
-        shell.update(next_ps4,kDt);
+        render("case-10-ps5-both-official-back");
+        // Move one game right to Humankind: its authentic FRONT remains,
+        // its missing BACK has to be assembled above the immutable PS5 footer.
+        hui::InputFrame next_game;
+        next_game.connected=true;
+        next_game.nav=hui::Direction::right;
+        shell.update(next_game,kDt);
         for(int frame=0;frame<24;++frame)shell.update(idle,kDt);
-        render("case-11-ps4-fallback-front");
+        render("case-11-ps5-official-front");
         for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
-        render("case-12-ps4-fallback-back");
+        render("case-12-ps5-missing-back");
+        // From Humankind advance two game positions to Anno 1800:
+        // missing FRONT reconstructed, genuine BACK kept intact.
+        for(int move=0;move<2;++move) {
+            shell.update(next_game,kDt);
+            for(int frame=0;frame<24;++frame)shell.update(idle,kDt);
+        }
+        render("case-13-ps5-missing-front");
+        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
+        render("case-14-ps5-official-back");
         hui::InputFrame down;
         down.connected=true;
         down.nav=hui::Direction::down;
