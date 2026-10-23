@@ -102,28 +102,52 @@ jobs:
           print('FTP ZIP verified (one root folder, modes, no nested ZIP)')
           PY
           sha256sum dist/PPSA99386.zip
-      # GitHub Actions always wraps uploaded files in its OWN ZIP.
-      # Uploading dist/PPSA99386.zip would produce ZIP -> ZIP -> title.
-      # Validate the original install ZIP above, then upload its already
-      # unpacked directory so the GitHub download has exactly ONE ZIP layer:
-      # NiakPS5-PPSA99386.zip -> PPSA99386/ -> eboot.bin, tools/, ...
-      - name: Stage single-layer download archive
+      # GitHub artifacts reset executable file modes to 0644. Preserve
+      # the eboot.bin/ELF 0755 flags in a validated INNER ZIP. Users only
+      # extract archives and drag data/ into FTP /; NO install command.
+      # Keep the familiar artifact name NiakPS5-PPSA99386.
+      - name: Verify no-command FTP drag-and-drop package
         run: |
-          rm -f dist/PPSA99386.zip
           python3 - <<'PY'
           from pathlib import Path
-          root=Path('dist')
-          assert [p.name for p in root.iterdir()] == ['PPSA99386']
-          title=root/'PPSA99386'
-          assert (title/'eboot.bin').stat().st_size > 0
-          assert (title/'sce_sys/param.json').stat().st_size > 0
-          assert (title/'tools/ftp_install.py').stat().st_size > 0
-          assert not any(p.suffix.lower()=='.zip' for p in title.rglob('*'))
-          print('GitHub artifact staging verified: single top-level PPSA99386/ directory, no nested ZIP')
+          import hashlib,stat
+          from zipfile import ZipFile
+          archive=Path('dist/NiakPS5-FTP-glisser-deposer.zip')
+          assert archive.stat().st_size>0
+          names={f"data/homebrew/PPSA99386/assets/niak-templates/{p}-{side}.png"
+                 for p in ("ps4","ps5") for side in ("front","back","spine")}
+          required={
+              "data/homebrew/PPSA99386/eboot.bin",
+              "data/homebrew/PPSA99386/sce_module/libc.prx",
+              "data/homebrew/PPSA99386/sce_sys/param.json",
+              "data/pldmgr/payloads/niakps5/niakps5.elf",
+              "data/pldmgr/payloads/niakps5/niakps5.elf.json",
+          }
+          with ZipFile(archive) as z:
+              content=set(z.namelist())
+              assert z.testzip() is None
+              assert all(p.startswith('data/') for p in content)
+              assert required|names<=content
+              assert not any('autoload.txt' in p or 'pldmgr_config.txt' in p
+                             for p in content)
+              for item in (
+                  "data/homebrew/PPSA99386/eboot.bin",
+                  "data/pldmgr/payloads/niakps5/niakps5.elf",
+              ):
+                  assert (z.getinfo(item).external_attr>>16)&0o777==0o755
+              elf=z.read("data/pldmgr/payloads/niakps5/niakps5.elf")
+              assert elf==z.read(
+                  "data/homebrew/PPSA99386/tools/niakps5/niakps5.elf")
+              import json
+              meta=json.loads(z.read(
+                  "data/pldmgr/payloads/niakps5/niakps5.elf.json"))
+              assert meta["checksum"]==hashlib.sha256(elf).hexdigest()
+          print('No-command installation verified: data/ root, six templates, own payload, 0755 and zero PLDmgr config edits.')
           PY
-      - name: Upload single ZIP installation package
+      - name: Upload drag-and-drop FTP installation package
         uses: actions/upload-artifact@v4
         with:
           name: NiakPS5-PPSA99386
-          path: dist/
+          path: dist/NiakPS5-FTP-glisser-deposer.zip
           if-no-files-found: error
+          compression-level: 0
