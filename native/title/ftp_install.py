@@ -386,13 +386,13 @@ def rebuild_installed_launchbox_index(ftp,folder,archive=None):
     try:
         with tempfile.TemporaryDirectory(prefix="niakps5-launchbox-") as temporary:
             titles=Path(temporary)/"titles.tsv"
-            titles.write_text("".join(f"{ident}\\t{name}\\t\\n"
+            titles.write_text("".join(f"{ident}\t{name}\t\n"
                             for ident,name in sorted(selected.items())),"utf8")
             output=Path(temporary)/"index.tsv"
             module.build(cache,titles,output)
             content=output.read_bytes()
             # No publication of owners' names/IDs; console-private FTP only.
-            if len(content)>4*1024*1024 or content.count(b"\\n")<=1:
+            if len(content)>4*1024*1024 or content.count(b"\n")<=1:
                 return False
             upload(ftp,LAUNCHBOX_PRIVATE_INDEX,content)
             print(f"LaunchBox : index privé actualisé pour {len(selected)} titres visibles.")
@@ -408,7 +408,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     index=folder/"assets/niak-launchbox-cases.tsv"
     try: private=_bounded_retrieve(ftp,LAUNCHBOX_PRIVATE_INDEX,limit=4*1024*1024)
     except (OSError,ValueError):private=None
-    if private and not private.startswith(b"# title\\t"):private=None
+    if private and not private.startswith(b"# title\t"):private=None
     if private:
         lines=private.decode("utf8","replace").splitlines()
     elif index.is_file():

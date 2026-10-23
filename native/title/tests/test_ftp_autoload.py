@@ -59,7 +59,7 @@ class AutoloadTests(unittest.TestCase):
              </GameImage></LaunchBox>"""
             with ZipFile(archive,"w") as z:z.writestr("Metadata.xml",xml)
             f=FakeFTP({f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv":
-                b"PPSA02387\\tA Plague Tale: Innocence\\tJeu\\t\\t\\n",
+                b"PPSA02387\tA Plague Tale: Innocence\tJeu\t\t\n",
                 "/user/app/PPSA02387/sce_sys/param.json":b'{"titleId":"PPSA02387"}'})
             with patch.object(ftpmod,"__file__",str(tools/"ftp_install.py")):
                 self.assertTrue(ftpmod.rebuild_installed_launchbox_index(
