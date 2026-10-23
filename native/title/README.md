@@ -55,6 +55,22 @@ Elle télécharge les dépendances épinglées et peut prendre du temps. La sour
 
 Ne pas supprimer ni remplacer `SceShellUI`, ne pas remonter `/system_ex` en écriture, ne pas réactiver l'ancien bootstrap `hbldr`.
 
+## Résolution des erreurs de démarrage et du catalogue
+
+L'ELF PLDmgr initialise explicitement UserService avant de demander le profil
+au premier plan. L'erreur `0x80960002` correspondait au service non initialisé ;
+la réponse `UserService initialize` apparaît dans le journal du payload.
+Le payload nomme son thread `NiakPS5` avec `SYS_thr_set_name`, sous réserve
+des capacités du chargeur. Il ne tue pas une première instance active : un
+second lancement reconnaît `PING/PONG` et quitte sans réoccuper le port.
+
+Si l'accès à app.db, au courtier ou à ShadowMountPlus est refusé, NiakPS5
+peut utiliser en **dernier recours** le fichier privé
+`assets/niak-local-titles.tsv` préparé par l'installateur FTP. Les vignettes
+sont alors marquées « Dernier inventaire local » : une ancienne observation
+FTP ne prouve **pas** qu'un jeu reste installé ou lançable. Relancer
+l'installation FTP actualise ce relevé, sans modifier la base Sony.
+
 ## Limites à valider
 
 - Compilation et runtime de **cette adaptation** sur PS5 firmware 13.60 : **non validés matériellement**.

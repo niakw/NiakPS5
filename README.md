@@ -79,6 +79,18 @@ L'assemblage récupère une révision figée de [PS5_VKHomebrewUI](https://githu
 
 Les polices Manrope et Instrument Serif sont utilisées avec leurs licences OFL. Le décodeur PNG tiers (LodePNG) conserve sa licence dans ses sources. La base graphique amont reste GPL-3.0-or-later.
 
+## Diagnostics du catalogue
+
+Le payload initialise UserService avant de demander le profil actif (erreur
+`0x80960002` corrigée à la source), identifie son thread `NiakPS5`
+sur les chargeurs compatibles et reconnaît un courtier déjà en service.
+Les requêtes `GAMES` journalisent le nombre d'identifiants accessibles.
+
+Si toutes les sources en direct restent inaccessibles, l'interface utilise en
+dernier recours le relevé local `assets/niak-local-titles.tsv` de la dernière
+installation FTP, sans prétendre que ses titres sont encore installés.
+Ce fallback reste à vérifier sur PS5 13.60.
+
 ## Confidentialité et sécurité
 
 Le dépôt ne doit contenir **aucune** adresse personnelle ou IP privée, identifiant de compte, mot de passe FTP, clé API, capture privée ou base de données de la console. Les accès catalogue et icônes passent par une API **loopback** qui doit rester liée à `127.0.0.1` ; aucune donnée de profil n'est envoyée sur Internet. Les captures personnelles ne sont ni collectées ni transférées.

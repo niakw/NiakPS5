@@ -239,7 +239,7 @@ def prepare(kit: Path, project: Path, revision: str):
     for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp",
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
                      "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp",
-                     "broker_catalog.cpp","broker_catalog.hpp"):
+                     "broker_catalog.cpp","broker_catalog.hpp","local_inventory.h"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
@@ -529,6 +529,7 @@ extern "C" {
 #include "platform/ps5/system.hpp"
 #include "niak/title_meta.hpp"
 #include "niak/broker_catalog.hpp"
+#include "niak/local_inventory.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -613,6 +614,20 @@ Catalog::Catalog()
             }
         }
     }
+    // An FTP-observed private snapshot is a last resort if *every* live
+    // scanner failed. Do not merge historical IDs into a successful live scan.
+    int cached_count=-1;
+    if(count==0) {
+        cached_count=niak_scan_local_inventory(
+            "/app0/assets/niak-local-titles.tsv",games.data(),games.size());
+        if(cached_count<0)
+            cached_count=niak_scan_local_inventory(
+                "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+                games.data(),games.size());
+        if(cached_count>0)count=static_cast<std::size_t>(cached_count);
+    }
+    sys::log("[NiakPS5] cached FTP fallback: %d titles (historical snapshot)",
+             cached_count);
     sys::log("[NiakPS5] catalog: db=%d, broker=%d, folders=%d, homebrew=%d, api=%d, unique=%zu",
              db_count, broker_count, folder_count, home_count, api_count, count);
     if (count > 0)
@@ -630,6 +645,8 @@ Catalog::Catalog()
             // Keep factual metadata visible even when LaunchBox also has a
             // full editorial overview; show verified facts FIRST.
             std::string detail=summary;
+            if(game.discovered_from_homebrew==3)
+                detail="Dernier inventaire FTP : présence actuelle non vérifiée.";
             if(!description.empty()) {
                 if(!detail.empty())detail+=" — ";
                 detail+=description;
@@ -661,8 +678,9 @@ Catalog::Catalog()
                 item.application=false;
             else
                 item.application=game.is_homebrew!=0;
-            item.studio=item.application ? "Application installée" :
-                         "Jeu installé";
+            item.studio=game.discovered_from_homebrew==3
+                ? "Dernier inventaire local" :
+                item.application ? "Application installée" : "Jeu installé";
             const char *last=game.last_access;
             const char *installed=game.installed_at;
             const char *recent=std::strcmp(last,installed)>=0?last:installed;

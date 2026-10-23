@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -21,6 +22,7 @@
 #include "redirect_gate.h"
 #include "title_permissions.h"
 #include "socket_guard.h"
+#include "loopback_connect.h"
 #include "broker_inventory.h"
 
 #define NIAK_TITLE "PPSA99386"
@@ -33,6 +35,7 @@
 
 extern int sceKernelUsleep(unsigned int microseconds);
 extern int sceUserServiceGetForegroundUser(int *user_id);
+extern int sceUserServiceInitialize(void *params);
 extern int sceSystemServiceLaunchApp(const char *title_id,
                                      const char **arguments, void *params);
 extern int sceSystemServiceGetAppIdOfRunningBigApp(void);
@@ -171,7 +174,35 @@ static uint64_t niak_monotonic_ms(void) {
     return (uint64_t)clock_time.tv_sec*1000u+
            (uint64_t)clock_time.tv_nsec/1000000u;
 }
+/* PLDmgr may execute the same ELF twice. Check whether OUR local protocol
+ * already owns the port instead of reporting a second broker as a failure. */
+static int broker_already_ready(void) {
+    const int probe=socket(AF_INET,SOCK_STREAM,0);
+    if(probe<0)return 0;
+    niak_socket_guard(probe);
+    struct timeval timeout={0,200000};
+    (void)setsockopt(probe,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
+    (void)setsockopt(probe,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
+    struct sockaddr_in peer={0};
+    peer.sin_family=AF_INET;
+    peer.sin_port=htons(19187);
+    peer.sin_addr.s_addr=htonl(0x7f000001u);
+    int ok=niak_connect_bounded(probe,(struct sockaddr*)&peer,sizeof(peer),100)==0;
+    if(ok)ok=niak_socket_send(probe,"PING\\n",5)==5;
+    char reply[5]={0};size_t got=0;
+    while(ok && got<sizeof(reply)) {
+        const ssize_t n=recv(probe,reply+got,sizeof(reply)-got,0);
+        if(n<=0){ok=0;break;}
+        got+=(size_t)n;
+    }
+    close(probe);
+    return ok && got==5 && memcmp(reply,"PONG\\n",5)==0;
+}
 static void serve_launch_requests(void) {
+    if(broker_already_ready()) {
+        report("Local broker already running",0);
+        return;
+    }
     const int fd=socket(AF_INET,SOCK_STREAM,0);
     if(fd<0){report("Local launch broker socket unavailable",fd);return;}
     niak_socket_guard(fd);
@@ -180,8 +211,15 @@ static void serve_launch_requests(void) {
     addr.sin_family=AF_INET;
     addr.sin_port=htons(19187);
     addr.sin_addr.s_addr=htonl(0x7f000001u);
-    if(bind(fd,(struct sockaddr*)&addr,sizeof(addr))!=0 || listen(fd,3)!=0) {
-        report("Local launch broker bind refused",-1);close(fd);return;
+    if(bind(fd,(struct sockaddr*)&addr,sizeof(addr))!=0) {
+        const int problem=errno;
+        if(problem==EADDRINUSE && broker_already_ready())
+            report("Local broker already running",0);
+        else report("Local launch broker bind refused",problem);
+        close(fd);return;
+    }
+    if(listen(fd,3)!=0) {
+        report("Local launch broker listen refused",errno);close(fd);return;
     }
     report("Local launch broker ready (127.0.0.1 only)",0);
     NiakRedirectGate gate;
@@ -238,6 +276,7 @@ static void serve_launch_requests(void) {
                 if(count==6 && memcmp(request,"GAMES\n",6)==0) {
                     char titles[8192];
                     const int n=niak_broker_inventory(titles,sizeof(titles),"");
+                    report("Local installed title inventory",n);
                     if(n<0)(void)niak_socket_send(client,"DENIED\n",7);
                     else {
                         (void)niak_socket_send(client,"GAMES\n",6);
@@ -313,8 +352,18 @@ static void serve_launch_requests(void) {
     report("Local launch broker shutdown",0);
 }
 int main(void) {
+    /* On PS5 this FreeBSD syscall names the executing payload thread, which
+     * is visible in common process/thread scanners instead of payload.elf.
+     * The external ELF loader may still control the executable filename. */
+#ifdef SYS_thr_set_name
+    (void)syscall(SYS_thr_set_name,-1,"NiakPS5");
+#endif
     if(is_regular_file(NIAK_DISABLED))return 0;
     report("NiakPS5 optional autostart start",0);
+    /* Raw PLDmgr ELFs do not inherit a UI title's UserService init.
+     * Without this, GetForegroundUser fails with 0x80960002. */
+    const int user_service_rc=sceUserServiceInitialize(NULL);
+    report("UserService initialize",user_service_rc);
     // The local broker becomes available before console autostart attempts.
     // A manually launched UI can contact it even while the payload is still
     // waiting for the current foreground user or a free big-app slot.
