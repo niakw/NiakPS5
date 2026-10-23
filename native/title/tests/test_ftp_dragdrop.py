@@ -47,6 +47,26 @@ class FTPDropinTests(unittest.TestCase):
         self.assertFalse((dest/"data/pldmgr/autoload.txt").exists())
         self.assertFalse((dest/"data/pldmgr/pldmgr_config.txt").exists())
         self.assertEqual((slot/"niakps5.elf").stat().st_mode & 0o777,0o755)
+    def test_package_preserves_executable_modes_after_github_upload(self):
+        from zipfile import ZipFile
+        dest=self.home/"dropin"
+        package=self.home/"NiakPS5-FTP-glisser-deposer.zip"
+        mod.stage(self.title,dest)
+        mod.package_zip(dest,package)
+        with ZipFile(package) as z:
+            self.assertIsNone(z.testzip())
+            self.assertTrue(all(n.startswith("data/") for n in z.namelist()))
+            self.assertFalse(any("autoload.txt" in n for n in z.namelist()))
+            for filename in (
+                "data/homebrew/PPSA99386/eboot.bin",
+                "data/pldmgr/payloads/niakps5/niakps5.elf",
+            ):
+                self.assertEqual(z.getinfo(filename).external_attr>>16&0o777,
+                                 0o755)
+            self.assertEqual(z.read(
+                "data/pldmgr/payloads/niakps5/niakps5.elf"),
+                z.read("data/homebrew/PPSA99386/tools/niakps5/niakps5.elf"))
+
     def test_reject_corrupt_sidecar_before_copying(self):
         sidecar=self.title/"tools/niakps5/niakps5.elf.json"
         sidecar.write_text('{"filename":"niakps5.elf","checksum":"wrong"}')

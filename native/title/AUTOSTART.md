@@ -34,47 +34,36 @@ pas enregistré par le service de titres : un dossier FTP seul n'est pas
 une preuve d'enregistrement. Dans ce cas il faut diagnostiquer la
 registration ShadowMountPlus avant de chercher davantage de privilèges.
 
-## Installation actuelle (une seule commande)
+## Installation actuelle : glisser-déposer uniquement
 
-L'archive contient l'application native `PPSA99386/eboot.bin`, l'installeur
-`PPSA99386/tools/ftp_install.py` et son payload compagnon
-`PPSA99386/tools/niakps5/niakps5.elf`.
+L'artefact `NiakPS5-PPSA99386` contient l'archive FTP
+`NiakPS5-FTP-glisser-deposer.zip` (deux extractions graphiques pour
+préserver les permissions exécutables), puis l'arborescence suivante :
 
-Depuis l'ordinateur connecté à la PS5, après extraction du ZIP :
-
-```sh
-python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5
+```text
+data/homebrew/PPSA99386/eboot.bin
+data/homebrew/PPSA99386/assets/niak-templates/{ps4,ps5}-{front,back,spine}.png
+data/pldmgr/payloads/niakps5/niakps5.elf
+data/pldmgr/payloads/niakps5/niakps5.elf.json
 ```
 
-Cette commande installe le titre et **configure PLDmgr par défaut** pour charger
-le payload compagnon en dernier, après les autres payloads conservés. Elle active
-son marqueur privé et peut copier les jaquettes ainsi que les gabarits présents.
-Pour une installation complète qui **remplace aussi niakps5.elf**
-sans réécrire `autoload.txt`, la configuration PLDmgr ni les marqueurs
-existants (mode conseillé si PLDmgr est déjà configuré) :
+Faire glisser le dossier `data/` **dans la racine `/` du FTP**, en
+fusionnant les dossiers existants ; ne jamais remplacer `/data/` en entier.
+Aucune commande n'est nécessaire. Le paquet n'inclut ni
+`/data/pldmgr/autoload.txt` ni `pldmgr_config.txt` : l'app ne les
+modifie pas non plus pendant son démarrage.
 
-```sh
-python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --preserve-autoload
-```
+La ligne `niakps5.elf` doit déjà exister dans la configuration PLDmgr
+de l'utilisateur pour un lancement automatique au prochain jailbreak.
+Le dépôt d'un ELF ne peut pas créer à lui seul une entrée d'autoload.
+Pour le lancement manuel, le titre doit encore être reconnu par le
+service d'enregistrement de la PS5 (par exemple ShadowMountPlus).
+En cas de droits insuffisants, les réglages de NiakPS5 indiquent l'état
+du courtier local ; la compatibilité matérielle 13.60 n'est pas garantie.
 
-Pour transférer uniquement le titre sans le payload, utiliser
-`--no-autoload`. Pour une inspection strictement en lecture seule, utiliser
-`--status`.
-
-Copier seulement le dossier par FTP n'ajoute pas automatiquement un payload à
-une liste PLDmgr existante : le script doit être exécuté pour cette étape.
-Le service local « Jouer » ne devient disponible qu'après exécution effective
-du payload par la chaîne de jailbreak ; un binaire copié ne suffit pas.
-La compatibilité PS5 13.60 doit encore être testée sur matériel.
-
-Après jailbreak, Réglages NiakPS5 affiche si le service local PLDmgr répond
-réellement. En cas de problème, consulter le diagnostic `--status` et le journal
-`/data/niakps5-autostart.log`. Une ancienne trace de succès n'est pas une preuve
-de fonctionnement du démarrage actuel.
-
-**Désactivation immédiate :** enlever \`niakps5.elf\` de la chaîne ou supprimer \`/data/niakps5-autostart.enabled\`. Option sans modification de la chaîne : créer \`/data/niakps5-autostart.disable\`.
-
-**Sécurité :** ne pas programmer ce payload à répétition pendant le jeu et ne pas le déclencher à chaque retour au Sony Home : cela provoquerait une boucle de lancement. C'est un *one-shot* à la fin du jailbreak.
+**Sécurité :** garder le payload en lancement unique, jamais en boucle ;
+`/data/niakps5-autostart.disable` désactive le service sans toucher à
+l'autoload de l'utilisateur.
 
 ## Limite du remplacement du shell
 

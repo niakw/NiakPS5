@@ -10,44 +10,29 @@ les éléments fixes fournis PS4/PS5 apparaissent uniquement sur les faces
 manquantes. Le back doit afficher un bloc image au-dessus de son footer.
 Le pipeline refuse tout PNG supplémentaire.
 
-## Aperçu OpenGL standard : tes éléments fixes PS4 et PS5
+## Préparation console : copier un dossier, aucune commande
 
-L'artefact GitHub **NiakPS5-OpenGL-interface-preview** contient maintenant
-les six blocs de référence fournis pour les boîtiers PS4 et PS5,
-en plus des captures 3D des quatre combinaisons de faces officielles/manquantes.
-Le fichier `00-fixed-elements-PS4-PS5.png` réunit les bandeaux, bas de dos
-et tranches pour vérification visuelle dans **le même artefact GitHub**.
+Télécharger l'artefact GitHub `NiakPS5-PPSA99386`, extraire ses deux
+archives, puis **faire glisser le dossier `data/` dans la racine FTP `/`**
+en mode **fusion**, jamais remplacement du dossier système.
+L'archive contient le titre natif, les six gabarits de secours PS4/PS5 et
+le payload compagnon déjà rangé sous `data/pldmgr/payloads/niakps5/`.
 
-La CI reconstruit les six PNG depuis une copie WebP **réduite pour l'aperçu**
-des sources personnelles. Leurs dimensions et contenus visuels sont
-préservés lors du placement, mais pas les pixels pleine résolution :
-l'archive locale `NiakPS5_templates_prives_PS4_PS5.zip` reste la source
-plein format pour l'installation sur la console. Les fichiers de CI sont
-publics avec le dépôt ; aucune image entière de jaquette commerciale n'y
-est distribuée.
+L'archive ne livre ni `autoload.txt` ni `pldmgr_config.txt`, et ne modifie
+donc aucune entrée existante. Si l'entrée `niakps5.elf` est déjà configurée,
+le payload déposé sera chargé au prochain cycle PLDmgr ; sinon la copie FTP
+ne suffit pas à activer l'autoload. La reconnaissance du titre
+`PPSA99386` par ShadowMountPlus ou le service PS5 reste une condition
+indépendante de ses permissions.
 
-Le preview **échoue** en cas de source manquante ou corrompue : plus aucun
-`QA HEADER` / `QA FOOTER` n'est accepté silencieusement. Une vraie
-jaquette commerciale reste prioritaire face par face ; les blocs sont
-utilisés uniquement pour reconstruire les parties manquantes.
+Les six gabarits par défaut sont les copies WebP préexistantes des éléments
+utilisateur, agrandies aux dimensions acceptées par le moteur PS5 (non
+des visuels créés). La version PNG plein format du ZIP utilisateur peut les
+remplacer, toujours par simple copie FTP au même chemin.
 
-## Installation des six gabarits privés sans fusion manuelle
+Le preview public est limité aux six captures front/back/spine PS4 et PS5 ;
+aucune planche QA supplémentaire n'est publiée.
 
-Le ZIP `NiakPS5_templates_prives_PS4_PS5.zip` contient les six PNG fournis
-par l'utilisateur, conservés hors du dépôt GitHub public. Depuis le Mac,
-après extraction du paquet standard `NiakPS5-PPSA99386.zip`, exécuter :
-
-```bash
-python3 PPSA99386/tools/ftp_install.py --host IP_PS5 --preserve-autoload --case-templates NiakPS5_templates_prives_PS4_PS5.zip
-```
-
-L'installateur vérifie l'archive et les proportions des six modèles avant tout
-transfert FTP et ne modifie pas `autoload.txt`. Une jaquette authentique
-prend systématiquement priorité pour chaque face indépendamment.
-
-Les modèles utilisateur comportent des codes-barres, classifications et
-mentions propres aux jeux photographiés. Ils restent des éléments visuels
-de référence, pas des informations légales valides pour un autre jeu.
 ## Reconstruction des jaquettes — faces absentes uniquement
 
 La priorité de chaque face est **indépendante** : si le front/back/spine

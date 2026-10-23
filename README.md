@@ -33,42 +33,55 @@ pour la journée, y compris après fermeture et réouverture de NiakPS5.
 Le choix manuel est réinitialisé lors du prochain jour local ; aucune autre
 commande ne déclenche cette action.
 
-## Un seul ZIP FTP
+## Installation par FTP : **glisser-déposer uniquement**
+
+Dans les artifacts du dernier run vert, télécharger **NiakPS5-PPSA99386**.
+GitHub fournit une première archive ; l'extraire, puis extraire le ZIP
+`NiakPS5-FTP-glisser-deposer.zip` qu'elle contient. Cette deuxième archive
+conserve les droits exécutables `0755` (GitHub les efface dans la première).
+On obtient un seul dossier **`data/`** :
 
 ```text
-PPSA99386.zip
-└── PPSA99386/
-    ├── eboot.bin
-    ├── sce_sys/
-    ├── sce_module/
-    ├── assets/
-    └── tools/
-        ├── niakps5.elf
-        ├── ftp_install.py
-        └── AUTOSTART.md
+data/
+├── homebrew/
+│   └── PPSA99386/
+│       ├── eboot.bin
+│       ├── sce_sys/
+│       ├── sce_module/
+│       ├── assets/niak-templates/  (6 gabarits PS4/PS5 inclus)
+│       └── tools/niakps5/         (payload compagnon interne)
+└── pldmgr/
+    └── payloads/
+        └── niakps5/
+            ├── niakps5.elf
+            └── niakps5.elf.json
 ```
 
-Aucune archive imbriquée. Le dossier `PPSA99386` s'installe sous `/data/homebrew/PPSA99386`.
+**Sur le FTP de la console, à la racine `/`, glisser le dossier `data/`
+en choisissant FUSIONNER les dossiers existants**. Ne pas choisir une option
+supprimant le dossier `data` actuel ! Aucun terminal, Python ou script
+d'installation n'est nécessaire. Ne pas recopier `data/` dans `/data/`,
+ce qui créerait par erreur `/data/data/`.
 
-**Téléchargement GitHub Actions :** prends l'artefact **`NiakPS5-PPSA99386`**.
-GitHub le télécharge directement comme **une seule archive ZIP** contenant
-`PPSA99386/eboot.bin`, `PPSA99386/sce_sys/`, etc. Il n'y a plus de
-`PPSA99386.zip` à l'intérieur : une seule extraction suffit.
+Le paquet **ne contient pas** `autoload.txt`, `pldmgr_config.txt` ni
+de fichier système Sony : ta configuration PLDmgr existante reste intacte.
+Si `niakps5.elf` est déjà inscrit dans ton autoload, son binaire est mis
+à jour lors de la copie. **S'il n'est pas inscrit, le simple FTP ne peut
+pas l'activer automatiquement**, et NiakPS5 ne modifiera pas ce fichier.
 
-**Compilation locale :** `bash native/title/build.sh` produit également
-`dist/PPSA99386.zip`, déjà au même format. Le workflow vérifie cette archive
-et ses permissions, puis retire le fichier ZIP interne avant de laisser GitHub
-compresser le dossier d'installation dans son unique artefact.
+La présence du dossier ne garantit pas son référencement par le service de
+titres PS5 : ShadowMountPlus ou le mécanisme d'enregistrement déjà en place
+doit reconnaître `PPSA99386`. Les droits de lecture catalogue, l'exécution
+du broker et le lancement de jeux sur firmware 13.60 restent à qualifier
+sur console ; une CI verte ne peut pas les prouver.
 
-Le payload `tools/niakps5.elf` est **distinct** de l'application graphique : il peut demander l'ouverture du titre **une fois après le jailbreak**. Il n'est pas exécuté automatiquement du seul fait d'avoir extrait le ZIP. L'installation FTP complète se fait depuis un ordinateur connecté au réseau local de la PS5 avec :
+Les 6 gabarits par défaut sont issus des éléments existants compressés pour
+l'aperçu. Si tu préfères les originaux pleine résolution, **copie simplement**
+les 6 PNG du ZIP privé sous
+`/data/homebrew/PPSA99386/assets/niak-templates/`, puis relance l'app.
+Aucune commande FTP n'est nécessaire.
 
-```bash
-python3 PPSA99386/tools/ftp_install.py --host IP_PS5 --port 2121 --autoload
-```
-
-Le script copie également `tools/niakps5.elf` dans `/data/pldmgr/payloads/niakps5/niakps5.elf` et préserve/sauvegarde `/data/pldmgr/autoload.txt`. Par défaut, l'installateur configure aussi l'autoload. Avec `--no-autoload`, seule l'application est copiée. Voir [documentation détaillée](native/title/README.md).
-
-L'autoload **ne remplace pas** `SceShellUI`. Le bouton PS et les fonctions système Sony continuent d'être contrôlés par la console. Un redémarrage ou une désactivation de l'autoload restaure le comportement d'origine.
+L'autoload ne remplace pas `SceShellUI` ; le bouton PS reste géré par Sony.
 
 ## Construire et tester
 
