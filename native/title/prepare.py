@@ -689,11 +689,17 @@ Catalog::Catalog()
         item.title = owned_titles_.back().c_str();
         item.studio = "NIAKPS5";
         item.genre = "VERIFICATION";
-        item.blurb = db_count < 0 && home_count < 0
-                ? "Accès refusé à app.db et /data/homebrew depuis cette application."
-                : db_count < 0
-                    ? "app.db inaccessible; aucun dossier homebrew valide et accessible."
-                    : "Aucun titre installé accessible dans ce contexte.";
+        // The catalog can be empty for three fundamentally different
+        // reasons; avoid blaming app.db when PLDmgr DID answer successfully.
+        item.blurb = broker_count==0
+            ? "PLDmgr répond, mais aucun titre valide n'est visible dans ses dossiers. Vérifier les droits et les chemins des jeux."
+            : broker_count>0
+                ? "Titres renvoyés par PLDmgr, mais aucun titre valide n'a été intégré. Consulter le journal NiakPS5."
+            : db_count<0 && folder_count<0 && home_count<0 && api_count<0
+                ? "Toutes les sources du catalogue sont inaccessibles. Vérifier que niakps5.elf est exécuté par PLDmgr."
+            : db_count<0
+                ? "app.db inaccessible et aucune autre source n'a fourni de titre valide."
+                : "Aucun titre installé valide détecté par les sources accessibles.";
         item.year = 0;
         item.rating = 0;
         item.progress = 0;
