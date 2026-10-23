@@ -111,6 +111,13 @@ class NativeTitleTests(unittest.TestCase):
                                 "--folder", str(base), "--output", str(package)],
                                check=True, capture_output=True)
 
+    def test_reconstructed_case_avoids_generated_placeholder_as_artwork(self):
+        renderer=(ROOT/"title"/"case_renderer.cpp").read_text()
+        self.assertIn("(item.cover_is_image?item.cover:0)",renderer)
+        self.assertIn("else if(item.cover_is_image && item.cover)",renderer)
+        self.assertIn("Color::rgb(0x0c1727)",renderer)
+        self.assertIn("Color::rgb(0x12243b)",renderer)
+
     def test_broker_catalogue_fallback_without_privileged_gui(self):
         staging=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn('"broker_catalog.cpp","broker_catalog.hpp"',staging)

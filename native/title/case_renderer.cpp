@@ -153,7 +153,8 @@ void outer_face(DrawList &list,const Camera &camera,
             // of an already full-width illustration.
             block(0.f,0.f,1.f,1.f,Color::rgb(0x0c1727));
             const auto art=item.case_poster?item.case_poster:
-                item.case_scene?item.case_scene:item.cover;
+                item.case_scene?item.case_scene:
+                (item.cover_is_image?item.cover:0);
             const float art_aspect=item.case_poster?item.poster_aspect:
                 item.case_scene?item.case_scene_aspect:1.0f;
             panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
@@ -202,7 +203,7 @@ void outer_face(DrawList &list,const Camera &camera,
                     chosen.first={item.case_scene,item.case_scene_aspect};
                 else if(item.case_hero)
                     chosen.first={item.case_hero,item.case_hero_aspect};
-                else if(item.cover)
+                else if(item.cover_is_image && item.cover)
                     chosen.first={item.cover,1.f};
             }
             if(chosen.first.texture) {
