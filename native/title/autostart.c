@@ -211,19 +211,19 @@ static void serve_launch_requests(void) {
                     count+=(size_t)n;
                     if(memchr(request,'\n',count))break;
                 }
-                if(count==6 && memcmp(request,"GAMES\\n",6)==0) {
+                if(count==6 && memcmp(request,"GAMES\n",6)==0) {
                     char titles[8192];
                     const int n=niak_broker_inventory(titles,sizeof(titles),"");
-                    if(n<0)(void)niak_socket_send(client,"DENIED\\n",7);
+                    if(n<0)(void)niak_socket_send(client,"DENIED\n",7);
                     else {
-                        (void)niak_socket_send(client,"GAMES\\n",6);
+                        (void)niak_socket_send(client,"GAMES\n",6);
                         size_t pos=0,len=strlen(titles);
                         while(pos<len) {
                             const ssize_t sent=niak_socket_send(client,titles+pos,len-pos);
                             if(sent<=0)break;
                             pos+=(size_t)sent;
                         }
-                        if(pos==len)(void)niak_socket_send(client,"END\\n",4);
+                        if(pos==len)(void)niak_socket_send(client,"END\n",4);
                     }
                     close(client);
                     continue;
