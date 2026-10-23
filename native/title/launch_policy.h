@@ -55,9 +55,14 @@ static inline NiakLaunchResult niak_launch_with_fallback(
     if((uint32_t)result.system_rc==0x80940005u && lnc_launch) {
         result.lnc_rc=lnc_launch(title,0,&ctx);
         result.result=result.lnc_rc;
-        if(result.lnc_rc>=0) {
+        // LncUtil's success value is an actual positive app ID, not
+        // SystemService's zero-on-success convention. An app ID of zero
+        // cannot identify a launched process, so fail closed.
+        if(result.lnc_rc>0) {
             result.method=2;
             result.result=0;
+        } else if(result.lnc_rc==0) {
+            result.result=-1; // no valid app ID, do not report success
         }
     }
     return result;

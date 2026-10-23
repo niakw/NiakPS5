@@ -28,16 +28,20 @@ int main(void) {
                                 call_system,call_lnc);
     assert(r.result==0 && r.method==2 && r.lnc_rc==lnc_value);
     assert(system_calls==2 && lnc_calls==1);
+    lnc_value=0;
+    r=niak_launch_with_fallback("PPSA99386",expected_user,
+                                call_system,call_lnc);
+    assert(r.method==0 && r.result<0 && r.lnc_rc==0);
     lnc_value=(int)0x80940031u;
     r=niak_launch_with_fallback("PPSA99386",expected_user,
                                 call_system,call_lnc);
     assert((unsigned)r.result==0x80940031u && r.method==0);
-    assert(lnc_calls==2);
+    assert(lnc_calls==3);
     system_value=(int)0x80940031u;
     r=niak_launch_with_fallback("PPSA99386",expected_user,
                                 call_system,call_lnc);
     assert((unsigned)r.result==0x80940031u && r.method==0);
-    assert(lnc_calls==2); /* never retry 'not installed' with LncUtil */
+    assert(lnc_calls==3); /* never retry 'not installed' with LncUtil */
     unsigned before=system_calls;
     r=niak_launch_with_fallback("PPSA99386",-1,call_system,call_lnc);
     assert(r.method==0 && system_calls==before);

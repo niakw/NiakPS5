@@ -1,6 +1,14 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
-### Enregistrement du titre (erreur 0x80940005)
+#### Vérification du lancement natif
+
+Le repli `sceLncUtilLaunchApp` n'annonce plus un succès lorsque l'API
+renvoie `0`, car ce résultat ne désigne aucun identifiant de processus
+lancé. Un retour **strictement positif** est nécessaire pour considérer
+le lancement accepté. Cela ne garantit toutefois pas à lui seul que
+l'application restera ouverte sur PS5 13.60.
+
+## Enregistrement du titre (erreur 0x80940005)
 
 Le diagnostic FTP `--status` vérifie désormais `sce_sys/param.json` et
 les chemins `scanpath=` dans `/data/shadowmount/config.ini`, en **lecture

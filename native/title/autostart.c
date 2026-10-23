@@ -57,6 +57,8 @@ static int launch_title_as_user(const char *title,int user) {
     report("sceSystemServiceLaunchApp",launch.system_rc);
     if(launch.method==2)
         report("sceLncUtilLaunchApp accepted app id",launch.lnc_rc);
+    else if(launch.lnc_rc==0)
+        report("sceLncUtilLaunchApp returned invalid app id",0);
     else if(launch.lnc_rc!=NIAK_LAUNCH_NOT_TRIED)
         report("sceLncUtilLaunchApp refused",launch.lnc_rc);
     return launch.result;
