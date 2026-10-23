@@ -243,8 +243,7 @@ audio::SoundSet Shell::sound_set() const''')
         '                                const ui::Fonts &fonts);\n'
         '    bool stream_next_covers(gfx::Renderer &renderer, const ui::Fonts &fonts,\n'
         '                            std::size_t budget);')
-    replace_once(catalog_h, '  private:\n    std::vector<Item> items_;',
-        '  private:\n    void reload();\n    std::vector<Item> items_;')
+    replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
     src_niak = kit / "src/niak"
     src_niak.mkdir(parents=True, exist_ok=True)
