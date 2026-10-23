@@ -771,9 +771,18 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
             raise ValueError("Symlinks are not accepted")
         if local.is_file():
             relative = local.relative_to(directory).as_posix()
-            if relative.startswith("tools/") or relative.startswith("assets/niak-templates/"):
-                # Validated and uploaded by upload_case_templates() below.
+            if relative.startswith("assets/niak-templates/"):
+                # Private template overlays are staged separately.
                 continue
+            if relative.startswith("tools/"):
+                # The self-install helper reads these TWO packaged files from
+                # /app0/tools/niakps5/. Never ship unrelated installer scripts
+                # into the title or silently opt in with --no-autoload.
+                payload_assets={"tools/niakps5/niakps5.elf",
+                                "tools/niakps5/niakps5.elf.json"}
+                if (relative not in payload_assets or
+                    not (autoload or preserve_autoload)):
+                    continue
             upload(ftp, f"/data/homebrew/{TITLE}/{relative}", local.read_bytes())
     copy_avatar_for_ftp(ftp,avatar_user_id)
     upload_case_templates(ftp,directory)

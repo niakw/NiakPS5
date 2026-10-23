@@ -10,4 +10,10 @@ cloned credentials, version and narrowly fixed filesystem capability.
 Without it the GUI continues sandboxed. It never installs a resident
 privilege service or grants access to another title. Any self-installation
 must be restricted to NiakPS5's own PLDmgr payload files.
+
+The FTP installer must stage the two verified payload assets into
+`/data/homebrew/PPSA99386/tools/niakps5/` for the GUI's `/app0/tools/`
+source path to exist. It does this only with `--autoload` or
+`--preserve-autoload`; `--no-autoload` leaves this opt-in step disabled.
+No installer Python script is uploaded to the console title.
 Firmware 13.60 behavior requires real console qualification.

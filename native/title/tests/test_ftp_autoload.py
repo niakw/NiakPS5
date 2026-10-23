@@ -224,6 +224,8 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("/data/homebrew/PPSA99386/eboot.bin",f.files)
         self.assertNotIn(ftpmod.AUTOLOAD,f.files)
         self.assertNotIn(ftpmod.PAYLOAD,f.files)
+        self.assertNotIn("/data/homebrew/PPSA99386/tools/niakps5/niakps5.elf",f.files)
+        self.assertNotIn("/data/homebrew/PPSA99386/tools/niakps5/niakps5.elf.json",f.files)
         self.assertNotIn("/data/niakps5-autostart.enabled",f.files)
     def test_preserve_autoload_updates_payload_without_rewriting_configuration(self):
         class TrackingFTP(FakeFTP):
@@ -242,6 +244,11 @@ class AutoloadTests(unittest.TestCase):
                          (self.root/"tools/niakps5/niakps5.elf").read_bytes())
         self.assertIn(ftpmod.PAYLOAD_META,f.writes)
         self.assertIn("/data/homebrew/PPSA99386/eboot.bin",f.writes)
+        bundled="/data/homebrew/PPSA99386/tools/niakps5/niakps5.elf"
+        self.assertEqual(f.files[bundled],
+                         (self.root/"tools/niakps5/niakps5.elf").read_bytes())
+        self.assertIn(bundled+".json",f.files)
+        self.assertNotIn("/data/homebrew/PPSA99386/tools/ftp_install.py",f.files)
         for protected in (ftpmod.AUTOLOAD,ftpmod.CONFIG,
                           "/data/niakps5-autostart.enabled"):
             self.assertNotIn(protected,f.writes)
