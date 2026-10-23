@@ -129,6 +129,42 @@ class SourceTests(unittest.TestCase):
             self.assertEqual(fake.files[base+"back.png"],b"valid fixture")
             self.assertNotIn(base+"spine.png",fake.files)
 
+    def test_community_grid_is_poster_not_retail_front(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp)/ftp.TITLE
+            (folder/"assets").mkdir(parents=True)
+            (folder/"assets/niak-ps-titles.tsv").write_text(
+                "PPSA04716\tAnno 1800 Console Edition\t\t\t\n",encoding="utf8")
+            fake=FakeFTP({"/user/app/PPSA04716/eboot.bin":b"installed"})
+            class Response:
+                def __init__(self,url,payload):self.url,self.payload=url,payload
+                def __enter__(self):return self
+                def __exit__(self,*args):pass
+                def geturl(self):return self.url
+                def read(self,n):return self.payload
+            def api(request,timeout=12):
+                url=request.full_url
+                if "/search/autocomplete/" in url:
+                    data={"data":[{"id":170,"name":"Anno 1800 Console Edition",
+                                   "types":["game"]}]}
+                    return Response(url,json.dumps(data).encode())
+                if "/grids/game/170" in url:
+                    data={"data":[{"url":"https://cdn2.steamgriddb.com/grid/170.png",
+                                   "score":10}]}
+                    return Response(url,json.dumps(data).encode())
+                if url=="https://cdn2.steamgriddb.com/grid/170.png":
+                    return Response(url,b"PNG sample")
+                raise AssertionError("Unexpected provider URL")
+            with (patch.dict(os.environ,{"NIAK_THEGAMESDB_KEY":"",
+                                        "NIAK_STEAMGRIDDB_KEY":"private"}),
+                  patch("urllib.request.urlopen",side_effect=api),
+                  patch.object(ftp,"_decode_retail_image",return_value=b"portrait")):
+                self.assertEqual(ftp.fetch_alternative_covers(fake,folder),1)
+            root=f"/data/homebrew/{ftp.TITLE}/assets/niak-cases/PPSA04716-"
+            self.assertEqual(fake.files[root+"poster.png"],b"portrait")
+            self.assertNotIn(root+"front.png",fake.files)
+            self.assertNotIn(root+"back.png",fake.files)
+
     def test_no_keys_does_not_call_network_or_touch_console(self):
         fake=FakeFTP()
         with tempfile.TemporaryDirectory() as tmp:
