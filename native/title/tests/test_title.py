@@ -53,14 +53,18 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("ptrace(", source)
         self.assertNotIn("mount(", source)
 
-    def test_github_artifact_is_single_zip_with_install_folder(self):
+    def test_github_artifact_is_drag_and_drop_data_folder(self):
         workflow=(ROOT.parent/".github/workflows/native-title.yml").read_text()
+        build=(ROOT/"title"/"build.sh").read_text()
         self.assertIn("name: NiakPS5-PPSA99386",workflow)
-        self.assertIn("path: dist/\n",workflow)
-        self.assertIn("rm -f dist/PPSA99386.zip",workflow)
-        self.assertIn("assert [p.name for p in root.iterdir()] == ['PPSA99386']",workflow)
-        self.assertIn("assert not any(p.suffix.lower()=='.zip'",workflow)
-        self.assertNotIn("path: dist/PPSA99386.zip",workflow)
+        self.assertIn("path: dist/NiakPS5-FTP-glisser-deposer.zip",workflow)
+        self.assertIn("data/homebrew/PPSA99386/eboot.bin",workflow)
+        self.assertIn("data/pldmgr/payloads/niakps5/niakps5.elf",workflow)
+        self.assertIn("No-command installation verified",workflow)
+        self.assertIn('stage_case_templates.py',build)
+        self.assertIn('pack_ftp_dragdrop.py',build)
+        self.assertIn('--archive "$root/dist/NiakPS5-FTP-glisser-deposer.zip"',build)
+        self.assertNotIn("path: dist/\\n",workflow)
 
     def test_exact_ftp_package(self):
         import tempfile
