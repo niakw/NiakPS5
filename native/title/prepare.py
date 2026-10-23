@@ -388,7 +388,7 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
             shell.reload_catalog_views();
             sys::log("[NiakPS5] late broker catalogue recovered: %zu titles",
                      catalog.size());
-        }'''))
+        }''')
     # A single failed procedural GPU upload must not leave the progressive
     # loader retrying the same title forever on every subsequent idle frame.
     replace_once(art_file,
