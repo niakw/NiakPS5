@@ -188,15 +188,23 @@ void outer_face(DrawList &list,const Camera &camera,
             // footer. Plastic is visible only on the external 3D case edges.
             block(0.f,0.f,1.f,1.f,Color::rgb(0x12243b));
             const float gutter=0.018f;
-            // The gallery uses real gameplay art first, then pic1, fanart,
-            // lastly the installed icon. A source can occupy ONE panel only.
-            const auto chosen=niak_select_back_media({
+            // Only two genuinely different gameplay screenshots can form
+            // two columns. With zero/one screenshot, select ONE existing
+            // scene/fanart/icon in priority order and print it full width.
+            // In particular, never tile pic1 and hero side by side: they
+            // might be visually identical despite having different handles.
+            auto chosen=niak_select_back_media({
                 {item.case_shot1,item.case_shot1_aspect},
-                {item.case_shot2,item.case_shot2_aspect},
-                {item.case_scene,item.case_scene_aspect},
-                {item.case_hero,item.case_hero_aspect},
-                {item.cover,1.f}
+                {item.case_shot2,item.case_shot2_aspect}
             });
+            if(!chosen.first.texture) {
+                if(item.case_scene)
+                    chosen.first={item.case_scene,item.case_scene_aspect};
+                else if(item.case_hero)
+                    chosen.first={item.case_hero,item.case_hero_aspect};
+                else if(item.cover)
+                    chosen.first={item.cover,1.f};
+            }
             if(chosen.first.texture) {
                 if(chosen.second.texture) {
                     panel(chosen.first.texture,chosen.first.aspect,
