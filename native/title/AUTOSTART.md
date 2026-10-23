@@ -11,7 +11,7 @@ Le mini-payload :
 - ne remonte pas \`/system_ex\`, n'attache pas \`SceSysCore\`, n'effectue aucun \`ptrace\` ou modification système ;
 - demande le lancement du titre avec un contexte utilisateur initialisé (taille ABI 32 octets, utilisateur actif) ; si SystemService refuse avec \`0x80940005\`, essaie \`sceLncUtilLaunchApp\` pour le même titre ;
 - refuse d'interrompre un autre titre déjà au premier plan ;
-- réessaie au maximum 12 fois (3 s entre essais), puis abandonne les demandes de lancement ; le courtier reste actif ;
+- tente le lancement toutes les 3 s pendant les 12 premières tentatives, puis toutes les 30 s dans une fenêtre totale de 10 minutes pour laisser ShadowMountPlus enregistrer le titre ; ne ferme jamais un autre jeu, et garde le courtier actif après cette fenêtre ;
 - fonctionne depuis l'entrée explicite dans \`/data/pldmgr/autoload.txt\` ; le marqueur historique \`/data/niakps5-autostart.enabled\` n'est plus requis ;
 - ne fait rien si \`/data/niakps5-autostart.disable\` existe.
 

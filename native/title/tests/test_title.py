@@ -345,6 +345,16 @@ class NativeTitleTests(unittest.TestCase):
                       "context_.settings_changed = true", "Profil non lie"):
             self.assertIn(token, code)
 
+    def test_elevation_identity_and_delayed_mount_readiness(self):
+        install=(ROOT/"title"/"elevation"/"one_shot_install.cpp").read_text()
+        broker=(ROOT/"title"/"autostart.c").read_text()
+        for expected in ("Status::rollback_failed", "changed_on_failure",
+                         "std::_Exit(125)", "getuid()", "getgid()"):
+            self.assertIn(expected,install)
+        self.assertIn("elapsed_ms<600000u",broker)
+        self.assertIn("startup_attempts<=12?3000u:30000u",broker)
+        self.assertIn("if(running<=0)",broker)
+
     def test_real_catalog_only(self):
         source = (ROOT / "title" / "prepare.py").read_text()
         self.assertIn('niak_scan_games("/system_data/priv/mms/app.db"', source)

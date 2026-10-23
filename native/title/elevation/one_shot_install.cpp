@@ -148,8 +148,19 @@ bool configure_autoload() {
 int niak::bootstrap_own_payload() noexcept {
 #if defined(__PROSPERO__)
     if(!validate_bundle())return -2;
-    if(elevation::request(elevation::Capability::filesystem)!=elevation::Status::ok)
-        return -1;
+    // Mirror Encore's one-shot safety contract: a failed helper must never
+    // leave this long-lived graphical process with partly changed credentials.
+    // On an ambiguous rollback, terminating is safer than continuing in UI.
+    const uid_t uid_before=getuid(),euid_before=geteuid();
+    const gid_t gid_before=getgid(),egid_before=getegid();
+    const elevation::Status granted=
+        elevation::request(elevation::Capability::filesystem);
+    const bool changed_on_failure=granted!=elevation::Status::ok &&
+        (getuid()!=uid_before || geteuid()!=euid_before ||
+         getgid()!=gid_before || getegid()!=egid_before);
+    if(granted==elevation::Status::rollback_failed || changed_on_failure)
+        std::_Exit(125);
+    if(granted!=elevation::Status::ok)return -1;
     // Grant is not enough: prove that the specific managed destination exists
     // and perform only fixed-path own-slot atomic writes. No arbitrary paths.
     struct stat st{};

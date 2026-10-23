@@ -255,6 +255,7 @@ static void serve_launch_requests(void) {
     unsigned startup_attempts=0;
     int startup_done=0,profile_checked=0;
     uint64_t next_start_ms=0, next_heartbeat_ms=0;
+    uint64_t started_at_ms=0;
     // The original 21,600 two-second iterations silently stopped the
     // launch service after roughly twelve hours. Keep the opt-in broker
     // alive until the user disables it or the console shuts down.
@@ -265,9 +266,15 @@ static void serve_launch_requests(void) {
             report("NiakPS5 broker heartbeat PID",(int)getpid());
             next_heartbeat_ms=now+120000u;
         }
-        if(!startup_done && startup_attempts<12 && now>=next_start_ms) {
+        // The title may be registered by ShadowMountPlus AFTER the 36-second
+        // PLDmgr startup window. Retain a bounded ten-minute readiness window,
+        // with slow follow-up attempts and no interruption of another big app.
+        // After the window the broker stays resident for PING/GAMES/LAUNCH.
+        if(!started_at_ms)started_at_ms=now?now:1;
+        const uint64_t elapsed_ms=now>=started_at_ms?now-started_at_ms:0;
+        if(!startup_done && elapsed_ms<600000u && now>=next_start_ms) {
             ++startup_attempts;
-            next_start_ms=now+3000u;
+            next_start_ms=now+(startup_attempts<=12?3000u:30000u);
             const int running=sceSystemServiceGetAppIdOfRunningBigApp();
             if(running<=0) {
                 int user=-1;

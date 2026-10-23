@@ -9,7 +9,9 @@ execute the bundled helper. The helper validates its caller's PID/title ID,
 cloned credentials, version and narrowly fixed filesystem capability.
 Without it the GUI continues sandboxed. It never installs a resident
 privilege service or grants access to another title. Any self-installation
-must be restricted to NiakPS5's own PLDmgr payload files.
+must be restricted to NiakPS5's own PLDmgr payload files. As in Encore,
+a rollback failure or failed elevation that changes the caller's UID/GID
+causes immediate termination instead of continuing in an ambiguous state.
 
 The FTP installer must stage the two verified payload assets into
 `/data/homebrew/PPSA99386/tools/niakps5/` for the GUI's `/app0/tools/`
