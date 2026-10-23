@@ -141,7 +141,7 @@ class NativeTitleTests(unittest.TestCase):
         preview=(ROOT / "title" / "validate_preview.py").read_text()
         self.assertIn("Color::rgb(0x081014, 0.52f)", source)
         self.assertIn("Color::rgb(0x051015, 0.65f)", source)
-        self.assertIn("Wallpaper washes out NiakPS5", preview)
+        self.assertIn("reconstructed back artwork block missing", preview)
         self.assertIn("outer_face", (ROOT / "title" / "case_renderer.cpp").read_text())
 
     def test_final_rendering_contracts(self):
