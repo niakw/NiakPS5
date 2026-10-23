@@ -301,12 +301,17 @@ def patch(kit):
         // The liveness function caches PING for one second; this runs each
         // Settings repaint so a newly started payload is shown promptly.
         live_broker=niak_launch_broker_ready();
+        // A legacy marker must never hide why the broker is unreachable.
+        // The snapshot can restore the library without enabling Jouer.
+        char service_diagnostic[160];
+        std::snprintf(service_diagnostic,sizeof(service_diagnostic),"%s%s",
+                      enabled ? "Marqueur présent ; " : "",
+                      niak_launch_broker_diagnostic());
         ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
         ui::text(list, fonts.regular,
                  disabled ? "Désactivé" :
                  live_broker ? "Payload actif (service local joignable)" :
-                 enabled ? "Marqueur présent, mais service indisponible" :
-                           niak_launch_broker_diagnostic(),
+                               service_diagnostic,
                  500, 882, 20, kWhite.with_alpha(0.78f));
         ui::text(list, fonts.regular,
                  live_broker && std::strcmp(journal_status,"Journal inaccessible")==0

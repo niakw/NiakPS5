@@ -818,7 +818,7 @@ void Catalog::reload()
         // The catalog can be empty for three fundamentally different
         // reasons; avoid blaming app.db when PLDmgr DID answer successfully.
         item.blurb = broker_count==0
-            ? "PLDmgr répond, mais aucun titre valide n'est visible dans ses dossiers. Vérifier les droits et les chemins des jeux."
+            ? "Inventaire local disponible, mais aucun titre valide n'est visible. Vérifier les droits et les chemins des jeux."
             : broker_count>0
                 ? "Titres renvoyés par PLDmgr, mais aucun titre valide n'a été intégré. Consulter le journal NiakPS5."
             : db_count<0 && folder_count<0 && home_count<0 && api_count<0
