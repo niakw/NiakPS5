@@ -95,6 +95,7 @@ static inline int niak_snapshot_read(const char *path,NiakGame *games,
         fclose(in);return -1;
     }
     char line[96];long long stamp=0;int count=-1;int result=-1;
+    int header_bytes=0;
     if(!fgets(line,sizeof(line),in) ||
        sscanf(line,NIAK_SNAPSHOT_VERSION " %lld %d",&stamp,&count)!=2 ||
        count<0 || count>NIAK_SNAPSHOT_MAX_GAMES || stamp<=0)goto done;
@@ -102,7 +103,7 @@ static inline int niak_snapshot_read(const char *path,NiakGame *games,
      * exact canonical single-line header, including the final newline.
      */
     char expected_header[96];
-    const int header_bytes=snprintf(expected_header,sizeof(expected_header),
+    header_bytes=snprintf(expected_header,sizeof(expected_header),
         NIAK_SNAPSHOT_VERSION " %lld %d\n",stamp,count);
     if(header_bytes<=0 || header_bytes>=(int)sizeof(expected_header) ||
        strcmp(line,expected_header)!=0)goto done;
