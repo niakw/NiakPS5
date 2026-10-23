@@ -38,6 +38,37 @@ class FakeFTP:
         return "250 removed"
 
 class AutoloadTests(unittest.TestCase):
+    def test_private_launchbox_index_uses_actual_installed_name(self):
+        from zipfile import ZipFile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            tools=root/"tools"
+            tools.mkdir()
+            (tools/"launchbox_index.py").write_text(
+                (SCRIPT.parent/"launchbox_index.py").read_text())
+            archive=root/"Metadata.zip"
+            xml=b"""<LaunchBox>
+             <Game><DatabaseID>427261</DatabaseID>
+               <Platform>Sony Playstation 5</Platform>
+               <Name>A Plague Tale: Innocence</Name>
+               <Notes>True game synopsis.</Notes></Game>
+             <GameImage><DatabaseID>427261</DatabaseID>
+               <Type>Box - Front</Type>
+               <FileName>00000000-0000-0000-0000-000000427261.png</FileName>
+             </GameImage></LaunchBox>"""
+            with ZipFile(archive,"w") as z:z.writestr("Metadata.xml",xml)
+            f=FakeFTP({f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv":
+                b"PPSA02387\\tA Plague Tale: Innocence\\tJeu\\t\\t\\n",
+                "/user/app/PPSA02387/sce_sys/param.json":b'{"titleId":"PPSA02387"}'})
+            with patch.object(ftpmod,"__file__",str(tools/"ftp_install.py")):
+                self.assertTrue(ftpmod.rebuild_installed_launchbox_index(
+                    f,root,archive=archive))
+            result=f.files[ftpmod.LAUNCHBOX_PRIVATE_INDEX]
+            self.assertIn(b"True game synopsis",result)
+            self.assertIn(b"PPSA02387",result)
+
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
         self.root=Path(self.tmp.name)/"PPSA99386"

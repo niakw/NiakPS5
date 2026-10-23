@@ -349,12 +349,71 @@ def _decode_retail_image(raw,side):
                 return dst.read_bytes()
     return None
 
+LAUNCHBOX_PRIVATE_INDEX=f"/data/homebrew/{TITLE}/assets/niak-launchbox-cases.tsv"
+
+def rebuild_installed_launchbox_index(ftp,folder,archive=None):
+    """Reconcile LaunchBox against the OWNER's current title names locally.
+
+    Downloads only the public Metadata.zip to the calling Mac, never sends
+    private PS5 inventory to GamesDB. A verified downloaded index is copied
+    to the console's own assets; the archived fallback is kept on failure.
+    """
+    import importlib.util,tempfile,zipfile
+    tool=Path(__file__).resolve().with_name("launchbox_index.py")
+    if not tool.is_file():
+        print("LaunchBox : indexeur absent ; index public conservé.")
+        return False
+    spec=importlib.util.spec_from_file_location("niak_launchbox_index",tool)
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    ids=set(_installed_title_ids(ftp,300))
+    names=_name_index(ftp,folder)
+    selected={ident:name for ident,name in names.items() if ident in ids}
+    if not selected:return False
+    cache=Path(archive) if archive else Path.home()/".cache"/"niakps5"/"Metadata.zip"
+    if not cache.is_file() or not zipfile.is_zipfile(cache):
+        if archive:return False
+        cache.parent.mkdir(parents=True,exist_ok=True)
+        partial=cache.with_suffix(".download")
+        try:
+            module.download(partial)
+            if not zipfile.is_zipfile(partial):return False
+            partial.replace(cache)
+        except (OSError,ValueError,TimeoutError):
+            partial.unlink(missing_ok=True)
+            print("LaunchBox : catalogue distant indisponible, index public conservé.")
+            return False
+    try:
+        with tempfile.TemporaryDirectory(prefix="niakps5-launchbox-") as temporary:
+            titles=Path(temporary)/"titles.tsv"
+            titles.write_text("".join(f"{ident}\\t{name}\\t\\n"
+                            for ident,name in sorted(selected.items())),"utf8")
+            output=Path(temporary)/"index.tsv"
+            module.build(cache,titles,output)
+            content=output.read_bytes()
+            # No publication of owners' names/IDs; console-private FTP only.
+            if len(content)>4*1024*1024 or content.count(b"\\n")<=1:
+                return False
+            upload(ftp,LAUNCHBOX_PRIVATE_INDEX,content)
+            print(f"LaunchBox : index privé actualisé pour {len(selected)} titres visibles.")
+            return True
+    except (OSError,ValueError,zipfile.BadZipFile):
+        print("LaunchBox : reconstruction locale impossible, index précédent conservé.")
+        return False
+
 def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     """Download LaunchBox regional scans directly to owner's PS5 via FTP.
     Build ZIP ships text index only; third-party scans never enter repository.
     """
     index=folder/"assets/niak-launchbox-cases.tsv"
-    if not index.is_file():
+    try: private=_bounded_retrieve(ftp,LAUNCHBOX_PRIVATE_INDEX,limit=4*1024*1024)
+    except (OSError,ValueError):private=None
+    if private and not private.startswith(b"# title\\t"):private=None
+    if private:
+        lines=private.decode("utf8","replace").splitlines()
+    elif index.is_file():
+        lines=index.read_text("utf8").splitlines()
+    else:
         print("LaunchBox: index absent du paquet. Aucun téléchargement possible.")
         return 0
     installed=set(_installed_title_ids(ftp,maximum_titles))
@@ -371,7 +430,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     failed_network=0
     failed_image=0
     failed_ftp=0
-    for line in index.read_text("utf8").splitlines():
+    for line in lines:
         if not line or line.startswith("#"):continue
         columns=line.split("\t")
         if len(columns)<7 or columns[0] not in installed:continue
@@ -1120,6 +1179,7 @@ def main():
             upload_case_templates(ftp,directory)
             upload_private_template_zip(ftp,owner_templates)
             upload_local_homebrew_names(ftp)
+            rebuild_installed_launchbox_index(ftp,directory)
             stage_installed_artwork(ftp,args.art_limit,force=args.force_art)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
             # A forced LaunchBox repair must NOT overwrite its valid scans
