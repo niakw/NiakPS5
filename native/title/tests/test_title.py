@@ -346,7 +346,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak-instrument-serif.huifont", source)
         self.assertIn("IDENTIFIANT DU TITRE", source)
         self.assertIn("item.application",source)
-        self.assertIn('item.studio=item.application ? "Application installée"',source)
+        self.assertIn('"Dernier inventaire local"',source)
+        self.assertIn('item.application ? "Application installée"',source)
         self.assertNotIn('game.is_homebrew ? "Application" : "Jeu installé"',source)
         # Regression: the fallback homebrew flag must NOT overwrite an
         # explicit PS5 media/game applicationCategoryType decision.
