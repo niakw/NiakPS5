@@ -25,6 +25,7 @@
 #include "loopback_connect.h"
 #include "launch_policy.h"
 #include "broker_inventory.h"
+#include "broker_snapshot.h"
 
 #define NIAK_TITLE "PPSA99386"
 /* Legacy marker is tolerated but no longer required: PLDmgr's explicit
@@ -265,6 +266,17 @@ static void serve_launch_requests(void) {
         if(is_regular_file(NIAK_DISABLED))break;
         const uint64_t now=niak_monotonic_ms();
         if(now>=next_heartbeat_ms) {
+            // PING may be blocked by the sandbox, while the UI can read our
+            // existing /data log. Publish a read-only game ID snapshot
+            // separately so no TCP or root privilege is required in the UI.
+            char inventory[8192]={0};
+            const int count=niak_broker_inventory(inventory,sizeof(inventory),"");
+            if(count>=0) {
+                if(niak_snapshot_write(NIAK_SNAPSHOT_FILE,inventory,count,
+                                       (long long)time(NULL))==0)
+                    report("NiakPS5 snapshot installed titles",count);
+                else report("NiakPS5 inventory snapshot write refused",errno);
+            } else report("NiakPS5 broker inventory roots inaccessible",count);
             report("NiakPS5 broker heartbeat PID",(int)getpid());
             // Timestamp each heartbeat so offline FTP diagnostics can tell
             // an old journal from evidence of recent service activity.
