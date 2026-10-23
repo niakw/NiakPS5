@@ -3,6 +3,7 @@
 // Projected exterior geometry only: no opening, tray, loader, or duplicated shell.
 #include "niak/case_renderer.hpp"
 #include "demo/catalog.hpp"
+#include "niak/case_fallback_layout.hpp"
 #include "ui/fonts.hpp"
 #include <algorithm>
 #include <cmath>
@@ -49,7 +50,8 @@ void polygon4(DrawList &list,Pt a,Pt b,Pt c,Pt d,Color color) {
 template<class Project>
 void printed(DrawList &list,std::uint32_t texture,Project project,
              int columns,int rows,bool flip_v=false,
-             float uv_min=0.0f,float uv_max=1.0f) {
+             float uv_min=0.0f,float uv_max=1.0f,
+             NiakCaseUvRegion crop={}) {
     if(!texture)return;
     // DrawList only supports rectangular texture instances. Tessellate BOTH
     // directions to approximate a projected plane, never stretch a full image
@@ -57,8 +59,12 @@ void printed(DrawList &list,std::uint32_t texture,Project project,
     for(int r=0;r<rows;++r)for(int col=0;col<columns;++col) {
         const float u0=float(col)/columns,u1=float(col+1)/columns;
         const float v0=float(r)/rows,v1=float(r+1)/rows;
-        const float sample0=uv_min+(uv_max-uv_min)*v0;
-        const float sample1=uv_min+(uv_max-uv_min)*v1;
+        const float sample0=crop.top+(crop.bottom-crop.top)*
+            (uv_min+(uv_max-uv_min)*v0);
+        const float sample1=crop.top+(crop.bottom-crop.top)*
+            (uv_min+(uv_max-uv_min)*v1);
+        const float cu0=crop.left+(crop.right-crop.left)*u0;
+        const float cu1=crop.left+(crop.right-crop.left)*u1;
         const Pt p0=project(u0,v0),p1=project(u1,v0);
         const Pt p2=project(u1,v1),p3=project(u0,v1);
         const float x0=std::min({p0.x,p1.x,p2.x,p3.x});
@@ -70,8 +76,8 @@ void printed(DrawList &list,std::uint32_t texture,Project project,
         // UVs are 0..1 from real portrait covers and real narrow spine scans.
         // Very small overlap covers subpixel seams without widening the sleeve.
         list.image(texture,{x0-0.12f,y0-0.10f,x1-x0+0.24f,y1-y0+0.20f},
-                   {reverse?u1:u0,flip_v?1.0f-sample0:sample0,
-                    reverse?u0-u1:u1-u0,
+                   {reverse?cu1:cu0,flip_v?1.0f-sample0:sample0,
+                    reverse?cu0-cu1:cu1-cu0,
                     flip_v?sample0-sample1:sample1-sample0},
                    Color::rgb(0xffffff));
     }
@@ -119,82 +125,93 @@ void outer_face(DrawList &list,const Camera &camera,
     if(texture) {
         printed(list,texture,paper,face_columns,face_rows);
     } else {
-        // RECONSTRUCTED insert, computed in the native 3D renderer. No generated
-        // or packaged fake artwork. The existing installed icon is the art source.
-        // The PS4/PS5 brand band and lower information strip stay identical
-        // for all fallback cases; only available icon/title/metadata vary.
+        // Recompose ONLY this missing face. Official scans use the early
+        // texture branch and bypass EVERY fixed platform overlay below.
+        const bool ps4=item.title_id[0]=='C';
+        const auto layout=niak_case_fallback_layout(ps4);
         auto block=[&](float x0,float y0,float x1,float y1,Color color) {
             polygon4(list,paper(x0,y0),paper(x1,y0),
                      paper(x1,y1),paper(x0,y1),color);
         };
-        block(0,0,1,1,Color::rgb(0x101d34));
-        const bool ps4=item.title_id[0]=='C';
+        // Real normalized sleeve width:height is ~0.76:1.
+        constexpr float case_aspect=0.76f;
+        const auto panel=[&](std::uint32_t image,float aspect,
+                             float x0,float y0,float x1,float y1) {
+            if(!image)return;
+            const auto region=niak_case_cover_crop(
+                aspect,case_aspect*(x1-x0)/(y1-y0));
+            const auto coords=[&](float u,float v) {
+                return paper(x0+(x1-x0)*u,y0+(y1-y0)*v);
+            };
+            printed(list,image,coords,near_frontal?12:24,
+                    near_frontal?8:15,false,0.f,1.f,region);
+        };
         if(!back) {
-            // Full-bleed art begins directly under the branded top banner.
-            // The square installed icon is enlarged as an atmospheric base,
-            // and repeated at a natural near-square ratio to preserve detail.
-            if(item.case_scene || item.cover) {
-                auto fill=[&](float u,float v){
-                    return paper(u,0.115f+0.885f*v);
-                };
-                const auto image=item.case_scene?item.case_scene:item.cover;
-                printed(list,image,fill,near_frontal?12:24,
-                        near_frontal?8:24,
-                        item.case_scene?false:!item.cover_is_image);
-                block(0,0.71f,1,1,Color::rgb(0x051021,0.70f));
-                auto detail=[&](float u,float v){
-                    return paper(0.055f+u*0.89f,0.18f+v*0.59f);
-                };
-                printed(list,item.cover,detail,near_frontal?12:18,
-                        near_frontal?8:18,!item.cover_is_image);
-            }
+            // TRUE FULL BLEED from the exact lower edge of the console banner
+            // to the plastic's bottom. Never lay a centered app icon on top
+            // of an already full-width illustration.
+            block(0.f,0.f,1.f,1.f,Color::rgb(0x0c1727));
+            const auto art=item.case_scene?item.case_scene:item.cover;
+            const float art_aspect=item.case_scene?
+                item.case_scene_aspect:1.0f;
+            panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
             if(item.case_template_front) {
-                // User-supplied authentic PS4/PS5 masthead, same for every case.
+                // The masthead is invariant and occupies only the top ~10.8%.
                 const auto banner=[&](float u,float v){
-                    return paper(u,v*0.125f);
+                    return paper(u,layout.front_header*v);
                 };
                 printed(list,item.case_template_front,banner,
-                        near_frontal?12:28,near_frontal?3:4);
+                        near_frontal?12:24,near_frontal?3:5);
             } else {
-                block(0,0,1,0.123f,Color::rgb(ps4?0x0351a8:0xf2f7fc));
-                block(0,0.122f,1,0.130f,Color::rgb(ps4?0xd7ecff:0x1558c4));
+                block(0.f,0.f,1.f,layout.front_header,
+                      Color::rgb(ps4?0x04499c:0xeef6ff));
+                block(0.f,layout.front_header-0.004f,1.f,
+                      layout.front_header,Color::rgb(0x2884e7));
             }
-            block(0,0.90f,1,1,Color::rgb(0x081426,0.78f));
-        } else {
-            // TOP: genuine cover/icon or screenshot available locally.
-            // MIDDLE: real summary text. LOWER: reusable generic layout,
-            // explicitly NOT a simulated barcode, PEGI or official back scan.
-            block(0,0,1,0.10f,Color::rgb(ps4?0x0349a2:0xeaf3fc));
-            if(item.case_scene || item.cover) {
-                auto art=[&](float u,float v) {
-                    return paper(0.025f+u*0.95f,0.115f+v*0.37f);
+            // A genuine transparent title logo belongs ON TOP of the artwork.
+            // Preserve its aspect; no second square icon or dark lower panel.
+            if(item.logo_art) {
+                const float logo_h=std::clamp(
+                    0.78f*case_aspect/std::max(0.5f,item.logo_art_aspect),
+                    0.07f,0.19f);
+                const float top=0.79f-logo_h*0.5f;
+                const auto logo=[&](float u,float v){
+                    return paper(0.11f+u*0.78f,top+v*logo_h);
                 };
-                const auto image=item.case_scene?item.case_scene:item.cover;
-                printed(list,image,art,near_frontal?12:26,
-                        near_frontal?6:12,
-                        item.case_scene?false:!item.cover_is_image);
+                printed(list,item.logo_art,logo,
+                        near_frontal?12:18,near_frontal?3:5);
             }
-            // Exact proportions of the user-provided strips:
-            // PS4: 647x362 (~1.79), PS5: 1000x411 (~2.43).
-            // Do not squeeze both into the same lower 32% of the case.
-            const float footer_start=ps4?0.57f:0.69f;
-            block(0,0.47f,1,footer_start,Color::rgb(0xf2f6fa));
+        } else {
+            // Back: fixed lower PS4/PS5 strip is literally bottom anchored.
+            // Everything above belongs to the current game's editorial art.
+            block(0.f,0.f,1.f,layout.back_footer,Color::rgb(0x12243b));
+            const float gutter=0.018f;
+            const auto source=item.case_scene?item.case_scene:item.cover;
+            const float source_aspect=item.case_scene?
+                item.case_scene_aspect:1.0f;
+            // Two wide, edge-to-edge screens below the description.
+            // A single source is cropped differently instead of stretched.
+            panel(source,source_aspect,gutter,layout.back_art_top,
+                  0.5f-gutter*0.5f,layout.back_art_bottom);
+            panel(item.cover?item.cover:source,
+                  item.cover?1.0f:source_aspect,
+                  0.5f+gutter*0.5f,layout.back_art_top,
+                  1.f-gutter,layout.back_art_bottom);
+            // Clear an actual print gap between the image mosaic and footer.
+            block(0.f,layout.back_art_bottom,1.f,layout.back_footer,
+                  Color::rgb(0x12243b));
             if(item.case_template_back) {
-                // The supplied physical box footer is fixed; keep it as a
-                // single raster sheet rather than inventing tiny label icons.
-                // It comes from the PRIVATE install, never from public code.
-                auto footer=[&](float u,float v){
-                    return paper(u,footer_start+(1.0f-footer_start)*v);
+                const auto footer=[&](float u,float v) {
+                    return paper(u,layout.back_footer+
+                                    (1.0f-layout.back_footer)*v);
                 };
                 printed(list,item.case_template_back,footer,
-                        near_frontal?12:28,near_frontal?5:8);
+                        near_frontal?12:24,near_frontal?6:9);
             } else {
-                block(0,footer_start,1,1,Color::rgb(0xd4e1ed));
-                block(0.035f,0.705f,0.965f,0.84f,Color::rgb(0x254a77));
-                block(0.035f,0.858f,0.965f,0.874f,Color::rgb(0xffffff));
-                block(0.035f,0.898f,0.965f,0.907f,Color::rgb(0x5a7493));
-                block(0.035f,0.921f,0.84f,0.93f,Color::rgb(0x8a9bb0));
-                block(0.035f,0.944f,0.94f,0.953f,Color::rgb(0x8a9bb0));
+                // No proprietary footer available: use a neutral blank strip,
+                // never fake ratings, barcodes, technical labels or legal text.
+                block(0.f,layout.back_footer,1.f,1.f,
+                      Color::rgb(0xdde7f0));
             }
         }
         // Text in a perspective plane is legible only when the face is nearly
@@ -205,52 +222,52 @@ void outer_face(DrawList &list,const Camera &camera,
                 return std::pair<float,float>{std::min(aa.x,bb.x),
                                               std::fabs(bb.x-aa.x)};
             };
-            const auto top=text_bounds(0.08f,0.92f,0.06f);
-            const auto top_y=paper(0.5f,0.06f).y;
-            const float label=std::clamp(top.second*0.10f,11.f,25.f);
-            // The uploaded masthead already contains the console marking.
-            // Drawing an extra PS4/PS5 caption would double the logo.
-            if(back || !item.case_template_front)
-                hui::ui::text(list,fonts.semibold,ps4?"PS4":"PS5",
-                              top.first+top.second*0.5f,top_y+label*0.28f,
-                              label,Color::rgb(ps4?0xffffff:0x103d76),
-                              hui::gfx::Align::center);
             if(!back) {
-                const auto area=text_bounds(0.06f,0.94f,0.925f);
-                const auto pos=paper(0.06f,0.925f);
-                // The procedural fallback icon already prints its title:
-                // don't stamp it twice on the reconstructed jacket.
-                if(area.second>55.f && (!item.cover || item.cover_is_image))
-                    hui::ui::paragraph(list,fonts.semibold,item.title,
-                        area.first,pos.y, std::clamp(area.second*0.066f,10.f,18.f),
-                        area.second,21.f,Color::rgb(0xffffff),2);
+                // A missing genuine transparent logo can still be represented
+                // by the real installed title. Never stamp text twice.
+                if(!item.logo_art) {
+                    const auto title_rect=text_bounds(0.055f,0.94f,0.824f);
+                    const auto pos=paper(0.055f,0.824f);
+                    if(title_rect.second>65.f)
+                        hui::ui::paragraph(list,fonts.semibold,item.title,
+                            title_rect.first,pos.y,
+                            std::clamp(title_rect.second*0.066f,11.f,19.f),
+                            title_rect.second,22.f,
+                            Color::rgb(0xffffff),3);
+                }
+                if(!item.case_template_front) {
+                    const auto top=text_bounds(0.08f,0.92f,0.047f);
+                    const auto pos=paper(0.5f,0.047f);
+                    hui::ui::text(list,fonts.semibold,ps4?"PS4":"PS5",
+                                  top.first+top.second*0.5f,pos.y,
+                                  std::clamp(top.second*0.095f,12.f,25.f),
+                                  Color::rgb(ps4?0xffffff:0x164b84),
+                                  hui::gfx::Align::center);
+                }
             } else {
-                // The PS4 legal strip begins near 57% of the jacket,
-                // leaving much less room for editorial text than the PS5
-                // strip. Keep every text line above that fixed artwork.
-                const float description_top=ps4?0.482f:0.505f;
-                const auto area=text_bounds(0.055f,0.945f,description_top);
-                const auto pos=paper(0.055f,description_top);
+                // Editorial copy sits entirely ABOVE the two-shot gallery.
+                // An original back never reaches this branch.
+                const float ty=layout.back_text_top+0.014f;
+                const auto area=text_bounds(0.042f,0.958f,ty);
+                const auto pos=paper(0.042f,ty);
                 if(area.second>65.f) {
                     const char *description=item.blurb&&item.blurb[0]?
                         item.blurb:item.title;
                     hui::ui::paragraph(list,fonts.regular,description,
-                        area.first,pos.y,std::clamp(area.second*0.045f,9.f,13.f),
-                        area.second,ps4?12.f:15.f,
-                        Color::rgb(0x16263c),ps4?2:4);
-                    if(!item.case_template_back) {
-                        const auto lower=text_bounds(0.08f,0.92f,0.735f);
-                        const auto lower_y=paper(0.08f,0.735f).y;
-                        hui::ui::paragraph(list,fonts.semibold,item.title,
-                            lower.first,lower_y,
-                            std::clamp(lower.second*0.057f,10.f,17.f),
-                            lower.second,20.f,Color::rgb(0xffffff),2);
-                        const auto foot=text_bounds(0.06f,0.93f,0.968f);
-                        const auto foot_y=paper(0.06f,0.968f).y;
-                        hui::ui::text(list,fonts.regular,
-                            "APERÇU RECONSTITUÉ — NON OFFICIEL",
-                            foot.first,foot_y,9.f,Color::rgb(0x244564));
-                    }
+                        area.first,pos.y,
+                        std::clamp(area.second*0.046f,9.f,14.f),
+                        area.second,ps4?14.f:16.f,
+                        Color::rgb(0xf3f7ff),ps4?6:8);
+                }
+                // If the owner lacks the invariant footer, show a neutral
+                // disclaimer instead of another game's classification/SKU.
+                if(!item.case_template_back) {
+                    const auto foot=text_bounds(0.055f,0.945f,0.95f);
+                    const auto pos=paper(0.055f,0.95f);
+                    hui::ui::paragraph(list,fonts.regular,
+                        "APERÇU RECONSTITUÉ — NON OFFICIEL",
+                        foot.first,pos.y,10.f,foot.second,15.f,
+                        Color::rgb(0x18394f),2);
                 }
             }
         }
