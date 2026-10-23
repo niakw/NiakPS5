@@ -245,7 +245,10 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("left_spine(",source)
         self.assertIn("if(item.case_spine)",source)
         self.assertIn("panel(art,art_aspect",source)
-        self.assertIn("panel(source,source_aspect",source)
+        self.assertIn("niak_select_back_media({",source)
+        self.assertIn("if(chosen.second.texture)",source)
+        self.assertIn("block(0.f,0.f,1.f,1.f,Color::rgb(0x12243b))",source)
+        self.assertNotIn("item.cover?item.cover:source",source)
         # Fallback design is runtime geometry; no generated image or new
         # commercial artwork is embedded in the application package.
         self.assertIn("APERÇU RECONSTITUÉ — NON OFFICIEL",source)
