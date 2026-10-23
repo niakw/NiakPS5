@@ -1,6 +1,30 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
-#### Historique et présence du courtier
+#### Reconstruction des jaquettes — faces absentes uniquement
+
+La priorité de chaque face est **indépendante** : si le front/back/spine
+commercial est disponible dans les scans privés LaunchBox/TheGamesDB, il
+s'affiche intact, sans ajout d'un bandeau ni d'un pied de page. **Uniquement**
+si ce fichier est absent ou refusé, le moteur projette une composition de
+remplacement dans la boîte plastique existante :
+
+- **Front PS4/PS5 manquant** : bandeau fixe en haut (~10,8 % de hauteur),
+  le reste entièrement occupé par un artwork/pic1 ou icon0 recadré (jamais
+  écrasé/étiré), puis véritable logo récupéré ou titre texte si absent.
+- **Back manquant** : description en haut, mosaïque de visuels sous la
+  description, **pied de back intact en bas**. Le PS4 commence à ~57,6 % ;
+  le PS5 à ~68,8 %, en respectant le ratio de chaque modèle fourni.
+- **Spine manquant** : gabarit vertical de la même plateforme ; s'il porte
+  l'identifiant d'un autre jeu, la partie SKU est masquée.
+
+Les six images de gabarit sont des **assets privés de l'utilisateur**
+`assets/niak-templates/{ps4,ps5}-{front,back,spine}.png`, intégrables au
+dossier d'installation, jamais substitués à une vraie jaquette. Une capture
+utilisant un gabarit de repli n'est **pas** une jaquette commerciale officielle.
+Les tests de géométrie et les aperçus hôte doivent vérifier séparément les
+faces présentes et absentes.
+
+## Historique et présence du courtier
 
 Le journal PLDmgr distingue désormais un lancement accepté par SystemService
 ou LncUtil et un échec des deux chemins. Un battement de vie horodaté

@@ -86,7 +86,11 @@ def make_case_art_fixtures(kit):
         paint.text((32,110),caption,fill=(255,255,255),font=font(36))
         paint.text((32,565),"APERÇU HÔTE / VISUEL NON OFFICIEL",
                    fill=(241,252,255),font=font(17))
-        front.save(output/f"{title_id}-front.png",optimize=True)
+        # QA: Humankind has genuine front but NO retail back; Anno has
+        # genuine back but NO retail front. Independent fallbacks must show
+        # each missing face without overwriting the other authentic side.
+        if title_id!="PPSA04716":
+            front.save(output/f"{title_id}-front.png",optimize=True)
         rear=gradient(480,640,(235,240,247),(161,192,217))
         paint=ImageDraw.Draw(rear)
         paint.text((30,40),caption,fill=(15,50,88),font=font(33))
@@ -97,7 +101,8 @@ def make_case_art_fixtures(kit):
                    font=font(22))
         paint.text((29,610),"VISUEL DE TEST / NON COMMERCIAL",
                    fill=(19,58,88),font=font(16))
-        rear.save(output/f"{title_id}-back.png",optimize=True)
+        if title_id!="PPSA06186":
+            rear.save(output/f"{title_id}-back.png",optimize=True)
         side=gradient(44,640,(228,244,255),(74,145,213))
         paint=ImageDraw.Draw(side)
         paint.rectangle((0,0,43,639),outline=(22,80,156),width=3)
@@ -184,8 +189,8 @@ def patch(kit):
     // A screenshot of a generic blue sleeve is not evidence that its
     // private scan front/back/spine code works on a real renderer.
     const auto &media=niak::case_media_stats;
-    if(media.titles!=5 || media.fronts<3 ||
-       media.backs<3 || media.spines<3) {
+    if(media.titles!=5 || media.fronts<2 ||
+       media.backs<2 || media.spines<3) {
         std::fprintf(stderr,
             "case art fixtures incomplete: titles=%u front=%u back=%u spine=%u\\n",
             media.titles,media.fronts,media.backs,media.spines);
