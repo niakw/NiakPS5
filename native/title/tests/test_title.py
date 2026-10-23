@@ -388,7 +388,11 @@ class NativeTitleTests(unittest.TestCase):
     def test_late_broker_catalogue_recovery(self):
         source=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("Catalog::refresh_if_unavailable(",source)
-        self.assertIn("if(niak_scan_broker_games(&probe,1)<=0)return false;",source)
+        self.assertIn("niak_scan_broker_games(&probe,1)>0",source)
+        self.assertIn('niak_scan_installed_folders("",&probe,1)>0',source)
+        self.assertIn('niak_scan_homebrews("",&probe,1)>0',source)
+        self.assertIn("niak_scan_shadowmount(&probe,1)>0",source)
+        self.assertIn("if(!available)return false;",source)
         self.assertIn("release_covers(renderer);",source)
         self.assertIn("owned_titles_.clear();",source)
         self.assertIn("shell.reload_catalog_views();",source)
