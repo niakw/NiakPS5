@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "../loopback_connect.h"
 #include <assert.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
