@@ -5,6 +5,9 @@ from PIL import Image,ImageStat
 import sys
 files=sorted(Path(sys.argv[1]).glob("*.png"))
 if len(files)<2:raise SystemExit("Missing native UI previews")
+proof=Path(sys.argv[1])/"00-fixed-elements-PS4-PS5.png"
+if not proof.is_file():
+    raise SystemExit("Standard artifact lacks the six actual fixed PS4/PS5 blocks")
 digests=set()
 for file in files:
     with Image.open(file) as image:

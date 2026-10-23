@@ -1,24 +1,26 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
-#### Aperçu avec les vrais éléments PS4/PS5 (privé)
+## Aperçu OpenGL standard : tes éléments fixes PS4 et PS5
 
-Les aperçus du workflow GitHub restent des **tests QA** et affichent volontairement
-`QA HEADER` / `QA FOOTER`. Ils ne montrent **pas** les six gabarits
-réels fournis dans cette conversation : ceux-ci ne sont pas présents sur
-les runners GitHub publics. Un build vert n'implique pas un rendu fidèle.
+L'artefact GitHub **NiakPS5-OpenGL-interface-preview** contient maintenant
+les six blocs de référence fournis pour les boîtiers PS4 et PS5,
+en plus des captures 3D des quatre combinaisons de faces officielles/manquantes.
+Le fichier `00-fixed-elements-PS4-PS5.png` réunit les bandeaux, bas de dos
+et tranches pour vérification visuelle dans **le même artefact GitHub**.
 
-Après compilation du dépôt sur un hôte Linux équipé de Mesa/OpenGL :
+La CI reconstruit les six PNG depuis une copie WebP **réduite pour l'aperçu**
+des sources personnelles. Leurs dimensions et contenus visuels sont
+préservés lors du placement, mais pas les pixels pleine résolution :
+l'archive locale `NiakPS5_templates_prives_PS4_PS5.zip` reste la source
+plein format pour l'installation sur la console. Les fichiers de CI sont
+publics avec le dépôt ; aucune image entière de jaquette commerciale n'y
+est distribuée.
 
-```bash
-python3 native/title/private_preview.py \
-  --templates-zip /chemin/NiakPS5_templates_prives_PS4_PS5.zip
-```
+Le preview **échoue** en cas de source manquante ou corrompue : plus aucun
+`QA HEADER` / `QA FOOTER` n'est accepté silencieusement. Une vraie
+jaquette commerciale reste prioritaire face par face ; les blocs sont
+utilisés uniquement pour reconstruire les parties manquantes.
 
-Les captures natives utilisant les véritables bandeaux, dos et tranches
-PS4/PS5 sont écrites uniquement dans `build/niak-preview-private/`.
-Le ZIP original n'est ni modifié ni envoyé à GitHub. Les sources de jaquettes
-officielles restent prioritaires **face par face** ; les blocs PS4/PS5 sont
-utilisés uniquement pour les faces manquantes.
 ## Installation des six gabarits privés sans fusion manuelle
 
 Le ZIP `NiakPS5_templates_prives_PS4_PS5.zip` contient les six PNG fournis

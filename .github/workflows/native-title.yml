@@ -49,6 +49,7 @@ jobs:
           python3 native/title/host_preview.py --kit .build/ps5-title-kit
           USE_CCACHE=0 bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
           NIAK_CASE_TOUR=1 USE_CCACHE=0 bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
+          cp .build/ps5-title-kit/assets/niak-preview-templates/00-fixed-elements-PS4-PS5.png build/niak-preview/00-fixed-elements-PS4-PS5.png
           python3 native/title/validate_preview.py build/niak-preview
       - name: Upload genuine native UI previews
         if: always()

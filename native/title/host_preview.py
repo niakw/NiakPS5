@@ -113,29 +113,60 @@ def make_case_art_fixtures(kit):
         side.save(output/f"{title_id}-spine.png",optimize=True)
 
 
-    # Synthetic, non-branded QA overlays verify the *real* private-template
-    # decoder, UV placement and cache. These are NOT copied to PS5 packages.
+    # The STANDARD GitHub artifact MUST render the user's actual PS4/PS5
+    # visual blocks, not procedural QA HEADER / QA FOOTER substitutes.
+    # A visually compressed CI copy is versioned as six ASCII chunks; the
+    # original, full-resolution owner ZIP is not included in PS5 packages.
+    from base64 import b64decode
+    from hashlib import sha256
+    from io import BytesIO
+    from zipfile import ZipFile
+    parts=Path(__file__).resolve().parent/"assets"/"preview-blocks"
+    sources=[parts/f"{i:02}.b64" for i in range(6)]
+    if not all(p.is_file() for p in sources):
+        raise RuntimeError("Six real PS4/PS5 preview blocks missing; fake QA fallback forbidden")
+    archive=b64decode("".join(p.read_text("ascii").strip() for p in sources),
+                      validate=True)
+    if sha256(archive).hexdigest()!="cd3383fa7705ec19ebfbb5923d67d75c9c9c3fd2c290b91edd562c2792c0ecc4":
+        raise RuntimeError("PS4/PS5 preview block source hash mismatch")
     templates=kit/"assets"/"niak-preview-templates"
     templates.mkdir(parents=True,exist_ok=True)
-    for family,tint in (("ps4",(14,78,163)),("ps5",(232,242,251))):
-        header=gradient(720,104,tint,tuple(min(255,n+15) for n in tint))
-        painter=ImageDraw.Draw(header)
-        painter.text((38,30),family.upper()+"  /  QA HEADER",
-                     fill=(255,255,255) if family=="ps4" else (19,51,87),
-                     font=font(40))
-        header.save(templates/f"{family}-front.png",optimize=True)
-        footer=gradient(720,295,(224,235,246),(165,188,212))
-        painter=ImageDraw.Draw(footer)
-        painter.rectangle((20,20,700,275),outline=(18,57,102),width=5)
-        painter.text((38,48),family.upper()+" / QA FOOTER",fill=(25,61,108),
-                     font=font(33))
-        footer.save(templates/f"{family}-back.png",optimize=True)
-        spine=gradient(68,820,tint,(25,49,83))
-        painter=ImageDraw.Draw(spine)
-        for i,letter in enumerate(family.upper()):
-            painter.text((17,24+i*54),letter,fill=(255,255,255),
-                         font=font(29))
-        spine.save(templates/f"{family}-spine.png",optimize=True)
+    expected={f"{family}-{side}.webp"
+              for family in ("ps4","ps5")
+              for side in ("front","back","spine")}
+    with ZipFile(BytesIO(archive)) as source:
+        if set(source.namelist())!=expected or source.testzip() is not None:
+            raise RuntimeError("Missing/corrupt branded template in CI source")
+        for name in sorted(expected):
+            with source.open(name) as data:
+                asset=Image.open(data)
+                asset.load()
+                if asset.format!="WEBP":
+                    raise RuntimeError("Invalid PS4/PS5 original-preview visual")
+                asset.convert("RGB").save(
+                    templates/name.replace(".webp",".png"),optimize=True)
+    # Human-readable proof INSIDE THE SAME STANDARD ARTIFACT:
+    # six fixed pieces shown by platform, independently of tiny 3D sleeves.
+    proof=Image.new("RGB",(1920,1080),(17,23,35))
+    labels=ImageDraw.Draw(proof)
+    labels.text((60,25),"BLOCS FIXES PS4 / PS5 — SOURCES FOURNIES",
+                fill=(248,249,252),font=font(40))
+    for family,left in (("ps4",60),("ps5",1000)):
+        labels.text((left,94),family.upper(),fill=(238,242,252),font=font(36))
+        for side,box in (
+            ("front",(left,165,left+840,295)),
+            ("back",(left,330,left+670,790)),
+            ("spine",(left+725,330,left+860,920)),
+        ):
+            asset=Image.open(templates/f"{family}-{side}.png").convert("RGB")
+            x0,y0,x1,y1=box
+            asset.thumbnail((x1-x0,y1-y0),Image.Resampling.LANCZOS)
+            proof.paste(asset,(x0,y0))
+            labels.text((x0,y1+8),{"front":"Bandeau","back":"Dos fixe",
+                                      "spine":"Tranche"}[side],
+                        fill=(175,190,207),font=font(25))
+    proof.save(templates/"00-fixed-elements-PS4-PS5.png",optimize=True)
+    print("NIAK_CASE_ORIGINAL_BLOCKS: six real user-supplied fixed elements loaded")
 
     # Exercise true full-bleed composition with distinct LANDSCAPE screenshots
     # and genuine alpha logos. Real PS5 loads owner-installed icon0/pic1.
