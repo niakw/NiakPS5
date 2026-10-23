@@ -64,6 +64,7 @@ mkdir -p "$out/tools/niakps5"
 sdk="$stage/.deps/native/ps5-payload-sdk"
 test -x "$sdk/bin/prospero-clang"
 "$sdk/bin/prospero-clang" -std=c11 -O2 -Wall -Wextra \
+  -I "$root/native" \
   -o "$out/tools/niakps5/niakps5.elf" "$root/native/title/autostart.c" \
   -lSceSystemService -lSceUserService -lkernel_sys
 # One-shot sandbox elevation helper adapted from Eden Encore.
