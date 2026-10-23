@@ -35,6 +35,14 @@ int main(void) {
     const char *system="NiakPS5 optional autostart start rc=0x00000000\n"
         "sceSystemServiceLaunchApp rc=0x00000000\n";
     assert(niak_last_launch_result(system)==NIAK_LAUNCH_LOG_SYSTEM_OK);
+    const char *real_console="NiakPS5 optional autostart start rc=0x00000000\\n"
+        "sceSystemServiceLaunchApp rc=0x00000018\\n"
+        "sceSystemServiceLaunchApp rc=0x00002018\\n";
+    assert(niak_last_launch_result(real_console)==NIAK_LAUNCH_LOG_SYSTEM_OK);
+    assert(niak_launch_log_nonnegative("sceSystemServiceLaunchApp rc=0x00002018\\n"));
+    assert(!niak_launch_log_nonnegative("sceSystemServiceLaunchApp rc=0x80940005\\n"));
+    assert(!niak_launch_log_nonnegative("sceSystemServiceLaunchApp rc=0x0000201G\\n"));
+    assert(!niak_launch_log_nonnegative("sceSystemServiceLaunchApp rc=0x00002018abcdef\\n"));
     assert(niak_last_launch_result("abc")==NIAK_LAUNCH_LOG_NO_PAYLOAD);
     return 0;
 }
