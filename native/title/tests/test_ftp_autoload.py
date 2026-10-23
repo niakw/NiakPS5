@@ -513,6 +513,37 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("NPXS50001\tTest Streaming\tApplication\t",overlay)
         self.assertNotIn("NPXS50002",overlay)
 
+    def test_shadowmount_scanpath_and_title_metadata_diagnostic(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        manifest=b'{"titleId":"PPSA99386"}'
+        param="/data/homebrew/PPSA99386/sce_sys/param.json"
+        config="/data/shadowmount/config.ini"
+        samples=[
+            (b"# scanpath=/data/homebrew\\nscanpath=/mnt/ext0/games\\n",
+             "ATTENTION : scanpath personnalisé sans /data/homebrew"),
+            (b"scanpath=/mnt/ext0/games\\nscanpath=/data/homebrew/\\n",
+             "/data/homebrew présent dans scanpath"),
+            (b"scan_interval_seconds=15\\n; scanpath=/mnt/ext0\\n",
+             "chemins de scan par défaut"),
+        ]
+        for content,expected in samples:
+            with self.subTest(content=content):
+                files={param:manifest,config:content}
+                f=FakeFTP(files)
+                out=StringIO()
+                with redirect_stdout(out):
+                    ftpmod.diagnose_title_registration(f)
+                self.assertEqual(f.files,files)
+                self.assertIn("Titre param.json cohérent : True",out.getvalue())
+                self.assertIn(expected,out.getvalue())
+        wrong=FakeFTP({param:b'{"titleId":"PPSA00000"}'})
+        out=StringIO()
+        with redirect_stdout(out):
+            ftpmod.diagnose_title_registration(wrong)
+        self.assertIn("Titre param.json cohérent : False",out.getvalue())
+        self.assertIn("inscription non vérifiable",out.getvalue())
+
     def test_read_only_status_never_changes_console(self):
         from contextlib import redirect_stdout
         from io import StringIO

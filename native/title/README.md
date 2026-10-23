@@ -1,5 +1,15 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
+### Enregistrement du titre (erreur 0x80940005)
+
+Le diagnostic FTP `--status` vérifie désormais `sce_sys/param.json` et
+les chemins `scanpath=` dans `/data/shadowmount/config.ini`, en **lecture
+seule**. Si des chemins personnalisés sont configurés et excluent
+`/data/homebrew`, ShadowMountPlus ne découvrira pas `PPSA99386` à cet
+emplacement. La présence de fichiers et un param.json valide ne prouvent
+pas à eux seuls que le titre a été enregistré. NiakPS5 ne modifie jamais
+automatiquement la configuration ShadowMountPlus.
+
 ## Récupération de la bibliothèque après le démarrage
 
 Si le service de lancement PLDmgr arrive après la création de l'interface, un

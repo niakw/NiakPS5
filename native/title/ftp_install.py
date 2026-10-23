@@ -585,6 +585,59 @@ def installed_binary_matches(ftp,local_binary,remote_path=None,maximum=150*1024*
     return total==local.stat().st_size and observed.digest()==expected.digest()
 
 
+def diagnose_title_registration(ftp):
+    """Read-only ShadowMountPlus discovery preflight, NEVER title registration."""
+    path=f"/data/homebrew/{TITLE}/sce_sys/param.json"
+    try:
+        manifest=_bounded_retrieve(ftp,path,limit=64*1024)
+    except (OSError,ValueError):
+        manifest=None
+    if manifest is None:
+        print("Titre param.json : absent ou inaccessible (enregistrement inconnu)")
+    else:
+        try:
+            title=json.loads(manifest)
+            valid=(isinstance(title,dict) and title.get("titleId")==TITLE)
+        except (ValueError,UnicodeDecodeError):
+            valid=False
+        print("Titre param.json cohérent :",valid)
+        if not valid:
+            print("Attention : ShadowMountPlus peut refuser un titre sans param.json valide.")
+    # This scanner's default includes /data/homebrew, but an explicit
+    # scanpath list replaces the defaults. Never assume a custom root also
+    # includes its siblings, or change a third-party mount configuration.
+    try:
+        raw=_bounded_retrieve(ftp,"/data/shadowmount/config.ini",limit=128*1024)
+    except (OSError,ValueError):
+        raw=None
+    if raw is None:
+        print("ShadowMountPlus : config.ini absent/inaccessible ; inscription non vérifiable")
+        return
+    try:
+        settings=raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        print("ShadowMountPlus : config.ini non décodable ; scanpath inconnu")
+        return
+    roots=[]
+    for line in settings.splitlines():
+        entry=line.strip()
+        if not entry or entry.startswith(("#",";")) or "=" not in entry:
+            continue
+        key,value=entry.split("=",1)
+        if key.strip().lower()=="scanpath":
+            root=value.strip().rstrip("/")
+            if root:roots.append(root)
+    if not roots:
+        print("ShadowMountPlus : chemins de scan par défaut (dont /data/homebrew)")
+        return
+    if "/data/homebrew" in roots:
+        print("ShadowMountPlus : /data/homebrew présent dans scanpath")
+    else:
+        print("ATTENTION : scanpath personnalisé sans /data/homebrew ; "
+              "NiakPS5 ne sera pas découvert à son emplacement actuel.")
+    print("ShadowMountPlus : scanpath contrôlé, inscription effective encore inconnue")
+
+
 def diagnose(ftp,local_directory=None):
     """Read-only PS5 deployment report. Never edit system/app databases."""
     app=f"/data/homebrew/{TITLE}"
@@ -603,6 +656,7 @@ def diagnose(ftp,local_directory=None):
             posixpath.basename(str(value).rstrip("/")) for value in entries}
     print("NiakPS5 — diagnostic local (aucun fichier modifié)")
     print("Titre eboot.bin :",known(present(files,"eboot.bin")))
+    diagnose_title_registration(ftp)
     if local_directory is not None:
         comparison=installed_binary_matches(
             ftp,Path(local_directory)/"eboot.bin")
