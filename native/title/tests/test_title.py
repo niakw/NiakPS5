@@ -404,6 +404,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("Local broker already running",broker)
         self.assertIn("niak_scan_local_inventory",source)
         self.assertIn("niak_launch_broker_ready",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertIn("niak_launch_broker_pid",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertIn('STATUS\\n',(ROOT/"title"/"autostart.c").read_text())
         self.assertIn('std::strcmp(game.title,"Mes vidéos")==0',source)
         navigation=(ROOT/"title"/"patch_home.py").read_text()
         self.assertIn("Action::page_prev",navigation)

@@ -327,6 +327,16 @@ static void serve_launch_requests(void) {
                     close(client);
                     continue;
                 }
+                // Exact local status: broker PID, not arbitrary process enumeration.
+                if(count==7 && memcmp(request,"STATUS\n",7)==0) {
+                    char status[20];
+                    const int n=snprintf(status,sizeof(status),"PID %08X\n",
+                                         (unsigned)getpid());
+                    if(n>0 && n<(int)sizeof(status))
+                        (void)niak_socket_send(client,status,(size_t)n);
+                    close(client);
+                    continue;
+                }
                 // A read-only PING makes actual PLDmgr residency testable
                 // without launching anything or depending on historical logs.
                 if(count==5 && memcmp(request,"PING\n",5)==0) {

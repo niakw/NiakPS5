@@ -261,10 +261,12 @@ def patch(kit):
         // Old successes are historical, and a log can appear AFTER UI startup.
         static char journal_status[96]="Journal inaccessible";
         static bool live_broker=false;
+        static unsigned broker_pid=0;
         static std::time_t last_check=0;
         const std::time_t now=std::time(nullptr);
         if(!last_check || now<last_check || now-last_check>=15) {
             last_check=now;
+            broker_pid=niak_launch_broker_pid();
             const auto read_status=[]() -> const char * {
                 std::FILE *log=std::fopen("/data/niakps5-autostart.log","rb");
                 if(!log)return "Journal inaccessible";
@@ -311,9 +313,15 @@ def patch(kit):
                    ? "Service actif ; journal inaccessible depuis le sandbox"
                    : journal_status, 500, 910, 18,
                  kWhite.with_alpha(0.66f));
-        ui::text(list, fonts.regular,
-                 live_broker ? "Service Jouer : actif (PLDmgr)" :
-                               "Service Jouer : absent ou inaccessible",
+        char broker_identity[96];
+        if(live_broker && broker_pid)
+            std::snprintf(broker_identity,sizeof(broker_identity),
+                          "Service Jouer : actif, PID %u",broker_pid);
+        else
+            std::snprintf(broker_identity,sizeof(broker_identity),"%s",
+                live_broker ? "Service Jouer : actif (PID non disponible)" :
+                              "Service Jouer : absent ou inaccessible");
+        ui::text(list, fonts.regular, broker_identity,
                  500, 939, 18,kWhite.with_alpha(0.75f));
         ui::text(list, fonts.regular, niak::revision, 110, 950, 20,
                  kWhite.with_alpha(0.72f));

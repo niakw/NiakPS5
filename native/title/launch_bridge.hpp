@@ -6,3 +6,5 @@ int niak_launch_registered_title(const char *title_id);
 
 // Read-only actual broker liveness check, not just an autoload config marker.
 bool niak_launch_broker_ready();
+// Exact live PID from STATUS over loopback; zero means unavailable.
+unsigned niak_launch_broker_pid();

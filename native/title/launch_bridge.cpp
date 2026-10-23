@@ -136,3 +136,40 @@ bool niak_launch_broker_ready() {
     previous=received==sizeof(answer) && std::memcmp(answer,"PONG\n",5)==0;
     return previous;
 }
+
+unsigned niak_launch_broker_pid() {
+    int fd=::socket(AF_INET,SOCK_STREAM,0);
+    if(fd<0)return 0;
+    niak_socket_guard(fd);
+    sockaddr_in peer{};
+    peer.sin_family=AF_INET;
+    peer.sin_port=htons(kPort);
+    peer.sin_addr.s_addr=htonl(0x7f000001u);
+    if(niak_connect_bounded(fd,reinterpret_cast<sockaddr*>(&peer),
+                            sizeof(peer),100)<0) {
+        ::close(fd);return 0;
+    }
+    timeval tv{0,150000};
+    (void)::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&tv,sizeof(tv));
+    (void)::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+    if(niak_socket_send(fd,"STATUS\n",7)!=7){::close(fd);return 0;}
+    char reply[13]{};
+    std::size_t have=0;
+    while(have<sizeof(reply)) {
+        const ssize_t n=::recv(fd,reply+have,sizeof(reply)-have,0);
+        if(n<=0)break;
+        have+=static_cast<std::size_t>(n);
+    }
+    ::close(fd);
+    if(have!=sizeof(reply)||std::memcmp(reply,"PID ",4)!=0||
+       reply[12]!='\n')return 0;
+    unsigned pid=0;
+    for(unsigned i=4;i<12;++i) {
+        const unsigned char c=static_cast<unsigned char>(reply[i]);
+        if(c>='0'&&c<='9')pid=(pid<<4)|(c-'0');
+        else if(c>='A'&&c<='F')pid=(pid<<4)|(c-'A'+10);
+        else if(c>='a'&&c<='f')pid=(pid<<4)|(c-'a'+10);
+        else return 0;
+    }
+    return pid;
+}
