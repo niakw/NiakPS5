@@ -25,6 +25,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('"checksum": hashlib.sha256(elf.read_bytes()).hexdigest()',build)
         self.assertIn('json.dumps(meta, ensure_ascii=False, indent=2)',build)
 
+    def test_return_to_niak_for_explicit_game_launch_without_opt_in(self):
+        source=(ROOT/"title"/"autostart.c").read_text()
+        self.assertIn("!is_regular_file(NIAK_RESUME_DISABLED)",source)
+        self.assertIn("Return gate source app",source)
+        self.assertIn("Return gate armed",source)
+        self.assertIn("niak_redirect_arm_after_launch(",source)
+
     def test_autostart_is_explicit_and_reversible(self):
         source = (ROOT / "title" / "autostart.c").read_text()
         self.assertIn("niakps5-autostart.enabled", source)

@@ -115,3 +115,7 @@ service « Jouer » devient accessible ; aucun accès root n'est inféré.
 ## Initialisation du service de lancement
 
 Le payload initialise maintenant `sceLncUtilInitialize()` après `sceUserServiceInitialize()` et journalise son code retour. Si `sceSystemServiceLaunchApp` renvoie `0x80940005`, le chemin `sceLncUtilLaunchApp` du même titre est sélectionné. Les logs `LncUtil initialize`, `sceLncUtilLaunchApp accepted app id` ou `sceLncUtilLaunchApp refused` permettent de distinguer une installation d'ELF ancienne d'un échec du repli. La présence d'un `NiakPS5 broker heartbeat PID` après deux minutes atteste que le broker est toujours résident ; un message `ready` isolé ne suffit pas.
+
+## Retour après fermeture d'un jeu
+
+Par défaut, un lancement **explicitement initié depuis NiakPS5** arme un retour unique après fermeture du jeu, sous réserve que PLDmgr observe le jeu en exécution puis un accueil Sony stable pendant dix secondes, avec le même utilisateur. Le bouton PS et la sortie d'un jeu ne sont pas interceptés. Un jeu nécessitant un disque ou une licence valide demeure soumis aux vérifications Sony : aucune tentative de contournement. En cas d'échec de lancement sans processus de jeu observé, le retour n'est pas déclenché. Pour désactiver cette fonction, créer le marqueur `/data/niakps5-return-after-game.disable` ; pour la réactiver, supprimer ce marqueur. Le marqueur historique `.enabled` est conservé pour compatibilité mais n'est plus nécessaire.

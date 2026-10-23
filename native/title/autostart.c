@@ -76,6 +76,7 @@ static void report(const char *msg,int result) {
     }
 }
 #define NIAK_RESUME "/data/niakps5-return-after-game.enabled"
+#define NIAK_RESUME_DISABLED "/data/niakps5-return-after-game.disable"
 
 /* Import only the foreground user's existing PNG, if one exists.
  * Never collect accounts, credentials, PSN tokens or any other user's media.
@@ -387,10 +388,14 @@ static void serve_launch_requests(void) {
                             // The return gate is opt-in, and only the launch
                             // we explicitly requested may arm it. Merely
                             // seeing some other bigapp never arms a redirect.
+                            /* Only an explicit Niak launch can arm this one-shot
+                             * redirect. An opt-out marker disables it. */
                             gate_ready=niak_redirect_arm_after_launch(
-                                &gate,is_regular_file(NIAK_RESUME),
+                                &gate,!is_regular_file(NIAK_RESUME_DISABLED),
                                 source_app,result);
                             return_user=gate_ready?user:-1;
+                            report("Return gate source app",source_app);
+                            report("Return gate armed",gate_ready);
                         }
                     }
                 }
@@ -402,7 +407,7 @@ static void serve_launch_requests(void) {
                 close(client);
             }
         }
-        if(!is_regular_file(NIAK_RESUME)) {
+        if(is_regular_file(NIAK_RESUME_DISABLED)) {
             gate_ready=0;
             return_user=-1;
             continue;
