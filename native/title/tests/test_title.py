@@ -14,6 +14,17 @@ class NativeTitleTests(unittest.TestCase):
             self.assertIn("github.workflow",workflow)
             self.assertIn("github.ref",workflow)
 
+    def test_pldmgr_dropin_requires_no_extra_marker(self):
+        source=(ROOT/"title"/"autostart.c").read_text()
+        self.assertIn("if(is_regular_file(NIAK_DISABLED))return 0;",source)
+        self.assertIn("if(is_regular_file(NIAK_DISABLED))break;",source)
+        self.assertNotIn("!is_regular_file(NIAK_ENABLED)",source)
+        build=(ROOT/"title"/"build.sh").read_text()
+        self.assertIn('mkdir -p "$out/tools/niakps5"',build)
+        self.assertIn('"filename": elf.name',build)
+        self.assertIn('"checksum": hashlib.sha256(elf.read_bytes()).hexdigest()',build)
+        self.assertIn('json.dumps(meta, ensure_ascii=False, indent=2)',build)
+
     def test_autostart_is_explicit_and_reversible(self):
         source = (ROOT / "title" / "autostart.c").read_text()
         self.assertIn("niakps5-autostart.enabled", source)
@@ -58,8 +69,13 @@ class NativeTitleTests(unittest.TestCase):
                 target.write_text(json.dumps({"titleId":"PPSA99386"}) if
                                   path.endswith("param.json") else "nonempty")
             (base / "assets").mkdir()
-            (base / "tools").mkdir()
-            (base / "tools/niakps5/niakps5.elf").write_bytes(b"\\x7fELF" if False else bytes([127,69,76,70]))
+            (base / "tools/niakps5").mkdir(parents=True)
+            payload=bytes([127,69,76,70])
+            (base / "tools/niakps5/niakps5.elf").write_bytes(payload)
+            import hashlib
+            (base / "tools/niakps5/niakps5.elf.json").write_text(
+                json.dumps({"name":"NiakPS5","filename":"niakps5.elf",
+                            "checksum":hashlib.sha256(payload).hexdigest()}))
             package=Path(temp) / "PPSA99386.zip"
             subprocess.run([sys.executable, str(ROOT / "title" / "pack_ftp.py"),
                             "--folder", str(base), "--output", str(package)], check=True)
@@ -69,6 +85,10 @@ class NativeTitleTests(unittest.TestCase):
                                  ["PPSA99386"] * len(z.namelist()))
                 self.assertFalse(any(n.endswith(".zip") for n in z.namelist()))
                 self.assertIn("PPSA99386/tools/niakps5/niakps5.elf", z.namelist())
+                self.assertIn("PPSA99386/tools/niakps5/niakps5.elf.json",z.namelist())
+                meta=json.loads(z.read("PPSA99386/tools/niakps5/niakps5.elf.json"))
+                self.assertEqual(meta["checksum"],hashlib.sha256(
+                    z.read("PPSA99386/tools/niakps5/niakps5.elf")).hexdigest())
                 self.assertEqual((z.getinfo("PPSA99386/tools/niakps5/niakps5.elf").external_attr >> 16) & 0o777, 0o755)
                 self.assertEqual((z.getinfo("PPSA99386/eboot.bin").external_attr >> 16) & 0o777, 0o755)
                 self.assertEqual((z.getinfo("PPSA99386/sce_module/libc.prx").external_attr >> 16) & 0o777, 0o644)

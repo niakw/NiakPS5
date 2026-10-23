@@ -238,6 +238,12 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(final.count(ftpmod.AUTOLOAD_NAME),1)
         self.assertNotIn("!2000",final)
         self.assertIn(ftpmod.PAYLOAD_META,f.files)
+        import hashlib
+        import json
+        sidecar=json.loads(f.files[ftpmod.PAYLOAD_META])
+        self.assertEqual(sidecar["filename"],"niakps5.elf")
+        self.assertEqual(sidecar["checksum"],hashlib.sha256(
+            f.files[ftpmod.PAYLOAD]).hexdigest())
         self.assertEqual(f.files[ftpmod.AUTOLOAD+".niakps5.bak"],initial)
         self.assertEqual(f.files[ftpmod.CONFIG+".niakps5.bak"],config)
         self.assertIn("AUTOLOAD_DELAY=5",f.files[ftpmod.CONFIG].decode())

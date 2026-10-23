@@ -81,7 +81,7 @@ meta = {
     "install_source_detail": "Bundled in NiakPS5 PPSA99386"
 }
 elf.with_suffix(".elf.json").write_text(
-    json.dumps(meta, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 cp "$root/native/title/ftp_install.py" "$out/tools/ftp_install.py"
 cp "$root/native/title/cover_sources.py" "$out/tools/cover_sources.py"
