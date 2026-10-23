@@ -1100,8 +1100,10 @@ def main():
         if args.status:
             diagnose(ftp,directory)
         elif args.refresh_art:
+            # Preflight private assets before uploading any existing templates.
+            owner_templates=load_private_template_zip(args.case_templates)
             upload_case_templates(ftp,directory)
-            upload_private_template_zip(ftp,load_private_template_zip(args.case_templates))
+            upload_private_template_zip(ftp,owner_templates)
             upload_local_homebrew_names(ftp)
             stage_installed_artwork(ftp,args.art_limit,force=args.force_art)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)

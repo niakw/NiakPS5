@@ -23,7 +23,10 @@ ps5_front=Path(sys.argv[1])/"case-07-ps5-missing-front.png"
 ps5_back=Path(sys.argv[1])/"case-08-ps5-genuine-back.png"
 ps5_front_original=Path(sys.argv[1])/"case-09-ps5-genuine-front.png"
 ps5_back_fallback=Path(sys.argv[1])/"case-10-ps5-missing-back.png"
-if not all(p.exists() for p in (ps5_front,ps5_back,ps5_front_original,ps5_back_fallback)):
+ps4_front=Path(sys.argv[1])/"case-11-ps4-fallback-front.png"
+ps4_back=Path(sys.argv[1])/"case-12-ps4-fallback-back.png"
+if not all(p.exists() for p in (ps5_front,ps5_back,ps5_front_original,
+                                 ps5_back_fallback,ps4_front,ps4_back)):
     raise SystemExit("Missing mixed official/fallback PS5 captures")
 menu_r1=Path(sys.argv[1])/"case-05-r1-menu.png"
 if not menu_r1.exists():raise SystemExit("Missing R1 tab navigation capture")
@@ -70,6 +73,12 @@ with Image.open(ps5_front_original) as original,Image.open(ps5_back_fallback) as
     gap=sum(ImageStat.Stat(ImageChops.difference(
         original.convert("RGB").crop(crop),rebuilt.convert("RGB").crop(crop))).mean)
     if gap<6:raise SystemExit("Genuine-front / fallback-back previews indistinguishable")
+# Missing BOTH PS4 faces must still have different front/back compositions.
+with Image.open(ps4_front) as a,Image.open(ps4_back) as b:
+    region=(1200,120,1800,580)
+    different=sum(ImageStat.Stat(ImageChops.difference(
+        a.convert("RGB").crop(region),b.convert("RGB").crop(region))).mean)
+    if different<6:raise SystemExit("PS4 fallback front/back are indistinguishable")
 # A fallback case must be distinguishable from the commercial scan.
 with Image.open(fallback) as _fallback:
     _box=_fallback.convert("RGB").crop((1160,90,1850,760))

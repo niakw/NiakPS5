@@ -294,6 +294,16 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
         render("case-09-ps5-genuine-front");
         for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
         render("case-10-ps5-missing-back");
+        // PS4: neither face was downloaded, so front AND back require the
+        // correct PS4-only fixed masthead and lower footer.
+        hui::InputFrame next_ps4;
+        next_ps4.connected=true;
+        next_ps4.nav=hui::Direction::right;
+        shell.update(next_ps4,kDt);
+        for(int frame=0;frame<24;++frame)shell.update(idle,kDt);
+        render("case-11-ps4-fallback-front");
+        for(int frame=0;frame<235;++frame)shell.update(idle,kDt);
+        render("case-12-ps4-fallback-back");
         hui::InputFrame down;
         down.connected=true;
         down.nav=hui::Direction::down;

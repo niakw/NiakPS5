@@ -308,6 +308,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case-08-ps5-genuine-back",host)
         self.assertIn("case-09-ps5-genuine-front",host)
         self.assertIn("case-10-ps5-missing-back",host)
+        self.assertIn("case-11-ps4-fallback-front",host)
+        self.assertIn("case-12-ps4-fallback-back",host)
         self.assertIn("Missing-front and official-back faces rendered identically",
                       (ROOT/"title"/"validate_preview.py").read_text())
         self.assertIn("Touchpad click did not open",(ROOT/"title"/"validate_preview.py").read_text())
