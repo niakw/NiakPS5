@@ -205,7 +205,7 @@ void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *director
             char line[320];
             while(std::fgets(line,sizeof(line),labels)) {
                 int idx=-1;char title[140]{},date[24]{};
-                if(std::sscanf(line,"wall-%02d.png\\t%139[^\\t]\\t%23[^\\r\\n]",
+                if(std::sscanf(line,"wall-%02d.png\t%139[^\t]\t%23[^\r\n]",
                                &idx,title,date)==3 &&
                    idx>=0 && idx<14 && std::strlen(date)==10 &&
                    date[4]=='-' && date[7]=='-') {

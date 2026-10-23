@@ -104,7 +104,7 @@ def build(folder,now=None,limit=MAX_WALLS):
     # The native PS5 app uses a compact local text manifest for provenance;
     # no live JSON parsing or network request on the rendering thread.
     (folder/"labels.tsv").write_text(
-        "".join(f"{r['file']}\\t{r['game'].replace(chr(9),' ').replace(chr(10),' ')[:110]}\\t{r['date']}\\n"
+        "".join(f"{r['file']}\t{r['game'].replace(chr(9),' ').replace(chr(10),' ')[:110]}\t{r['date']}\n"
                 for r in records),"utf8")
     print("PS5 backgrounds",len(records),"optimized PNG files",
           sum(x["bytes"] for x in records),"bytes")
