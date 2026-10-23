@@ -149,12 +149,18 @@ def parse(xml,installed):
         used={part.split(":",1)[1] for part in hero.split(";")
               if ":" in part}
         shots=[]
-        for candidate in face_options(images.get("screenshot",[])).split(";"):
-            if ":" not in candidate:continue
-            filename=candidate.split(":",1)[1]
-            if filename in used:continue
-            used.add(filename)
-            shots.append(candidate)
+        # Screen metadata needs >2 candidates before de-duplication:
+        # the first may also be used as hero. face_options() limits each
+        # region to two, which could wrongly eliminate screenshot two.
+        shots_by_region=images.get("screenshot",[])
+        for area in ORDER:
+            for where,filename in shots_by_region:
+                if where!=area:continue
+                candidate=area+":"+filename
+                if filename in used:continue
+                used.add(filename)
+                shots.append(candidate)
+                if len(shots)==2:break
             if len(shots)==2:break
         shot1,shot2=(shots+["-","-"])[:2]
         for title in sorted(set(ids)):
