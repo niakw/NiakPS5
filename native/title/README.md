@@ -12,8 +12,8 @@ Le pipeline refuse tout PNG supplémentaire.
 
 ## Préparation console : copier un dossier, aucune commande
 
-Télécharger l'artefact GitHub `NiakPS5-PPSA99386`, extraire ses deux
-archives, puis **faire glisser le dossier `data/` dans la racine FTP `/`**
+Télécharger l'artefact GitHub `NiakPS5-PPSA99386`, extraire
+**un seul ZIP**, puis **faire glisser le dossier `data/` dans la racine FTP `/`**
 en mode **fusion**, jamais remplacement du dossier système.
 L'archive contient le titre natif, les six gabarits de secours PS4/PS5 et
 le payload compagnon déjà rangé sous `data/pldmgr/payloads/niakps5/`.
