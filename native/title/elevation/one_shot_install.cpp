@@ -124,7 +124,7 @@ bool configure_autoload() {
     const int read_error=std::ferror(in);
     std::fclose(in);
     // No fallback creation: report pending PLDmgr setup and keep UI alive.
-    return !read_error && config.find('\\0')==std::string::npos &&
+    return !read_error && config.find('\0')==std::string::npos &&
            has_autoload_entry(config);
 }
 
