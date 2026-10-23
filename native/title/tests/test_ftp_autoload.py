@@ -233,8 +233,8 @@ class AutoloadTests(unittest.TestCase):
             def storbinary(self,command,buf):
                 self.writes.append(command[5:])
                 return super().storbinary(command,buf)
-        autoload=b"ftpsrv.elf\\nniakps5.elf\\n"
-        settings=b"AUTOLOAD_DELAY=10\\nAUTOLOAD_ENABLED=1\\n"
+        autoload=b"ftpsrv.elf\nniakps5.elf\n"
+        settings=b"AUTOLOAD_DELAY=10\nAUTOLOAD_ENABLED=1\n"
         f=TrackingFTP({ftpmod.AUTOLOAD:autoload,ftpmod.CONFIG:settings,
                        ftpmod.PAYLOAD:b"stale-payload"})
         ftpmod.install(f,self.root,False,preserve_autoload=True)
@@ -256,8 +256,8 @@ class AutoloadTests(unittest.TestCase):
             def storbinary(self,command,buf):
                 self.writes.append(command[5:])
                 return super().storbinary(command,buf)
-        autoload=b"niakps5.elf\\nother.elf\\n"
-        settings=b"AUTOLOAD_ENABLED=1\\nAUTOLOAD_DELAY=7\\n"
+        autoload=b"niakps5.elf\nother.elf\n"
+        settings=b"AUTOLOAD_ENABLED=1\nAUTOLOAD_DELAY=7\n"
         f=TrackingFTP({ftpmod.AUTOLOAD:autoload,ftpmod.CONFIG:settings})
         ftpmod.install(f,self.root,True)
         self.assertEqual(f.files[ftpmod.AUTOLOAD],autoload)
