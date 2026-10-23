@@ -271,7 +271,7 @@ audio::SoundSet Shell::sound_set() const''')
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
                      "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp",
                      "broker_catalog.cpp","broker_catalog.hpp","local_inventory.h",
-                     "launch_log_status.h","case_fallback_layout.hpp"):
+                     "launch_log_status.h","case_fallback_layout.hpp","case_back_media.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
