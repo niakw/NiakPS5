@@ -55,6 +55,9 @@ out="$root/dist/$title"
 mkdir -p "$root/dist"
 rm -rf "$out"
 cp -a "$stage/dist/$title" "$out"
+# The owner only copies folders via FTP. Every six immutable PS4/PS5
+# overlay pieces must already exist in the delivered native title.
+python3 "$root/native/title/stage_case_templates.py" --folder "$out"
 # Ready-to-copy PLDmgr slot ships inside the SAME single-ZIP title package.
 # Copy tools/niakps5/ into /data/pldmgr/payloads/ after copying the title.
 mkdir -p "$out/tools/niakps5"
@@ -98,6 +101,7 @@ cp "$root/native/title/AUTOSTART.md" "$out/tools/AUTOSTART.md"
 # under /data/pldmgr/payloads/niakps5. No autoload or config file bundled.
 python3 "$root/native/title/pack_ftp.py" --folder "$out" --output "$root/dist/$title.zip"
 python3 "$root/native/title/pack_ftp_dragdrop.py" \
-  --title "$out" --output "$root/dist/ftp-dropin"
+  --title "$out" --output "$root/dist/ftp-dropin" \
+  --archive "$root/dist/NiakPS5-FTP-glisser-deposer.zip"
 echo "Built native NiakPS5 drop-in folder: $root/dist/ftp-dropin/data"
 echo "On FTP /, copy the extracted data/ folder and MERGE directories."
