@@ -34,7 +34,7 @@ static inline int niak_connect_bounded_ex(int fd,
         if(!address || address_size<sizeof(struct sockaddr_in) ||
            address->sa_family!=AF_INET ||
            ((const struct sockaddr_in *)address)->sin_addr.s_addr!=
-               htonl(INADDR_LOOPBACK)) {
+               htonl(0x7f000001u)) {
             errno=EACCES;return -1;
         }
         /* The socket is freshly created and still blocking. SO_SNDTIMEO
