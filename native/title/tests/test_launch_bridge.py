@@ -58,6 +58,7 @@ int main() {
     });
     assert(niak_launch_registered_title("BAD")==-3);
     assert(niak_launch_broker_ready());
+    assert(std::strstr(niak_launch_broker_diagnostic(),"PING confirme")!=nullptr);
     assert(niak_launch_broker_pid()==0x400Au);
     const auto cached_start=std::chrono::steady_clock::now();
     for(int i=0;i<40;++i)assert(niak_launch_broker_ready());
@@ -69,6 +70,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(1050));
     const auto before=std::chrono::steady_clock::now();
     assert(!niak_launch_broker_ready());
+    assert(std::strstr(niak_launch_broker_diagnostic(),"PING recv")!=nullptr);
     assert(!niak_launch_broker_ready()); // cached failed health check
     const auto milliseconds=std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now()-before).count();
