@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 SOURCE="https://gamesdb.launchbox-app.com/Metadata.zip"
 IMAGE=re.compile(r"^(?:r2_)?[A-Fa-f0-9-]{36}\.(?:png|jpe?g)$")
 KINDS={"Box - Front":"front","Box - Back":"back","Box - Spine":"spine",
+       "Fanart - Box - Front":"front_fanart",
+       "Fanart - Box - Back":"back_fanart",
        "Clear Logo":"logo", "Fanart - Background":"hero",
        "Screenshot - Gameplay":"screenshot",
        "Screenshot - Game Title":"screenshot"}
@@ -136,13 +138,15 @@ def parse(xml,installed):
         # Prefer a unique, platform-exact LaunchBox record. An alternative
         # edition scan is allowed only when exact has no FRONT artwork.
         candidates=matched if len(matched)==1 else set()
-        if not any(media.get(g,{}).get("front") for g in candidates):
+        if not any(media.get(g,{}).get("front") or
+                   media.get(g,{}).get("front_fanart") for g in candidates):
             alternative=set(edition_matches.get(key,set()))
             # Symmetric lookup: Anno 1800 Console Edition on the console may
             # have a PS5 LaunchBox image filed under "Anno 1800" itself.
             for base in safe_titles(key[1])[1:]:
                 alternative.update(exact_matches.get((key[0],base),set()))
-            fronts={g for g in alternative if media.get(g,{}).get("front")}
+            fronts={g for g in alternative if media.get(g,{}).get("front") or
+                    media.get(g,{}).get("front_fanart")}
             if len(fronts)==1:candidates=fronts
         if len(candidates)!=1:continue
         gid=next(iter(candidates))
@@ -153,12 +157,17 @@ def parse(xml,installed):
         pc_ids=related(key,"windows")
         ps4=media.get(next(iter(ps4_ids)),{}) if len(ps4_ids)==1 else {}
         pc=media.get(next(iter(pc_ids)),{}) if len(pc_ids)==1 else {}
-        faces=[face_options(images.get(kind,[])) for kind in
-               ("front","back","spine","logo")]
+        faces=[face_options(images.get("front",[]) or
+                            images.get("front_fanart",[])),
+               face_options(images.get("back",[]) or
+                            images.get("back_fanart",[])),
+               face_options(images.get("spine",[])),
+               face_options(images.get("logo",[]))]
         # PS4 box BACK is explicitly allowed as last-resort companion art
         # when the same game has no PS5 back; original PS5 FRONT remains.
-        if faces[1]=="-" and ps4.get("back"):
-            faces[1]=face_options(ps4["back"])
+        if faces[1]=="-" and (ps4.get("back") or ps4.get("back_fanart")):
+            faces[1]=face_options(ps4.get("back",[]) or
+                                  ps4.get("back_fanart",[]))
         if faces[3]=="-" and ps4.get("logo"):
             faces[3]=face_options(ps4["logo"])
         if faces[3]=="-" and pc.get("logo"):

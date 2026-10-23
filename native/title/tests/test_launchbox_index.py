@@ -110,6 +110,18 @@ class TestRetailCases(unittest.TestCase):
   self.assertNotIn("000000000002",rows[0][7]+rows[0][8])
   self.assertEqual(rows[0][-1],"600")
 
+ def test_fanart_box_front_is_a_valid_console_edition_fallback(self):
+  entries={("ps5","anno 1800 console edition"):["PPSA04716"]}
+  xml=b'''<LaunchBox>
+   <Game><DatabaseID>440530</DatabaseID><Platform>Sony Playstation 5</Platform>
+     <Name>Anno 1800 Console Edition</Name></Game>
+   <GameImage><DatabaseID>440530</DatabaseID><Type>Fanart - Box - Front</Type>
+     <FileName>00000000-0000-0000-0000-000000440530.png</FileName></GameImage>
+   </LaunchBox>'''
+  result=mod.parse(io.BytesIO(xml),entries)
+  self.assertEqual(len(result),1)
+  self.assertIn("440530",result[0][2])
+
  def test_ps5_front_ps4_back_and_pc_fanart_without_repeating_images(self):
   entries={("ps5","a plague tale innocence"):["PPSA02387"],
            ("ps5","anno 1800 console edition"):["PPSA04716"]}
