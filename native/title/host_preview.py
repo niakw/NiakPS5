@@ -160,7 +160,10 @@ def make_case_art_fixtures(kit):
         ):
             asset=Image.open(templates/f"{family}-{side}.png").convert("RGB")
             x0,y0,x1,y1=box
-            asset.thumbnail((x1-x0,y1-y0),Image.Resampling.LANCZOS)
+            scale=min((x1-x0)/asset.width,(y1-y0)/asset.height)
+            asset=asset.resize((max(1,round(asset.width*scale)),
+                                max(1,round(asset.height*scale))),
+                               Image.Resampling.LANCZOS)
             proof.paste(asset,(x0,y0))
             labels.text((x0,y1+8),{"front":"Bandeau","back":"Dos fixe",
                                       "spine":"Tranche"}[side],
