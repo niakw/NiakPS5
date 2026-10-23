@@ -301,7 +301,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("catalog.stream_next_covers(renderer,fonts,catalog.size())",host)
         self.assertIn("media.fronts<2",host)
         self.assertIn("media.backs<2",host)
-        self.assertIn("media.spines<3",host)
+        self.assertIn("media.spines!=2",host)
         self.assertIn("Host preview only",host)
         self.assertIn("case-04-homebrew-fallback",host)
         self.assertIn("case-05-r1-menu",host)
