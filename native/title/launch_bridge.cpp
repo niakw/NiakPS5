@@ -75,14 +75,41 @@ int niak_launch_registered_title(const char *title_id) {
     return static_cast<int>(code);
 }
 
+namespace {
+int kProbeStage=0;
+int kProbeError=0;
+void mark_probe(int stage,int error) {
+    kProbeStage=stage;
+    kProbeError=error;
+}
+}
+
+const char *niak_launch_broker_diagnostic() {
+    static char message[100];
+    const char *step="non testé";
+    switch(kProbeStage) {
+    case 1:step="socket";break;
+    case 2:step="fcntl";break;
+    case 3:step="connect";break;
+    case 4:step="send";break;
+    case 5:step="recv";break;
+    case 6:step="PONG invalide";break;
+    case 7:step="PONG confirme";break;
+    default:break;
+    }
+    if(kProbeStage==7)return "PING confirme : service joignable";
+    std::snprintf(message,sizeof(message),"PING %s (errno %d)",
+                  step,kProbeError);
+    return message;
+}
+
 bool niak_launch_broker_ready() {
-    // Called during Settings rendering. One PING each frame would spend up
-    // to 70ms/frame waiting for a hung local broker. Cache briefly, with a
-    // monotonic clock so wall-clock adjustments cannot prolong that delay.
+    // A bounded probe only on a cached settings repaint. 30/40 ms was too
+    // aggressive on a console busy mounting games: allow 120 ms for each
+    // connect/read without waiting for OS TCP retries or blocking each frame.
     static std::uint64_t checked_at_ms=0;
     static bool previous=false,checked=false;
     struct timespec stamp{};
-    // A failed clock query must not use a stale cached health result.
     const bool timed=clock_gettime(CLOCK_MONOTONIC,&stamp)==0;
     const std::uint64_t now_ms=timed?
         static_cast<std::uint64_t>(stamp.tv_sec)*1000u+
@@ -91,49 +118,65 @@ bool niak_launch_broker_ready() {
        now_ms-checked_at_ms<1000u)return previous;
     checked_at_ms=now_ms;
     checked=timed;
-    previous=false; // Fail closed when the broker stops responding.
+    previous=false; // Fail closed; never infer liveness from stale logs.
     int fd=::socket(AF_INET,SOCK_STREAM,0);
-    if(fd<0)return false;
+    if(fd<0){mark_probe(1,errno);return false;}
     niak_socket_guard(fd);
     const int flags=::fcntl(fd,F_GETFL,0);
     if(flags<0 || ::fcntl(fd,F_SETFL,flags|O_NONBLOCK)<0) {
-        ::close(fd);
-        return false;
+        const int error=errno;
+        ::close(fd);mark_probe(2,error);return false;
     }
     sockaddr_in peer{};
     peer.sin_family=AF_INET;
     peer.sin_port=htons(kPort);
     peer.sin_addr.s_addr=htonl(0x7f000001u);
     int result=::connect(fd,reinterpret_cast<sockaddr*>(&peer),sizeof(peer));
-    if(result!=0 && errno==EINPROGRESS) {
+    int issue=result!=0?errno:0;
+    if(result!=0 && (issue==EINPROGRESS || issue==EWOULDBLOCK)) {
         fd_set writable;FD_ZERO(&writable);FD_SET(fd,&writable);
-        timeval connect_timeout{0,30000}; // at most 30ms on loopback
-        const int selected=::select(fd+1,nullptr,&writable,nullptr,&connect_timeout);
-        int error=0;socklen_t error_size=sizeof(error);
-        if(selected==1 && FD_ISSET(fd,&writable) &&
-           ::getsockopt(fd,SOL_SOCKET,SO_ERROR,&error,&error_size)==0 &&
-           error==0)result=0;
+        timeval connect_timeout{0,120000};
+        const int selected=::select(fd+1,nullptr,&writable,nullptr,
+                                    &connect_timeout);
+        if(selected==1 && FD_ISSET(fd,&writable)) {
+            int socket_error=0;
+            socklen_t size=sizeof(socket_error);
+            if(::getsockopt(fd,SOL_SOCKET,SO_ERROR,&socket_error,&size)==0) {
+                result=socket_error==0?0:-1;
+                issue=socket_error;
+            } else issue=errno;
+        } else issue=selected==0?ETIMEDOUT:errno;
     }
-    if(result!=0 || ::fcntl(fd,F_SETFL,flags)<0) {
+    if(result!=0) {
         ::close(fd);
+        mark_probe(3,issue);
         return false;
     }
-    // Short, finite reads still accept fragmented local TCP replies.
-    timeval io_timeout{0,40000};
+    if(::fcntl(fd,F_SETFL,flags)<0) {
+        const int error=errno;
+        ::close(fd);mark_probe(2,error);return false;
+    }
+    timeval io_timeout{0,120000};
     (void)::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&io_timeout,sizeof(io_timeout));
     (void)::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&io_timeout,sizeof(io_timeout));
+    if(niak_socket_send(fd,"PING\n",5)!=5) {
+        const int error=errno;
+        ::close(fd);mark_probe(4,error);return false;
+    }
     char answer[5]{};
     std::size_t received=0;
-    if(niak_socket_send(fd,"PING\n",5)==5) {
-        while(received<sizeof(answer)) {
-            const ssize_t n=::recv(fd,answer+received,
-                                   sizeof(answer)-received,0);
-            if(n<=0)break;
-            received+=static_cast<std::size_t>(n);
+    while(received<sizeof(answer)) {
+        const ssize_t n=::recv(fd,answer+received,
+                               sizeof(answer)-received,0);
+        if(n<=0) {
+            const int error=n==0?ECONNRESET:errno;
+            ::close(fd);mark_probe(5,error);return false;
         }
+        received+=static_cast<std::size_t>(n);
     }
     ::close(fd);
-    previous=received==sizeof(answer) && std::memcmp(answer,"PONG\n",5)==0;
+    previous=std::memcmp(answer,"PONG\n",5)==0;
+    mark_probe(previous?7:6,0);
     return previous;
 }
 
