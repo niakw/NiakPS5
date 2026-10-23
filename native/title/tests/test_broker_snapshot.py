@@ -18,7 +18,7 @@ SOURCE=r'''
 int main(int argc,char **argv) {
   assert(argc==2);
   const char *path=argv[1];
-  NiakGame games[4]={{0}};
+  NiakGame games[4]; memset(games,0,sizeof(games));
   const long long now=(long long)time(NULL);
   assert(niak_snapshot_write(path,"PPSA12345\nCUSA54321\n",2,now)==0);
   assert(niak_snapshot_read(path,games,4)==2);
