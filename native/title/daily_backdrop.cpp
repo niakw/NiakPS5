@@ -24,6 +24,31 @@ std::array<std::uint32_t,14> images{};
 int count=0;
 int override_offset=0;
 int override_day=-1;
+// Today's manual wallpaper choice survives closing/reopening NiakPS5.
+// A different local date ALWAYS resets to the automatic daily selection.
+void restore_day_choice(int day) {
+    if(override_day==day)return;
+    override_day=day;
+    override_offset=0;
+    FILE *file=std::fopen("/download0/niak-wallpaper-choice.txt","rb");
+    if(!file)return;
+    int cached_day=-1,cached_offset=0;
+    if(std::fscanf(file,"%d %d",&cached_day,&cached_offset)==2 &&
+       cached_day==day && cached_offset>=0 && cached_offset<count)
+        override_offset=cached_offset;
+    std::fclose(file);
+}
+void save_day_choice(int day) {
+    const char *tmp="/download0/niak-wallpaper-choice.txt.tmp";
+    FILE *file=std::fopen(tmp,"wb");
+    if(!file)return;
+    const int wrote=std::fprintf(file,"%d %d\\n",day,override_offset);
+    const int flushed=std::fflush(file);
+    const int closed=std::fclose(file);
+    if(wrote<0 || flushed!=0 || closed!=0 ||
+       std::rename(tmp,"/download0/niak-wallpaper-choice.txt")!=0)
+        std::remove(tmp);
+}
 struct Runtime {
     std::mutex mutex;
     int started_day=-1, ready_day=-1, live_day=-1;
@@ -183,10 +208,7 @@ void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *director
 std::uint32_t niak_daily_backdrop() {
     Runtime &s=state();char today[11]={};const int day=day_now(today);
     if(day<0)return count?images[0]:0;
-    if(override_day!=day) {
-        override_offset=0;
-        override_day=day;
-    }
+    restore_day_choice(day);
 #if defined(__PROSPERO__)
     if(s.started_day!=day) {
         s.started_day=day;
@@ -225,6 +247,7 @@ void niak_next_daily_backdrop() {
     char date[11]{};
     const int day=day_now(date);
     if(count<2 || day<0)return;
-    if(override_day!=day){override_day=day;override_offset=0;}
+    restore_day_choice(day);
     override_offset=(override_offset+1)%count;
+    save_day_choice(day);
 }

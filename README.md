@@ -29,7 +29,9 @@ Les validations GitHub prouvent les tests hôte, la compilation native et les ca
 **L1/R1** naviguent entre NIAK, Jeux, Multimédia et Réglages. Ils ne changent jamais le fond.
 Le fond d'écran est sélectionné automatiquement selon la date locale (une sélection
 par jour). **Réglages → Changer le fond du jour** permet de forcer une autre image
-pour la journée ; aucune autre commande ne déclenche cette action.
+pour la journée, y compris après fermeture et réouverture de NiakPS5.
+Le choix manuel est réinitialisé lors du prochain jour local ; aucune autre
+commande ne déclenche cette action.
 
 ## Un seul ZIP FTP
 
