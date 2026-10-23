@@ -36,9 +36,8 @@ registration ShadowMountPlus avant de chercher davantage de privilèges.
 
 ## Installation actuelle : glisser-déposer uniquement
 
-L'artefact `NiakPS5-PPSA99386` contient l'archive FTP
-`NiakPS5-FTP-glisser-deposer.zip` (deux extractions graphiques pour
-préserver les permissions exécutables), puis l'arborescence suivante :
+L'artefact `NiakPS5-PPSA99386` est **un seul ZIP à extraire une fois**,
+contenant directement l'arborescence suivante (aucun ZIP imbriqué) :
 
 ```text
 data/homebrew/PPSA99386/eboot.bin
