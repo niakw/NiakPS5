@@ -712,7 +712,7 @@ def interpret_broker_log(report, clock=None):
             launch="échec historique (SystemService, repli non confirmé)"
     import re
     events=[(int(a),int(b)) for a,b in re.findall(
-        r"(?m)^NiakPS5 broker heartbeat epoch=(\\d+) pid=(\\d+)\\s*$",section)]
+        r"(?m)^NiakPS5 broker heartbeat epoch=(\d+) pid=(\d+)\s*$",section)]
     if not events:
         heartbeat="aucun horodatage exploitable"
     else:
