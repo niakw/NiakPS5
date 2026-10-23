@@ -12,7 +12,7 @@ extern "C" {
 #include <cstring>
 #include <cstdlib>
 #include <vector>
-std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side){
+std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side,float *aspect){
  if(!niak_valid_title_id(id)||!side ||
     (std::strcmp(side,"front") && std::strcmp(side,"back") &&
      std::strcmp(side,"logo") && std::strcmp(side,"spine")))return 0;
@@ -72,7 +72,10 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  const unsigned max_h=logo?768u:768u;
  if(!niak_scale_case_rgba(pixels,w,h,max_w,max_h))return 0;
  const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
- if(handle)niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
+ if(handle) {
+     if(aspect)*aspect=float(w)/float(h);
+     niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
+ }
  return handle;
 }
 

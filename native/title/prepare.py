@@ -231,6 +231,7 @@ audio::SoundSet Shell::sound_set() const''')
     catalog_h = kit / "src/demo/catalog.hpp"
     replace_once(catalog_h, '#include <cstdint>', '#include <cstdint>\n#include <deque>\n#include <string>')
     replace_once(catalog_h, '    std::uint32_t cover = 0;',
+                 '    float case_scene_aspect = 16.0f/9.0f;\n    float logo_art_aspect = 3.0f;\n'
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::vector<Item> items_;')
@@ -267,7 +268,7 @@ audio::SoundSet Shell::sound_set() const''')
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
                      "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp",
                      "broker_catalog.cpp","broker_catalog.hpp","local_inventory.h",
-                     "launch_log_status.h"):
+                     "launch_log_status.h","case_fallback_layout.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
@@ -312,12 +313,23 @@ audio::SoundSet Shell::sound_set() const''')
             item.case_spine = niak_load_case_art(renderer,item.title_id,"spine");
             // Only used to reconstruct missing 3D sleeves, never library tiles.
             if(!item.case_front || !item.case_back)
-                item.case_scene = niak_load_game_background(renderer,item.title_id);
+                item.case_scene = niak_load_game_background(
+                    renderer,item.title_id,&item.case_scene_aspect);
             const char *platform=item.title_id[0]=='C'?"ps4":"ps5";
-            item.case_template_front = niak_load_case_template(renderer,platform,"front");
-            item.case_template_back = niak_load_case_template(renderer,platform,"back");
-            item.case_template_spine = niak_load_case_template(renderer,platform,"spine");
-            item.logo_art = niak_load_case_art(renderer,item.title_id,"logo");
+            // Only a MISSING individual face uses an invariant template.
+            // Official front/back scans must never be overlaid or rebuilt.
+            if(!item.case_front) {
+                item.case_template_front=niak_load_case_template(
+                    renderer,platform,"front");
+                item.logo_art=niak_load_case_art(
+                    renderer,item.title_id,"logo",&item.logo_art_aspect);
+            }
+            if(!item.case_back)
+                item.case_template_back=niak_load_case_template(
+                    renderer,platform,"back");
+            if(!item.case_spine)
+                item.case_template_spine=niak_load_case_template(
+                    renderer,platform,"spine");
             item.cover = niak_load_game_icon(renderer, item.title_id);
             auto &stats=niak::case_media_stats;
             ++stats.titles;

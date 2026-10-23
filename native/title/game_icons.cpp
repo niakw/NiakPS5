@@ -211,7 +211,7 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     return 0;
 }
 
-std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char *id) {
+std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char *id,float *aspect) {
     bool media=id && std::strlen(id)==9 && std::strncmp(id,"NPXS",4)==0;
     if(media)for(int i=4;i<9;++i)
         if(id[i]<'0'||id[i]>'9')media=false;
@@ -257,7 +257,10 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
                 for(int k=0;k<4;++k)scaled[dst+k]=rgba[src+k];
             }
         }
-        return renderer.create_texture(int(target_w),int(target_h),scaled.data());
+        const auto texture=renderer.create_texture(
+            int(target_w),int(target_h),scaled.data());
+        if(texture && aspect)*aspect=float(target_w)/float(target_h);
+        return texture;
     }
     return 0;
 }

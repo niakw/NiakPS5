@@ -2,7 +2,7 @@
 #pragma once
 #include <cstdint>
 namespace hui::gfx{class Renderer;}
-std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side);
+std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side, float *aspect=nullptr);
 
 // Private user-supplied PS4/PS5 overlays (front header, back lower strip, spine).
 // Loaded once per renderer session, not packaged in public GitHub sources.
