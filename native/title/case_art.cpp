@@ -154,9 +154,23 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
                        (unsigned(bytes[22])<<8)|bytes[23];
  // Wide brand header/back legal strip or narrow tall spine; do not decode
  // accidentally swapped art, malicious PNG dimensions or an icon.
+ // The standard GitHub OpenGL preview carries two *downscaled* copies
+ // of the owner's real footer blocks (PS4 232x130, PS5 280x115).
+ // They have the same artwork/aspect as the genuine larger originals.
+ // Only the HOST preview may accept this lower resolution. Actual PS5
+ // installations retain strict full-size footer validation.
+#if defined(__linux__)
+ const bool host_small_footer=side==1 && width>=180 && height>=90 &&
+                              width<=1600 && height<=900 &&
+                              float(width)/float(height)>=1.5f &&
+                              float(width)/float(height)<=2.8f;
+#else
+ const bool host_small_footer=false;
+#endif
  const bool valid=side==2?(width>=40 && width<=200 && height>=350 && height<=1600):
                   side==0?(width>=450 && width<=2000 && height>=60 && height<=400):
-                          (width>=450 && width<=1600 && height>=220 && height<=900);
+                          ((width>=450 && width<=1600 &&
+                            height>=220 && height<=900) || host_small_footer);
  if(!valid || std::size_t(width)*height>2500000u) {
 #if defined(__linux__)
      std::fprintf(stderr,
