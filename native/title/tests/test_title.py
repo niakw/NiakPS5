@@ -57,13 +57,14 @@ class NativeTitleTests(unittest.TestCase):
         workflow=(ROOT.parent/".github/workflows/native-title.yml").read_text()
         build=(ROOT/"title"/"build.sh").read_text()
         self.assertIn("name: NiakPS5-PPSA99386",workflow)
-        self.assertIn("path: dist/NiakPS5-FTP-glisser-deposer.zip",workflow)
+        self.assertIn("path: dist/ftp-dropin/",workflow)
         self.assertIn("data/homebrew/PPSA99386/eboot.bin",workflow)
         self.assertIn("data/pldmgr/payloads/niakps5/niakps5.elf",workflow)
-        self.assertIn("No-command installation verified",workflow)
+        self.assertIn("FTP delivery validated: exactly one data/ directory, zero nested ZIPs",workflow)
         self.assertIn('stage_case_templates.py',build)
         self.assertIn('pack_ftp_dragdrop.py',build)
-        self.assertIn('--archive "$root/dist/NiakPS5-FTP-glisser-deposer.zip"',build)
+        self.assertNotIn("--archive",build)
+        self.assertNotIn("NiakPS5-FTP-glisser-deposer.zip",build)
         self.assertNotIn("path: dist/\\n",workflow)
 
     def test_exact_ftp_package(self):
