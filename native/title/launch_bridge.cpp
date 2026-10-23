@@ -11,6 +11,7 @@
 #include <cerrno>
 #include <cstdint>
 #include <time.h>
+#include <ctime>
 #include <sys/select.h>
 #include <cstdio>
 #include <cstring>

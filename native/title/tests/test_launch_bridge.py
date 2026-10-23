@@ -101,11 +101,12 @@ class LaunchBridgeTests(unittest.TestCase):
             shutil.copyfile(ROOT.parent/"catalog.h",work/"niak"/"catalog.h")
             (work/"server.cpp").write_text(SERVER,encoding="utf8")
             binary=work/"launch-bridge-test"
-            subprocess.run([
+            compiled=subprocess.run([
                 compiler,"-std=c++20","-pthread","-Wall","-Wextra","-Werror",
                 "-I",str(work),str(ROOT/"launch_bridge.cpp"),
-                str(work/"server.cpp"),"-o",str(binary)],check=True,
+                str(work/"server.cpp"),"-o",str(binary)],
                 capture_output=True,text=True,timeout=50)
+            self.assertEqual(compiled.returncode,0,compiled.stderr)
             subprocess.run([str(binary)],check=True,capture_output=True,
                            text=True,timeout=15)
 
