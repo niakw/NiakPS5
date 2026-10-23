@@ -38,6 +38,10 @@ int main(int argc,char **argv) {
   fprintf(duplicate,"NIAKPS5-GAMES-1 %lld 2\nPPSA12345\nPPSA12345\nEND\n",now);
   fclose(duplicate);
   assert(niak_snapshot_read(path,games,1)==-1);
+  FILE *suffix=fopen(path,"wb");assert(suffix);
+  fprintf(suffix,"NIAKPS5-GAMES-1 %lld 1 EXTRA\nPPSA12345\nEND\n",now);
+  fclose(suffix);
+  assert(niak_snapshot_read(path,games,1)==-1);
   assert(niak_snapshot_write(path,"PPSA12345\n",1,now-2000)==0);
   assert(niak_snapshot_read(path,games,4)==-1);
   assert(niak_snapshot_write(path,"PPSA12345\n",1,now+2000)==0);

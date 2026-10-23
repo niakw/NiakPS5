@@ -29,7 +29,7 @@ int main() {
     assert(bind(server,reinterpret_cast<sockaddr*>(&addr),sizeof(addr))==0);
     assert(listen(server,2)==0);
     std::thread backend([&] {
-        for(int round=0;round<2;++round) {
+        for(int round=0;round<5;++round) {
             int client=accept(server,nullptr,nullptr);
             assert(client>=0);
             char request[16]{};
@@ -41,7 +41,13 @@ int main() {
                 const char *rest="ES\nPPSA12345\nCUSA54321\nEND\n";
                 assert(send(client,rest,std::strlen(rest),0)==ssize_t(std::strlen(rest)));
             } else {
-                assert(send(client,"DENIED\n",7,0)==7);
+                const char *reply=round==1?
+                    "GAMES\nPPSA12345\nPPSA12345\nEND\n":
+                    round==2?"GAMES\nPPSA99386\nEND\n":
+                    round==3?"GAMES\nCUSA54321\nEND\nEXTRA":
+                             "DENIED\n";
+                assert(send(client,reply,std::strlen(reply),0)==
+                       ssize_t(std::strlen(reply)));
             }
             close(client);
         }
@@ -51,7 +57,10 @@ int main() {
     assert(std::strcmp(items[0].id,"PPSA12345")==0);
     assert(std::strcmp(items[1].id,"CUSA54321")==0);
     assert(std::strcmp(items[0].title,"PPSA12345")==0);
-    assert(niak_scan_broker_games(items,4)==-1);
+    assert(niak_scan_broker_games(items,4)==-1); // duplicate
+    assert(niak_scan_broker_games(items,4)==-1); // own title
+    assert(niak_scan_broker_games(items,4)==-1); // trailing bytes
+    assert(niak_scan_broker_games(items,4)==-1); // broker denied
     backend.join();
     close(server);
     assert(niak_scan_broker_games(items,4)==-1);
@@ -72,11 +81,12 @@ class BrokerTests(unittest.TestCase):
             shutil.copyfile(ROOT.parent/"catalog.h",base/"niak"/"catalog.h")
             (base/"server.cpp").write_text(SOURCE,encoding="utf-8")
             executable=base/"broker-test"
-            subprocess.run(
+            built=subprocess.run(
                 [compiler,"-std=c++20","-pthread","-Wall","-Wextra","-Werror",
                  "-I",str(base),str(ROOT/"broker_catalog.cpp"),
                  str(base/"server.cpp"),"-o",str(executable)],
-                check=True,timeout=40,capture_output=True,text=True)
+                timeout=40,capture_output=True,text=True)
+            self.assertEqual(built.returncode,0,built.stderr)
             subprocess.run([str(executable)],check=True,timeout=15,
                            capture_output=True,text=True)
 

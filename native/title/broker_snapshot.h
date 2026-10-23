@@ -82,9 +82,14 @@ static inline int niak_snapshot_read(const char *path,NiakGame *games,
     struct stat before;
     if(lstat(path,&before)!=0 || !S_ISREG(before.st_mode) ||
        before.st_size<20 || before.st_size>8192)return -1;
-    FILE *in=fopen(path,"rb");
-    if(!in)return -1;
-    int fd=fileno(in);struct stat after;
+    /* O_NOFOLLOW also protects the open itself if a concurrent actor
+     * replaces the file after lstat. Compare the resulting inode below.
+     */
+    const int fd=open(path,O_RDONLY|O_NOFOLLOW);
+    if(fd<0)return -1;
+    FILE *in=fdopen(fd,"rb");
+    if(!in){close(fd);return -1;}
+    struct stat after;
     if(fd<0 || fstat(fd,&after)!=0 || before.st_ino!=after.st_ino ||
        before.st_dev!=after.st_dev || !S_ISREG(after.st_mode)) {
         fclose(in);return -1;
@@ -93,6 +98,14 @@ static inline int niak_snapshot_read(const char *path,NiakGame *games,
     if(!fgets(line,sizeof(line),in) ||
        sscanf(line,NIAK_SNAPSHOT_VERSION " %lld %d",&stamp,&count)!=2 ||
        count<0 || count>NIAK_SNAPSHOT_MAX_GAMES || stamp<=0)goto done;
+    /* sscanf alone accepts extra trailing data. Require the writer's
+     * exact canonical single-line header, including the final newline.
+     */
+    char expected_header[96];
+    const int header_bytes=snprintf(expected_header,sizeof(expected_header),
+        NIAK_SNAPSHOT_VERSION " %lld %d\n",stamp,count);
+    if(header_bytes<=0 || header_bytes>=(int)sizeof(expected_header) ||
+       strcmp(line,expected_header)!=0)goto done;
     {
         const time_t now=time(NULL);
         if(now<=0 || stamp>(long long)now+60 ||

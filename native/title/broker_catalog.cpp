@@ -38,23 +38,32 @@ static int niak_scan_broker_socket(NiakGame *games,std::size_t cap) {
  close(fd);
  if(got<10||std::strncmp(response,"GAMES\n",6)!=0 ||
     !std::strstr(response,"\nEND\n"))return -1;
- std::size_t found=0;
+ /* A caller asking for one item must still validate the entire stream.
+  * Refuse duplicates, our own app and an unexpected suffix after END.
+  */
+ char seen[NIAK_SNAPSHOT_MAX_GAMES][10]{};
+ std::size_t validated=0,stored=0;
  const char *p=response+6;
- while(*p && std::strncmp(p,"END\n",4)!=0) {
+ while(*p) {
+  if(std::strncmp(p,"END\n",4)==0)
+   return p[4]=='\0'?int(stored):-1;
   const char *end=std::strchr(p,'\n');
-  if(!end || end-p!=9)return -1;
-  if(std::memcmp(p,"PPSA",4)!=0&&std::memcmp(p,"CUSA",4)!=0&&
-     std::memcmp(p,"LAPY",4)!=0&&std::memcmp(p,"FAKE",4)!=0)return -1;
-  for(int i=4;i<9;++i)if(p[i]<'0'||p[i]>'9')return -1;
-  if(found<cap) {
-   NiakGame &game=games[found++];
+  if(!end || end-p!=9 || validated>=NIAK_SNAPSHOT_MAX_GAMES)return -1;
+  char id[10]{};
+  std::memcpy(id,p,9);
+  if(!niak_snapshot_valid_id(id))return -1;
+  for(std::size_t i=0;i<validated;++i)
+   if(std::strcmp(id,seen[i])==0)return -1;
+  std::memcpy(seen[validated++],id,10);
+  if(stored<cap) {
+   NiakGame &game=games[stored++];
    std::memset(&game,0,sizeof(game));
-   std::memcpy(game.id,p,9);
-   std::memcpy(game.title,p,9);
+   std::memcpy(game.id,id,9);
+   std::memcpy(game.title,id,9);
   }
   p=end+1;
  }
- return std::strncmp(p,"END\n",4)==0?int(found):-1;
+ return -1;
 }
 
 int niak_scan_broker_games(NiakGame *games,std::size_t cap) {
