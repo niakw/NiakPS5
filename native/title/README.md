@@ -55,6 +55,17 @@ Elle télécharge les dépendances épinglées et peut prendre du temps. La sour
 
 Ne pas supprimer ni remplacer `SceShellUI`, ne pas remonter `/system_ex` en écriture, ne pas réactiver l'ancien bootstrap `hbldr`.
 
+## Lancement des titres enregistrés
+
+NiakPS5 n'utilise plus un contexte de lancement \`NULL\` systématique.
+Le payload transmet une structure \`LncAppParam\` validée, avec utilisateur
+actif. En cas de refus exact \`0x80940005\`, il tente une seule fois
+\`sceLncUtilLaunchApp\` pour l'application demandée. Cela n'accorde pas
+de nouveaux privilèges au processus graphique et ne remplace ni une
+installation ni l'enregistrement du titre. Le journal distingue les deux
+codes de retour, indique le PID du courtier, et émet un heartbeat toutes
+les deux minutes lorsque le service reste actif.
+
 ## Résolution des erreurs de démarrage et du catalogue
 
 L'ELF PLDmgr initialise explicitement UserService avant de demander le profil

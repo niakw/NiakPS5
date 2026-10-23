@@ -23,6 +23,7 @@
 #include "title_permissions.h"
 #include "socket_guard.h"
 #include "loopback_connect.h"
+#include "launch_policy.h"
 #include "broker_inventory.h"
 
 #define NIAK_TITLE "PPSA99386"
@@ -37,9 +38,28 @@ extern int sceKernelUsleep(unsigned int microseconds);
 extern int sceUserServiceGetForegroundUser(int *user_id);
 extern int sceUserServiceInitialize(void *params);
 extern int sceSystemServiceLaunchApp(const char *title_id,
-                                     const char **arguments, void *params);
+                                     const char **arguments,
+                                     NiakLaunchContext *params);
+extern int sceLncUtilLaunchApp(const char *title_id,
+                              const char **arguments,
+                              NiakLaunchContext *params);
 extern int sceSystemServiceGetAppIdOfRunningBigApp(void);
 
+/* One checked entry point for both autostart and the local Jouer action.
+ * Logs the raw status of both APIs; a positive LncUtil app id is accepted
+ * by the local protocol as success, never sent as a launch error.
+ */
+static void report(const char *msg,int result);
+static int launch_title_as_user(const char *title,int user) {
+    NiakLaunchResult launch=niak_launch_with_fallback(
+        title,user,sceSystemServiceLaunchApp,sceLncUtilLaunchApp);
+    report("sceSystemServiceLaunchApp",launch.system_rc);
+    if(launch.method==2)
+        report("sceLncUtilLaunchApp accepted app id",launch.lnc_rc);
+    else if(launch.lnc_rc!=NIAK_LAUNCH_NOT_TRIED)
+        report("sceLncUtilLaunchApp refused",launch.lnc_rc);
+    return launch.result;
+}
 static int is_regular_file(const char *path) {
     struct stat st;
     return lstat(path,&st)==0 && S_ISREG(st.st_mode);
@@ -222,19 +242,28 @@ static void serve_launch_requests(void) {
         report("Local launch broker listen refused",errno);close(fd);return;
     }
     report("Local launch broker ready (127.0.0.1 only)",0);
+    /* The ELF loader may host the payload in a differently named process.
+     * Record actual PID and one low-frequency heartbeat instead of assuming
+     * it appears under niakps5.elf in a process scanner.
+     */
+    report("NiakPS5 broker process PID",(int)getpid());
     NiakRedirectGate gate;
     int gate_ready=0,return_user=-1;
     // Listen for launcher PING/GAMES immediately. Previously a 12x3-second
     // autostart polling loop delayed the launch broker by up to 36 seconds.
     unsigned startup_attempts=0;
     int startup_done=0,profile_checked=0;
-    uint64_t next_start_ms=0;
+    uint64_t next_start_ms=0, next_heartbeat_ms=0;
     // The original 21,600 two-second iterations silently stopped the
     // launch service after roughly twelve hours. Keep the opt-in broker
     // alive until the user disables it or the console shuts down.
     for(;;) {
         if(is_regular_file(NIAK_DISABLED))break;
         const uint64_t now=niak_monotonic_ms();
+        if(now>=next_heartbeat_ms) {
+            report("NiakPS5 broker heartbeat PID",(int)getpid());
+            next_heartbeat_ms=now+120000u;
+        }
         if(!startup_done && startup_attempts<12 && now>=next_start_ms) {
             ++startup_attempts;
             next_start_ms=now+3000u;
@@ -247,8 +276,7 @@ static void serve_launch_requests(void) {
                         copy_current_avatar_png(user);
                         profile_checked=1;
                     }
-                    const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
-                    report("sceSystemServiceLaunchApp",rc);
+                    const int rc=launch_title_as_user(NIAK_TITLE,user);
                     if(rc==0)startup_done=1;
                 } else report("Foreground user unavailable",user_rc);
             }
@@ -307,7 +335,7 @@ static void serve_launch_requests(void) {
                         int user=-1;
                         if(sceUserServiceGetForegroundUser(&user)==0&&user>=0) {
                             const int source_app=sceSystemServiceGetAppIdOfRunningBigApp();
-                            result=sceSystemServiceLaunchApp(title,NULL,NULL);
+                            result=launch_title_as_user(title,user);
                             report("Local title launch request",result);
                             // The return gate is opt-in, and only the launch
                             // we explicitly requested may arm it. Merely
@@ -338,7 +366,7 @@ static void serve_launch_requests(void) {
         int user=-1;
         const int user_rc=sceUserServiceGetForegroundUser(&user);
         if(user_rc==0 && niak_redirect_same_user(return_user,user)) {
-            const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
+            const int rc=launch_title_as_user(NIAK_TITLE,user);
             report("Optional game-exit return",rc);
         } else {
             // A changed or unreadable profile must never receive an

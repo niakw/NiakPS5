@@ -81,6 +81,17 @@ L'assemblage récupère une révision figée de [PS5_VKHomebrewUI](https://githu
 
 Les polices Manrope et Instrument Serif sont utilisées avec leurs licences OFL. Le décodeur PNG tiers (LodePNG) conserve sa licence dans ses sources. La base graphique amont reste GPL-3.0-or-later.
 
+## Correctif du lancement automatique
+
+Le payload qui démarre avec PLDmgr initialise UserService, lance les applications
+avec le contexte du profil connecté, et utilise un fallback \`sceLncUtilLaunchApp\`
+**uniquement** si l'appel \`sceSystemServiceLaunchApp\` retourne
+\`0x80940005\`. Le succès du fallback est consigné avec l'identifiant
+d'application. Une pulsation légère toutes les deux minutes et le PID
+réel du courtier sont inscrits dans le journal :
+\`/data/niakps5-autostart.log\`. Un processus autonome \`niakps5.elf\`
+n'est pas garanti quand le payload est hébergé par le chargeur.
+
 ## Diagnostics du catalogue
 
 Le payload initialise UserService avant de demander le profil actif (erreur

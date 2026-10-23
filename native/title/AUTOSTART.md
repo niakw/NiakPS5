@@ -9,11 +9,30 @@ Cela n'est PAS un remplacement de \`SceShellUI\` : l'écran Sony initial, les fo
 Le mini-payload :
 - n'exécute pas de SDL, ni de composant graphique ;
 - ne remonte pas \`/system_ex\`, n'attache pas \`SceSysCore\`, n'effectue aucun \`ptrace\` ou modification système ;
-- attend que le titre soit enregistré puis appelle \`sceSystemServiceLaunchApp("PPSA99386")\` dans la session de l'utilisateur ;
+- demande le lancement du titre avec un contexte utilisateur initialisé (taille ABI 32 octets, utilisateur actif) ; si SystemService refuse avec \`0x80940005\`, essaie \`sceLncUtilLaunchApp\` pour le même titre ;
 - refuse d'interrompre un autre titre déjà au premier plan ;
-- réessaie au maximum 12 fois (3 s entre essais), puis abandonne ;
+- réessaie au maximum 12 fois (3 s entre essais), puis abandonne les demandes de lancement ; le courtier reste actif ;
 - fonctionne depuis l'entrée explicite dans \`/data/pldmgr/autoload.txt\` ; le marqueur historique \`/data/niakps5-autostart.enabled\` n'est plus requis ;
 - ne fait rien si \`/data/niakps5-autostart.disable\` existe.
+
+## Erreur 0x80940005 et présence réelle du payload
+
+La console a renvoyé \`0x80940005\` avec l'ancien appel
+\`sceSystemServiceLaunchApp("PPSA99386", NULL, NULL)\`. Le code est maintenant
+piloté par \`launch_policy.h\` : contexte utilisateur correctement initialisé,
+repli limité à cette erreur vers \`sceLncUtilLaunchApp\`, sans arrêt d'un autre
+jeu, sans imitation d'un processus Sony. Une réponse positive de LncUtil
+est un identifiant d'application accepté, pas un code d'erreur.
+
+La ligne \`NiakPS5 broker process PID rc=...\` donne le PID en hexadécimal.
+Le courtier écrit une preuve de présence à intervalle de deux minutes
+(\`NiakPS5 broker heartbeat PID\`). Il peut être hébergé par le processus
+du chargeur ELF plutôt que par un processus autonome nommé niakps5.elf.
+Pour l'interface, le PING \`127.0.0.1:19187\` reste la vérification directe
+du service. Le lancement peut encore échouer si le titre \`PPSA99386\` n'est
+pas enregistré par le service de titres : un dossier FTP seul n'est pas
+une preuve d'enregistrement. Dans ce cas il faut diagnostiquer la
+registration ShadowMountPlus avant de chercher davantage de privilèges.
 
 ## Installation actuelle (une seule commande)
 

@@ -34,6 +34,10 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror native/title/tests/loopback_connect_test.c -o /tmp/niak-loopback-connect
           /tmp/niak-loopback-connect
+      - name: Validate PS5 launch context and 0x80940005 fallback
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror native/title/tests/launch_policy_test.c -o /tmp/niak-launch-policy
+          /tmp/niak-launch-policy
       - name: Validate installed PS5 title launch permissions
         run: |
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror native/title/tests/title_permissions_test.c -o /tmp/niak-title-permissions
