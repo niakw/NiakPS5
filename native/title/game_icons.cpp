@@ -23,6 +23,7 @@ extern "C" {
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -180,6 +181,17 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
         if(id[i]<'0'||id[i]>'9')media=false;
     if(!niak_valid_title_id(id) && !media)return 0;
     std::vector<unsigned char> png;
+#if defined(__linux__)
+    // Host-only art is original QA artwork; not packaged or consulted on PS5.
+    if(const char *fixtures=std::getenv("NIAK_CASE_PREVIEW_MEDIA")) {
+        if(fixtures[0]) {
+            char path[480]{};
+            std::snprintf(path,sizeof(path),"%s/%s-icon.png",fixtures,id);
+            if(read_local_png(path,png))
+                if(const auto handle=decode_upload(renderer,png))return handle;
+        }
+    }
+#endif
     // Try the actual installed icon first. This also works for homebrews
     // when ShadowMountPlus does not expose their icon endpoint.
     for(const char *format : {
@@ -217,6 +229,13 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
         if(id[i]<'0'||id[i]>'9')media=false;
     if(!niak_valid_title_id(id) && !media)return 0;
     std::vector<unsigned char> png;
+    std::vector<std::string> locations;
+#if defined(__linux__)
+    if(const char *fixtures=std::getenv("NIAK_CASE_PREVIEW_MEDIA")) {
+        if(fixtures[0])locations.emplace_back(
+            std::string(fixtures)+"/"+id+"-scene.png");
+    }
+#endif
     for(const char *format : {
         "/app0/assets/niak-installed/%s-scene.png",
         "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.png",
@@ -229,8 +248,11 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
     }) {
         char path[200]{};
         std::snprintf(path,sizeof(path),format,id);
+        locations.emplace_back(path);
+    }
+    for(const std::string &path:locations) {
         png.clear();
-        if(!read_local_png(path,png) || png.size()<24)continue;
+        if(!read_local_png(path.c_str(),png) || png.size()<24)continue;
         static const unsigned char signature[8]={137,80,78,71,13,10,26,10};
         if(std::memcmp(png.data(),signature,8))continue;
         const unsigned source_w=size32(png.data()+16);

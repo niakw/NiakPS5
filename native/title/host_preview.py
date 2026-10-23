@@ -137,6 +137,36 @@ def make_case_art_fixtures(kit):
                          font=font(29))
         spine.save(templates/f"{family}-spine.png",optimize=True)
 
+    # Exercise true full-bleed composition with distinct LANDSCAPE screenshots
+    # and genuine alpha logos. Real PS5 loads owner-installed icon0/pic1.
+    media=kit/"assets"/"niak-preview-media"
+    media.mkdir(parents=True,exist_ok=True)
+    for game,name,hue in (
+        ("PPSA06186","HUMANKIND",(18,110,130)),
+        ("PPSA04716","ANNO 1800",(157,113,65)),
+        ("CUSA00053","SHADOWFALL",(74,105,154)),
+        ("PPSA99386","NIAK",(33,112,164)),
+    ):
+        scene=gradient(1024,576,(14,28,55),hue)
+        draw=ImageDraw.Draw(scene)
+        draw.polygon([(0,540),(180,290),(420,420),(690,120),(1024,390),
+                      (1024,576),(0,576)],fill=(15,42,83))
+        draw.ellipse((650,130,885,365),outline=(204,231,219),width=19)
+        draw.text((36,40),name,fill=(248,248,248),font=font(55))
+        scene.save(media/f"{game}-scene.png",optimize=True)
+        icon=gradient(512,512,(20,47,93),hue)
+        draw=ImageDraw.Draw(icon)
+        draw.rounded_rectangle((50,80,462,448),radius=30,
+                               outline=(234,244,252),width=9)
+        draw.text((40,213),name[:12],font=font(42),fill=(247,253,255))
+        icon.save(media/f"{game}-icon.png",optimize=True)
+        logo=Image.new("RGBA",(512,140),(0,0,0,0))
+        draw=ImageDraw.Draw(logo)
+        draw.text((25,28),name,font=font(49),
+                  fill=(245,250,255,255),stroke_width=2,
+                  stroke_fill=(12,30,52,240))
+        logo.save(output/f"{game}-logo.png",optimize=True)
+
 def one(path,old,new):
     data=path.read_text("utf8")
     if data.count(old)!=1:raise RuntimeError(f"Preview mismatch: {path}: {old[:80]}")

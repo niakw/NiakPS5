@@ -203,6 +203,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_load_game_background",stage)
         self.assertIn("case_scene",source)
         self.assertIn("sce_sys/pic1.png",(ROOT/"title"/"game_icons.cpp").read_text())
+        self.assertIn('NIAK_CASE_PREVIEW_MEDIA',(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_socket_guard(sock)",(ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_connect_bounded(sock,", (ROOT/"title"/"game_icons.cpp").read_text())
         self.assertIn("niak_connect_bounded(fd,", (ROOT.parent/"native"/"shadowmount_api.c").read_text())
