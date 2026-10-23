@@ -56,6 +56,36 @@ class AutoloadTests(unittest.TestCase):
                         "checksum":hashlib.sha256(payload).hexdigest()}))
     def tearDown(self):
         self.tmp.cleanup()
+    def test_private_zip_templates_install_without_autoload_rewrite(self):
+        import struct
+        from zipfile import ZipFile
+        from unittest.mock import patch
+        overlay=Path(self.tmp.name)/"owner-templates.zip"
+        sizes={"ps4-front.png":(949,136),"ps4-back.png":(647,362),
+               "ps4-spine.png":(72,800),"ps5-front.png":(1487,209),
+               "ps5-back.png":(1000,411),"ps5-spine.png":(85,1000)}
+        with ZipFile(overlay,"w") as archive:
+            archive.writestr("HOW_TO_INSTALL.txt","Private assets")
+            for name,(w,h) in sizes.items():
+                header=b"\x89PNG\r\n\x1a\n"+b"\0"*8+struct.pack(">II",w,h)+b"\0"*14
+                archive.writestr("PPSA99386/assets/niak-templates/"+name,header)
+        imgs=ftpmod.load_private_template_zip(overlay)
+        self.assertEqual(set(imgs),set(sizes))
+        original=b"ftpsrv.elf\nniakps5.elf\n"
+        f=FakeFTP({ftpmod.AUTOLOAD:original})
+        with patch.object(ftpmod,"fetch_retail_covers",return_value=0), \
+             patch.object(ftpmod,"fetch_alternative_covers",return_value=0):
+            ftpmod.install(f,self.root,False,preserve_autoload=True,
+                           case_templates=overlay)
+        self.assertEqual(f.files[ftpmod.AUTOLOAD],original)
+        for name in sizes:
+            remote=f"/data/homebrew/PPSA99386/assets/niak-templates/{name}"
+            self.assertEqual(f.files[remote],imgs[name])
+        with ZipFile(overlay,"a") as archive:
+            archive.writestr("PPSA99386/../../untrusted.png",b"bad")
+        with self.assertRaises(ValueError):
+            ftpmod.load_private_template_zip(overlay)
+
     def test_user_supplied_case_templates_are_private_and_checked(self):
         import struct
         import io
