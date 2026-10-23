@@ -15,7 +15,8 @@ KINDS={"Box - Front":"front","Box - Back":"back","Box - Spine":"spine",
        "Screenshot - Gameplay":"screenshot",
        "Screenshot - Game Title":"screenshot"}
 PLATFORMS={"Sony Playstation 4":"ps4","Sony Playstation 5":"ps5",
-           "Sony PlayStation 4":"ps4","Sony PlayStation 5":"ps5"}
+           "Sony PlayStation 4":"ps4","Sony PlayStation 5":"ps5",
+           "Windows":"windows","Windows PC":"windows"}
 REGIONS={"france":"fr","europe":"eu","world":"world","united kingdom":"uk",
          "north america":"us","united states":"us","canada":"ca","germany":"de",
          "japan":"jp","spain":"es","italy":"it","portugal":"pt"}
@@ -99,14 +100,19 @@ def parse(xml,installed):
             exact_matches.setdefault((platform,variants[0]),set()).add(gid)
             for key in variants[1:]:
                 edition_matches.setdefault((platform,key),set()).add(gid)
-    # Only collect cover metadata for plausible exact/platform/edition
-    # matches, not the millions of unrelated images in the global archive.
+    # Collect tightly matched PS5/PS4/Windows editions separately. A PC
+    # screenshot can enrich a PS5 back, but cannot replace a PS5 box front.
+    def related(key,platform):
+        names=safe_titles(key[1])
+        matches=set()
+        for name in names:
+            matches.update(exact_matches.get((platform,name),()))
+            matches.update(edition_matches.get((platform,name),()))
+        return matches
     wanted=set()
     for key in installed:
-        wanted.update(exact_matches.get(key,()))
-        wanted.update(edition_matches.get(key,()))
-        for base in safe_titles(key[1])[1:]:
-            wanted.update(exact_matches.get((key[0],base),()))
+        for platform in (key[0],"ps4","ps5","windows"):
+            wanted.update(related(key,platform))
     if wanted:
         xml.seek(0)  # ZipExtFile and BytesIO support rewinding.
         iterator=ET.iterparse(xml,events=("start","end"))
@@ -141,30 +147,42 @@ def parse(xml,installed):
         if len(candidates)!=1:continue
         gid=next(iter(candidates))
         info=games[gid];images=media.get(gid,{})
+        # Secondary platform must be UNIQUE for this name. Ignore ambiguous
+        # alternatives, never mix scans from unrelated editions.
+        ps4_ids=related(key,"ps4") if key[0]=="ps5" else set()
+        pc_ids=related(key,"windows")
+        ps4=media.get(next(iter(ps4_ids)),{}) if len(ps4_ids)==1 else {}
+        pc=media.get(next(iter(pc_ids)),{}) if len(pc_ids)==1 else {}
         faces=[face_options(images.get(kind,[])) for kind in
                ("front","back","spine","logo")]
-        # A genuine scene and gameplay captures have their own slots. Use
-        # unique source filenames: never promote the same hero to two images.
-        hero=face_options(images.get("hero",[]))
-        used={part.split(":",1)[1] for part in hero.split(";")
-              if ":" in part}
+        # PS4 box BACK is explicitly allowed as last-resort companion art
+        # when the same game has no PS5 back; original PS5 FRONT remains.
+        if faces[1]=="-" and ps4.get("back"):
+            faces[1]=face_options(ps4["back"])
+        if faces[3]=="-" and ps4.get("logo"):
+            faces[3]=face_options(ps4["logo"])
+        if faces[3]=="-" and pc.get("logo"):
+            faces[3]=face_options(pc["logo"])
+        hero_entries=images.get("hero",[]) or ps4.get("hero",[]) or pc.get("hero",[])
+        hero=face_options(hero_entries)
+        used={part.split(":",1)[1] for part in hero.split(";") if ":" in part}
         shots=[]
-        # Screen metadata needs >2 candidates before de-duplication:
-        # the first may also be used as hero. face_options() limits each
-        # region to two, which could wrongly eliminate screenshot two.
-        shots_by_region=images.get("screenshot",[])
-        for area in ORDER:
-            for where,filename in shots_by_region:
-                if where!=area:continue
-                candidate=area+":"+filename
-                if filename in used:continue
-                used.add(filename)
-                shots.append(candidate)
+        # Prefer platform gameplay, then PS4, then the corresponding PC
+        # version. Image filenames are globally deduplicated.
+        for group in (images,ps4,pc):
+            for area in ORDER:
+                for where,filename in group.get("screenshot",[]):
+                    if where!=area or filename in used:continue
+                    used.add(filename)
+                    shots.append(area+":"+filename)
+                    if len(shots)==2:break
                 if len(shots)==2:break
             if len(shots)==2:break
         shot1,shot2=(shots+["-","-"])[:2]
+        overview=info[2] or (
+            games[next(iter(ps4_ids))][2] if len(ps4_ids)==1 else "") or (
+            games[next(iter(pc_ids))][2] if len(pc_ids)==1 else "") or "-"
         for title in sorted(set(ids)):
-            overview=info[2] or "-"
             rows.append((title,overview,*faces,hero,shot1,shot2,gid))
     rows.sort()
     return rows

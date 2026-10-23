@@ -110,6 +110,40 @@ class TestRetailCases(unittest.TestCase):
   self.assertNotIn("000000000002",rows[0][7]+rows[0][8])
   self.assertEqual(rows[0][-1],"600")
 
+ def test_ps5_front_ps4_back_and_pc_fanart_without_repeating_images(self):
+  entries={("ps5","a plague tale innocence"):["PPSA02387"],
+           ("ps5","anno 1800 console edition"):["PPSA04716"]}
+  xml=b'''<LaunchBox>
+  <Game><DatabaseID>427261</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>A Plague Tale: Innocence</Name><Notes>PS5 synopsis.</Notes></Game>
+  <Game><DatabaseID>123435</DatabaseID><Platform>Sony Playstation 4</Platform>
+    <Name>A Plague Tale: Innocence</Name></Game>
+  <Game><DatabaseID>440530</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>Anno 1800 Console Edition</Name></Game>
+  <Game><DatabaseID>115148</DatabaseID><Platform>Windows</Platform>
+    <Name>Anno 1800</Name><Notes>PC description.</Notes></Game>
+  <GameImage><DatabaseID>427261</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000427261.jpg</FileName></GameImage>
+  <GameImage><DatabaseID>123435</DatabaseID><Type>Box - Back</Type>
+    <FileName>00000000-0000-0000-0000-000000123435.jpg</FileName></GameImage>
+  <GameImage><DatabaseID>440530</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000440530.jpg</FileName></GameImage>
+  <GameImage><DatabaseID>115148</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000115148.jpg</FileName></GameImage>
+  <GameImage><DatabaseID>115148</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000115149.jpg</FileName></GameImage>
+  </LaunchBox>'''
+  rows=mod.parse(io.BytesIO(xml),entries)
+  innocence=next(row for row in rows if row[0]=="PPSA02387")
+  anno=next(row for row in rows if row[0]=="PPSA04716")
+  self.assertIn("427261",innocence[2])
+  self.assertIn("123435",innocence[3])
+  self.assertIn("440530",anno[2])
+  self.assertIn("115148",anno[6])
+  self.assertIn("115149",anno[7])
+  self.assertEqual(anno[8],"-")
+  self.assertIn("PC description",anno[1])
+
  def test_ambiguous_edition_is_never_assigned_at_random(self):
   source={("ps5","my game"):["PPSA00003"]}
   xml=b'''<LaunchBox>
