@@ -85,6 +85,31 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(rows[0][4],"-")
   self.assertEqual(rows[0][-1],"51")
 
+ def test_fanart_and_two_distinct_gameplay_screenshots(self):
+  identifiers={("ps5","the forest"):["PPSA55667"]}
+  xml=b'''<LaunchBox>
+  <Game><DatabaseID>600</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>The Forest</Name><Notes>Explore.</Notes></Game>
+  <GameImage><DatabaseID>600</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000001.png</FileName></GameImage>
+  <GameImage><DatabaseID>600</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000002.png</FileName></GameImage>
+  <GameImage><DatabaseID>600</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000002.png</FileName></GameImage>
+  <GameImage><DatabaseID>600</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000003.png</FileName></GameImage>
+  <GameImage><DatabaseID>600</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000004.png</FileName></GameImage>
+  </LaunchBox>'''
+  rows=mod.parse(io.BytesIO(xml),identifiers)
+  self.assertEqual(len(rows),1)
+  self.assertEqual(len(rows[0]),10)
+  self.assertIn("000000000002",rows[0][6])
+  self.assertIn("000000000003",rows[0][7])
+  self.assertIn("000000000004",rows[0][8])
+  self.assertNotIn("000000000002",rows[0][7]+rows[0][8])
+  self.assertEqual(rows[0][-1],"600")
+
  def test_ambiguous_edition_is_never_assigned_at_random(self):
   source={("ps5","my game"):["PPSA00003"]}
   xml=b'''<LaunchBox>
