@@ -283,7 +283,7 @@ def patch(kit):
                 buffer[count]=0;
                 switch(niak_last_launch_result(buffer)) {
                 case NIAK_LAUNCH_LOG_SYSTEM_OK:
-                    return "SystemService : lancement accepté (journal)";
+                    return "SystemService : appel accepté (lancement à vérifier)";
                 case NIAK_LAUNCH_LOG_LNC_OK:
                     return "LncUtil : lancement accepté (journal)";
                 case NIAK_LAUNCH_LOG_LNC_FAILED:
@@ -306,7 +306,7 @@ def patch(kit):
                  disabled ? "Désactivé" :
                  live_broker ? "Payload actif (service local joignable)" :
                  enabled ? "Marqueur présent, mais service indisponible" :
-                           "Service local non joignable (PING échoué)",
+                           niak_launch_broker_diagnostic(),
                  500, 882, 20, kWhite.with_alpha(0.78f));
         ui::text(list, fonts.regular,
                  live_broker && std::strcmp(journal_status,"Journal inaccessible")==0
