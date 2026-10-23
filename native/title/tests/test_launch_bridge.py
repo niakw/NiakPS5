@@ -97,6 +97,8 @@ class LaunchBridgeTests(unittest.TestCase):
             shutil.copyfile(ROOT/"launch_bridge.hpp",work/"niak"/"launch_bridge.hpp")
             shutil.copyfile(ROOT/"socket_guard.h",work/"niak"/"socket_guard.h")
             shutil.copyfile(ROOT/"loopback_connect.h",work/"niak"/"loopback_connect.h")
+            shutil.copyfile(ROOT/"broker_snapshot.h",work/"niak"/"broker_snapshot.h")
+            shutil.copyfile(ROOT.parent/"catalog.h",work/"niak"/"catalog.h")
             (work/"server.cpp").write_text(SERVER,encoding="utf8")
             binary=work/"launch-bridge-test"
             subprocess.run([
