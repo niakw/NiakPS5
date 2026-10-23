@@ -1,6 +1,15 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
-#### Vérification du lancement natif
+#### Historique et présence du courtier
+
+Le journal PLDmgr distingue désormais un lancement accepté par SystemService
+ou LncUtil et un échec des deux chemins. Un battement de vie horodaté
+toutes les deux minutes permet au diagnostic FTP `--status` de signaler un
+journal récent ou ancien. Un battement récent n'est **pas une preuve directe**
+qu'un processus existe encore : seul le PING/STATUS local de l'application
+confirme la présence du courtier en direct.
+
+### Vérification du lancement natif
 
 Le repli `sceLncUtilLaunchApp` n'annonce plus un succès lorsque l'API
 renvoie `0`, car ce résultat ne désigne aucun identifiant de processus

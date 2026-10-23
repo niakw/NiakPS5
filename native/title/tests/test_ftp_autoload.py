@@ -578,6 +578,32 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("absent de la copie reçue",output.getvalue())
         self.assertEqual(ftp.files,{location:missing})
 
+    def test_log_separates_lnc_success_from_stale_process(self):
+        last="NiakPS5 optional autostart start rc=0x00000000\\n"
+        sys="sceSystemServiceLaunchApp rc=0x80940005\\n"
+        accepted="sceLncUtilLaunchApp accepted app id rc=0x0000ABCD\\n"
+        refused="sceLncUtilLaunchApp refused rc=0x80940031\\n"
+        from_lnc=last+sys+accepted
+        observed,heartbeat=ftpmod.interpret_broker_log(from_lnc,clock=1000)
+        self.assertIn("succès HISTORIQUE (LncUtil)",observed)
+        self.assertIn("aucun horodatage",heartbeat)
+        self.assertIn("échec historique",ftpmod.interpret_broker_log(
+            last+sys+refused,clock=1000)[0])
+        self.assertIn("échec historique",ftpmod.interpret_broker_log(
+            last+sys,clock=1000)[0])
+        recent=last+sys+accepted+"NiakPS5 broker heartbeat epoch=900 pid=12345\\n"
+        observed,heartbeat=ftpmod.interpret_broker_log(recent,clock=1000)
+        self.assertIn("succès HISTORIQUE (LncUtil)",observed)
+        self.assertIn("activité récente",heartbeat)
+        self.assertIn("PID 12345",heartbeat)
+        self.assertIn("dernier battement ancien",
+                      ftpmod.interpret_broker_log(recent,clock=1900)[1])
+        after=last+sys+accepted+sys+refused
+        self.assertIn("échec historique",ftpmod.interpret_broker_log(
+            after,clock=1000)[0])
+        self.assertEqual("non confirmée",
+                         ftpmod.interpret_broker_log("arbitrary text")[0])
+
     def test_read_only_status_never_changes_console(self):
         from contextlib import redirect_stdout
         from io import StringIO

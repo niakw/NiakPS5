@@ -683,6 +683,50 @@ def diagnose_appdb_registration(ftp):
         if db is not None:db.close()
 
 
+def interpret_broker_log(report, clock=None):
+    """History only. Does not assert a live process without a PING response."""
+    import time
+    if clock is None:clock=int(time.time())
+    section=report[report.rfind("NiakPS5 optional autostart start"):]
+    if "NiakPS5 optional autostart start" not in section:
+        return ("non confirmée","aucun horodatage exploitable")
+    records=section.splitlines()
+    syscalls=[i for i,line in enumerate(records)
+              if line.startswith("sceSystemServiceLaunchApp rc=")]
+    if not syscalls:
+        launch="non confirmée"
+    else:
+        last=syscalls[-1]
+        syscall=records[last]
+        subsequent=records[last+1:]
+        if syscall.endswith("rc=0x00000000"):
+            launch="succès HISTORIQUE (SystemService)"
+        elif any(x.startswith("sceLncUtilLaunchApp accepted app id rc=")
+                 for x in subsequent):
+            launch="succès HISTORIQUE (LncUtil)"
+        elif any(x.startswith("sceLncUtilLaunchApp refused rc=") or
+                 x.startswith("sceLncUtilLaunchApp returned invalid app id rc=")
+                 for x in subsequent):
+            launch="échec historique (SystemService et LncUtil)"
+        else:
+            launch="échec historique (SystemService, repli non confirmé)"
+    import re
+    events=[(int(a),int(b)) for a,b in re.findall(
+        r"(?m)^NiakPS5 broker heartbeat epoch=(\\d+) pid=(\\d+)\\s*$",section)]
+    if not events:
+        heartbeat="aucun horodatage exploitable"
+    else:
+        stamp,pid=events[-1]
+        age=clock-stamp
+        if -60<=age<=300:
+            heartbeat=f"activité récente dans le journal, PID {pid} (pas une preuve de processus vivant)"
+        elif age>300:
+            heartbeat=f"dernier battement ancien, PID {pid}"
+        else:
+            heartbeat="horloge PS5/Mac incohérente ; état inconnu"
+    return launch,heartbeat
+
+
 def diagnose(ftp,local_directory=None):
     """Read-only PS5 deployment report. Never edit system/app databases."""
     app=f"/data/homebrew/{TITLE}"
@@ -776,16 +820,12 @@ def diagnose(ftp,local_directory=None):
     try: log=_bounded_retrieve(ftp,"/data/niakps5-autostart.log")
     except (OSError,ValueError): log=None
     if log:
-        report=log.decode("utf8","replace")
-        last=report.rfind("NiakPS5 optional autostart start")
-        section=report[last:] if last>=0 else ""
-        launches=[line.strip() for line in section.splitlines()
-                  if line.startswith("sceSystemServiceLaunchApp rc=")]
-        print("Dernière exécution PLDmgr :",
-              "succès HISTORIQUE" if launches and launches[-1].endswith("rc=0x00000000")
-              else "échec historique" if launches else "non confirmée")
+        history,heartbeat=interpret_broker_log(log.decode("utf8","replace"))
+        print("Dernière exécution PLDmgr :",history)
+        print("Courtier ELF (journal) :",heartbeat)
     else:
         print("Dernière exécution PLDmgr : journal absent ou non lisible")
+        print("Courtier ELF (journal) : activité inconnue")
     print("Un succès historique ne prouve pas le démarrage automatique actuel.")
 
 

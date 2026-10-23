@@ -266,6 +266,14 @@ static void serve_launch_requests(void) {
         const uint64_t now=niak_monotonic_ms();
         if(now>=next_heartbeat_ms) {
             report("NiakPS5 broker heartbeat PID",(int)getpid());
+            // Timestamp each heartbeat so offline FTP diagnostics can tell
+            // an old journal from evidence of recent service activity.
+            FILE *heartbeat=fopen(NIAK_LOG,"a");
+            if(heartbeat) {
+                fprintf(heartbeat,"NiakPS5 broker heartbeat epoch=%lld pid=%u\n",
+                        (long long)time(NULL),(unsigned)getpid());
+                fclose(heartbeat);
+            }
             next_heartbeat_ms=now+120000u;
         }
         // The title may be registered by ShadowMountPlus AFTER the 36-second
