@@ -269,16 +269,21 @@ def patch(kit):
                         : "Dernier lancement en erreur (journal)";
             };
             std::snprintf(journal_status,sizeof(journal_status),"%s",read_status());
-            live_broker=niak_launch_broker_ready();
         }
+        // The liveness function caches PING for one second; this runs each
+        // Settings repaint so a newly started payload is shown promptly.
+        live_broker=niak_launch_broker_ready();
         ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
         ui::text(list, fonts.regular,
                  disabled ? "Désactivé" :
                  live_broker ? "Payload actif (service local joignable)" :
-                 enabled ? "Configuré (exécution non confirmée)" :
-                           "Non confirmé : fichiers inaccessibles ou absents",
+                 enabled ? "Marqueur présent, mais service indisponible" :
+                           "Service absent : vérifier PLDmgr/autoload.txt",
                  500, 882, 20, kWhite.with_alpha(0.78f));
-        ui::text(list, fonts.regular, journal_status, 500, 910, 18,
+        ui::text(list, fonts.regular,
+                 live_broker && std::strcmp(journal_status,"Journal inaccessible")==0
+                   ? "Service actif ; journal inaccessible depuis le sandbox"
+                   : journal_status, 500, 910, 18,
                  kWhite.with_alpha(0.66f));
         ui::text(list, fonts.regular,
                  live_broker ? "Service Jouer : actif (PLDmgr)" :
