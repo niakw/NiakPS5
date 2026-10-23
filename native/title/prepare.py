@@ -788,15 +788,15 @@ void Catalog::reload()
             if(std::strcmp(game.id,"PPSA99386")==0)
                 item.application=true; // NiakPS5 is always an app.
             else if (std::strcmp(game.title,"Mes vidéos")==0 ||
-                     std::strcmp(game.title,"My Videos")==0)
-                item.application=true; // Sony's video library is media, never a game.
-            else if (game.application_category==2)
-                item.application=true;
-            else if (game.application_category==1)
-                item.application=false;
-            else if (known && meta.category=="Application")
-                item.application=true;
-            else if (known && meta.category=="Jeu")
+                     std::strcmp(game.title,"My Videos")==0 ||
+                     std::strcmp(game.title,"ShadowMount")==0 ||
+                     std::strcmp(game.title,"ShadowMountPlus")==0)
+                item.application=true; // Explicitly known console utility/media.
+            else if (game.application_category==2 ||
+                     (known && meta.category=="Application"))
+                item.application=true; // Verified inventory overrides install origin.
+            else if (game.application_category==1 ||
+                     (known && meta.category=="Jeu"))
                 item.application=false;
             else
                 item.application=game.is_homebrew!=0;

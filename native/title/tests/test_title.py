@@ -126,6 +126,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("Color::rgb(0x0c1727)",renderer)
         self.assertIn("Color::rgb(0x12243b)",renderer)
 
+    def test_installed_apps_are_not_forced_into_games_by_homebrew_origin(self):
+        staging=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn('std::strcmp(game.title,"ShadowMountPlus")==0',staging)
+        self.assertIn('(known && meta.category=="Application")',staging)
+        self.assertIn('game.application_category==2 ||',staging)
+        self.assertIn('game.application_category==1 ||',staging)
+
     def test_broker_catalogue_fallback_without_privileged_gui(self):
         staging=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn('"broker_catalog.cpp","broker_catalog.hpp"',staging)
