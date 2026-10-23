@@ -317,6 +317,13 @@ def _decode_retail_image(raw,side):
             if side=="logo":
                 image=source.convert("RGBA")
                 image.thumbnail((850,300),Image.Resampling.LANCZOS)
+            elif side in ("hero","shot1","shot2"):
+                aspect=source.width/source.height
+                if source.width<320 or source.height<180 or not 1.15<=aspect<=3.1:
+                    raise ValueError("Not a landscape game artwork/screenshot")
+                image=source.convert("RGB")
+                image.thumbnail((960,640),Image.Resampling.LANCZOS)
+                image=image.quantize(colors=192,method=Image.Quantize.MEDIANCUT)
             else:
                 if source.height<200 or source.width/source.height>(0.42 if side=="spine" else 1.4):
                     raise ValueError("Not a retail box scan")
@@ -371,8 +378,13 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
         ident=columns[0]
         indexed_matches+=1
         if indexed_matches>maximum_titles:break
-        # Metadata fields: ID, description, front, back, spine, logo, sourceID.
-        for side,field in (("front",2),("back",3),("spine",4),("logo",5)):
+        # v2 index: original four physical media types plus hero and two
+        # genuine screenshots. Keep older 7-column indexes compatible.
+        slots=[("front",2),("back",3),("spine",4),("logo",5)]
+        if len(columns)>=10:
+            slots += [("hero",6),("shot1",7),("shot2",8)]
+        used_images=set()
+        for side,field in slots:
             destination=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
             if posixpath.basename(destination) in cached and not force:
                 continue
@@ -384,6 +396,8 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
                 name=parts[1]
                 if not re.fullmatch(r"(?:r2_)?[0-9A-Fa-f-]{36}\.(?:jpe?g|png)",name):
                     continue
+                if name in used_images:
+                    continue  # Same source may not occupy two back slots.
                 attempted+=1
                 url="https://images.launchbox-app.com/"+name
                 try:
@@ -414,6 +428,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
                     failed_ftp+=1
                     continue
                 cached.add(posixpath.basename(destination))
+                used_images.add(name)
                 shipped+=1
                 break
     print(f"LaunchBox: {len(installed)} titres installés visibles par FTP, "
