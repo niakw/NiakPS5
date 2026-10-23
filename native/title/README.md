@@ -1,6 +1,25 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
-#### Installation des six gabarits privés sans fusion manuelle
+#### Aperçu avec les vrais éléments PS4/PS5 (privé)
+
+Les aperçus du workflow GitHub restent des **tests QA** et affichent volontairement
+`QA HEADER` / `QA FOOTER`. Ils ne montrent **pas** les six gabarits
+réels fournis dans cette conversation : ceux-ci ne sont pas présents sur
+les runners GitHub publics. Un build vert n'implique pas un rendu fidèle.
+
+Après compilation du dépôt sur un hôte Linux équipé de Mesa/OpenGL :
+
+```bash
+python3 native/title/private_preview.py \
+  --templates-zip /chemin/NiakPS5_templates_prives_PS4_PS5.zip
+```
+
+Les captures natives utilisant les véritables bandeaux, dos et tranches
+PS4/PS5 sont écrites uniquement dans `build/niak-preview-private/`.
+Le ZIP original n'est ni modifié ni envoyé à GitHub. Les sources de jaquettes
+officielles restent prioritaires **face par face** ; les blocs PS4/PS5 sont
+utilisés uniquement pour les faces manquantes.
+## Installation des six gabarits privés sans fusion manuelle
 
 Le ZIP `NiakPS5_templates_prives_PS4_PS5.zip` contient les six PNG fournis
 par l'utilisateur, conservés hors du dépôt GitHub public. Depuis le Mac,
