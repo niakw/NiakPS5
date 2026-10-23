@@ -4,6 +4,7 @@
 #include "niak/case_renderer.hpp"
 #include "demo/catalog.hpp"
 #include "niak/case_fallback_layout.hpp"
+#include "niak/case_back_media.hpp"
 #include "ui/fonts.hpp"
 #include <algorithm>
 #include <cmath>
@@ -183,21 +184,35 @@ void outer_face(DrawList &list,const Camera &camera,
                         near_frontal?12:18,near_frontal?3:5);
             }
         } else {
-            // Back: fixed lower PS4/PS5 strip is literally bottom anchored.
-            // Everything above belongs to the current game's editorial art.
-            block(0.f,0.f,1.f,layout.back_footer,Color::rgb(0x12243b));
+            // FULLY OPAQUE printable back under every image, text block and
+            // footer. Plastic is visible only on the external 3D case edges.
+            block(0.f,0.f,1.f,1.f,Color::rgb(0x12243b));
             const float gutter=0.018f;
-            const auto source=item.case_scene?item.case_scene:item.cover;
-            const float source_aspect=item.case_scene?
-                item.case_scene_aspect:1.0f;
-            // Two wide, edge-to-edge screens below the description.
-            // A single source is cropped differently instead of stretched.
-            panel(source,source_aspect,gutter,layout.back_art_top,
-                  0.5f-gutter*0.5f,layout.back_art_bottom);
-            panel(item.cover?item.cover:source,
-                  item.cover?1.0f:source_aspect,
-                  0.5f+gutter*0.5f,layout.back_art_top,
-                  1.f-gutter,layout.back_art_bottom);
+            // The gallery uses real gameplay art first, then pic1, fanart,
+            // lastly the installed icon. A source can occupy ONE panel only.
+            const auto chosen=niak_select_back_media({
+                {item.case_shot1,item.case_shot1_aspect},
+                {item.case_shot2,item.case_shot2_aspect},
+                {item.case_scene,item.case_scene_aspect},
+                {item.case_hero,item.case_hero_aspect},
+                {item.cover,1.f}
+            });
+            if(chosen.first.texture) {
+                if(chosen.second.texture) {
+                    panel(chosen.first.texture,chosen.first.aspect,
+                          gutter,layout.back_art_top,
+                          0.5f-gutter*0.5f,layout.back_art_bottom);
+                    panel(chosen.second.texture,chosen.second.aspect,
+                          0.5f+gutter*0.5f,layout.back_art_top,
+                          1.f-gutter,layout.back_art_bottom);
+                } else {
+                    // With ONE source, use one full-width print: NO duplicate.
+                    // With ZERO sources the opaque background stays visible.
+                    panel(chosen.first.texture,chosen.first.aspect,
+                          gutter,layout.back_art_top,
+                          1.f-gutter,layout.back_art_bottom);
+                }
+            }
             // Clear an actual print gap between the image mosaic and footer.
             block(0.f,layout.back_art_bottom,1.f,layout.back_footer,
                   Color::rgb(0x12243b));
