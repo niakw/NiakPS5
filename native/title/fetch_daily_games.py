@@ -101,6 +101,11 @@ def build(folder,now=None,limit=MAX_WALLS):
     manifest={"source":"PlayStation 5 media, sharpemu public title catalogue",
               "generated":today.isoformat(),"games":records}
     (folder/"index.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2),"utf8")
+    # The native PS5 app uses a compact local text manifest for provenance;
+    # no live JSON parsing or network request on the rendering thread.
+    (folder/"labels.tsv").write_text(
+        "".join(f"{r['file']}\\t{r['game'].replace(chr(9),' ').replace(chr(10),' ')[:110]}\\t{r['date']}\\n"
+                for r in records),"utf8")
     print("PS5 backgrounds",len(records),"optimized PNG files",
           sum(x["bytes"] for x in records),"bytes")
     return len(records)
@@ -116,3 +121,4 @@ if __name__=="__main__":
         print("PlayStation images unavailable; preserve smoke:",error,file=sys.stderr)
         args.output.mkdir(parents=True,exist_ok=True)
         (args.output/"index.json").write_text('{"source":"offline","games":[]}')
+        (args.output/"labels.tsv").write_text("")

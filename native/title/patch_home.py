@@ -68,7 +68,11 @@ def patch(kit):
             draw_shelves(list);
         }
         else
-            draw_aux_page(list);""")
+            draw_aux_page(list);
+        // Attribution under the footer glyphs, not inside game metadata.
+        ui::text(list, context_.fonts.regular, niak_daily_backdrop_caption(),
+                 1825, 1061, 15, kWhite.with_alpha(0.52f),
+                 gfx::Align::right);""")
     text = once(text, "    void update_shelves(const InputFrame &input, app::Feedback &feedback)\n",
     """    void update_tabs(const InputFrame &input, app::Feedback &feedback)
     {
@@ -307,17 +311,20 @@ def patch(kit):
         std::snprintf(service_diagnostic,sizeof(service_diagnostic),"%s%s",
                       enabled ? "Marqueur présent ; " : "",
                       niak_launch_broker_diagnostic());
-        ui::text(list, fonts.semibold, "Démarrage automatique :", 110, 882, 22, kWhite);
-        ui::text(list, fonts.regular,
+        // Diagnostics belong in the RIGHT status rail, never across the
+        // ten clickable settings rows on the left.
+        ui::text(list, fonts.semibold, "Démarrage automatique",
+                 1430, 752, 20, kWhite);
+        ui::paragraph(list, fonts.regular,
                  disabled ? "Désactivé" :
                  live_broker ? "Payload actif (service local joignable)" :
                                service_diagnostic,
-                 500, 882, 20, kWhite.with_alpha(0.78f));
-        ui::text(list, fonts.regular,
+                 1430, 786, 17, 406, 23, kWhite.with_alpha(0.78f), 3);
+        ui::paragraph(list, fonts.regular,
                  live_broker && std::strcmp(journal_status,"Journal inaccessible")==0
-                   ? "Service actif ; journal inaccessible depuis le sandbox"
-                   : journal_status, 500, 910, 18,
-                 kWhite.with_alpha(0.66f));
+                   ? "Service actif ; journal inaccessible depuis la sandbox"
+                   : journal_status, 1430, 871, 16, 406, 21,
+                 kWhite.with_alpha(0.66f), 2);
         char broker_identity[96];
         if(live_broker && broker_pid)
             std::snprintf(broker_identity,sizeof(broker_identity),
@@ -326,8 +333,8 @@ def patch(kit):
             std::snprintf(broker_identity,sizeof(broker_identity),"%s",
                 live_broker ? "Service Jouer : actif (PID non disponible)" :
                               "Service Jouer : absent ou inaccessible");
-        ui::text(list, fonts.regular, broker_identity,
-                 500, 939, 18,kWhite.with_alpha(0.75f));
+        ui::paragraph(list, fonts.regular, broker_identity,
+                 1430, 926, 16, 406, 21,kWhite.with_alpha(0.75f),2);
         ui::text(list, fonts.regular, niak::revision, 110, 950, 20,
                  kWhite.with_alpha(0.72f));
         ui::paragraph(list, fonts.regular,

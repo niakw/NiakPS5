@@ -164,6 +164,15 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_daily_backdrop", native)
         self.assertIn("std::localtime", native)
 
+    def test_wallpaper_attribution_and_right_rail(self):
+        ui=(ROOT/"title"/"patch_home.py").read_text()
+        source=(ROOT/"title"/"daily_backdrop.cpp").read_text()
+        self.assertIn("niak_daily_backdrop_caption()",ui)
+        self.assertIn("1430, 752",ui)
+        self.assertIn("1430, 926",ui)
+        self.assertIn("labels.tsv",source)
+        self.assertIn("Fond du jour",source)
+
     def test_wallpaper_readability_contract(self):
         source=(ROOT / "title" / "patch_home.py").read_text()
         preview=(ROOT / "title" / "validate_preview.py").read_text()

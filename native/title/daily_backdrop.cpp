@@ -21,6 +21,7 @@
 namespace {
 constexpr std::size_t MAX_BYTES=7u*1024u*1024u;
 std::array<std::uint32_t,14> images{};
+std::array<std::string,14> wallpaper_labels{};
 int count=0;
 int override_offset=0;
 int override_day=-1;
@@ -196,12 +197,36 @@ int day_now(char (&date)[11]) {
 void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *directory) {
     Runtime &runtime=state();runtime.renderer=&renderer;
     count=0;
+    std::array<std::string,14> by_file{};
+    char manifest[256];
+    if(std::snprintf(manifest,sizeof(manifest),"%s/labels.tsv",directory)>0) {
+        FILE *labels=std::fopen(manifest,"rb");
+        if(labels) {
+            char line[320];
+            while(std::fgets(line,sizeof(line),labels)) {
+                int idx=-1;char title[140]{},date[24]{};
+                if(std::sscanf(line,"wall-%02d.png\\t%139[^\\t]\\t%23[^\\r\\n]",
+                               &idx,title,date)==3 &&
+                   idx>=0 && idx<14 && std::strlen(date)==10 &&
+                   date[4]=='-' && date[7]=='-') {
+                    by_file[std::size_t(idx)]=std::string("Fond · ")+title+
+                        " · "+std::string(date+8,2)+"/"+
+                        std::string(date+5,2)+"/"+std::string(date,4);
+                }
+            }
+            std::fclose(labels);
+        }
+    }
     for(int i=0;i<14;++i) {
         char path[256];std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
         std::vector<std::uint8_t> pixels;
         if(!load_packaged(path,pixels))continue;
         const auto texture=renderer.create_texture(1280,720,pixels.data());
-        if(texture)images[std::size_t(count++)]=texture;
+        if(texture) {
+            images[std::size_t(count)]=texture;
+            wallpaper_labels[std::size_t(count)]=std::move(by_file[std::size_t(i)]);
+            ++count;
+        }
     }
     hui::sys::log("[NiakPS5] packaged PS5 wallpapers=%d, online refresh is optional",count);
 }
@@ -243,6 +268,18 @@ std::uint32_t niak_daily_backdrop() {
     return count?images[std::size_t(((day+override_offset)%count+count)%count)]:0;
 }
 
+const char *niak_daily_backdrop_caption() {
+    static constexpr const char *kUnknown="Fond · Sélection PS5";
+    static constexpr const char *kLive="Fond du jour · Sélection PS5 en ligne";
+    char today[11]{};const int day=day_now(today);
+    if(day<0 || count==0)return kUnknown;
+    restore_day_choice(day);
+    Runtime &s=state();
+    if(override_offset==0 && s.texture && s.live_day==day)return kLive;
+    const int idx=((day+override_offset)%count+count)%count;
+    const std::string &label=wallpaper_labels[std::size_t(idx)];
+    return label.empty()?kUnknown:label.c_str();
+}
 void niak_next_daily_backdrop() {
     char date[11]{};
     const int day=day_now(date);
