@@ -92,7 +92,12 @@ PY
 cp "$root/native/title/ftp_install.py" "$out/tools/ftp_install.py"
 cp "$root/native/title/cover_sources.py" "$out/tools/cover_sources.py"
 cp "$root/native/title/AUTOSTART.md" "$out/tools/AUTOSTART.md"
-# Only one FTP-ready package, exactly one install folder at the archive root.
+# Legacy internal ZIP verifies title package integrity. The user-facing
+# artifact is a NO-COMMANDS drop-in: copy data/ to console FTP root /.
+# It carries both /data/homebrew/PPSA99386 and the matching PLDmgr payload
+# under /data/pldmgr/payloads/niakps5. No autoload or config file bundled.
 python3 "$root/native/title/pack_ftp.py" --folder "$out" --output "$root/dist/$title.zip"
-echo "Built native NiakPS5 app folder: $out"
-echo "Install the entire $title directory under /data/homebrew/."
+python3 "$root/native/title/pack_ftp_dragdrop.py" \
+  --title "$out" --output "$root/dist/ftp-dropin"
+echo "Built native NiakPS5 drop-in folder: $root/dist/ftp-dropin/data"
+echo "On FTP /, copy the extracted data/ folder and MERGE directories."
