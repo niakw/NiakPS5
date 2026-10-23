@@ -67,7 +67,7 @@ class BrokerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as name:
             base=Path(name)
             (base/"niak").mkdir()
-            for path in ("broker_catalog.hpp","loopback_connect.h","socket_guard.h"):
+            for path in ("broker_catalog.hpp","broker_snapshot.h","loopback_connect.h","socket_guard.h"):
                 shutil.copyfile(ROOT/path,base/"niak"/path)
             shutil.copyfile(ROOT.parent/"catalog.h",base/"niak"/"catalog.h")
             (base/"server.cpp").write_text(SOURCE,encoding="utf-8")
