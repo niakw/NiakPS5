@@ -186,11 +186,35 @@ static void serve_launch_requests(void) {
     report("Local launch broker ready (127.0.0.1 only)",0);
     NiakRedirectGate gate;
     int gate_ready=0,return_user=-1;
+    // Listen for launcher PING/GAMES immediately. Previously a 12x3-second
+    // autostart polling loop delayed the launch broker by up to 36 seconds.
+    unsigned startup_attempts=0;
+    int startup_done=0,profile_checked=0;
+    uint64_t next_start_ms=0;
     // The original 21,600 two-second iterations silently stopped the
     // launch service after roughly twelve hours. Keep the opt-in broker
     // alive until the user disables it or the console shuts down.
     for(;;) {
         if(is_regular_file(NIAK_DISABLED))break;
+        const uint64_t now=niak_monotonic_ms();
+        if(!startup_done && startup_attempts<12 && now>=next_start_ms) {
+            ++startup_attempts;
+            next_start_ms=now+3000u;
+            const int running=sceSystemServiceGetAppIdOfRunningBigApp();
+            if(running<=0) {
+                int user=-1;
+                const int user_rc=sceUserServiceGetForegroundUser(&user);
+                if(user_rc==0 && user>=0) {
+                    if(!profile_checked) {
+                        copy_current_avatar_png(user);
+                        profile_checked=1;
+                    }
+                    const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
+                    report("sceSystemServiceLaunchApp",rc);
+                    if(rc==0)startup_done=1;
+                } else report("Foreground user unavailable",user_rc);
+            }
+        }
         fd_set pending;FD_ZERO(&pending);FD_SET(fd,&pending);
         struct timeval tv={2,0};
         const int available=select(fd+1,&pending,NULL,NULL,&tv);
@@ -291,35 +315,9 @@ static void serve_launch_requests(void) {
 int main(void) {
     if(is_regular_file(NIAK_DISABLED))return 0;
     report("NiakPS5 optional autostart start",0);
-    int profile_checked=0;
-    int launcher_started=0;
-    for(unsigned i=0;i<12;++i) {
-        if(is_regular_file(NIAK_DISABLED))return 0;
-        const int running=sceSystemServiceGetAppIdOfRunningBigApp();
-        if(running>0) {
-            /* Do not interrupt foreground system tasks or games. */
-            sceKernelUsleep(3000000);
-            continue;
-        }
-        int user=-1;
-        const int user_rc=sceUserServiceGetForegroundUser(&user);
-        if(user_rc==0 && user>=0) {
-            if(!profile_checked){copy_current_avatar_png(user);profile_checked=1;}
-            const int rc=sceSystemServiceLaunchApp(NIAK_TITLE,NULL,NULL);
-            report("sceSystemServiceLaunchApp",rc);
-            if(rc==0) {
-                launcher_started=1;
-                break;
-            }
-        } else {
-            report("Foreground user unavailable",user_rc);
-        }
-        sceKernelUsleep(3000000);
-    }
-    if(!launcher_started)
-        report("Autostart not confirmed; launch broker still available",0);
-    // A manually started title can submit an explicit launch request too.
-    // Return is armed by that request, not by autostart success at boot.
+    // The local broker becomes available before console autostart attempts.
+    // A manually launched UI can contact it even while the payload is still
+    // waiting for the current foreground user or a free big-app slot.
     serve_launch_requests();
     return 0;
 }
