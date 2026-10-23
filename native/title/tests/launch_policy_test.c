@@ -23,11 +23,21 @@ int main(void) {
     NiakLaunchResult r=niak_launch_with_fallback(
         "PPSA99386",expected_user,call_system,call_lnc);
     assert(r.result==0 && r.method==1 && system_calls==1 && lnc_calls==0);
+    // 0x18 and 0x2018 were real console returns. They are NONNEGATIVE:
+    // accepted API calls, not refusal/errors, and must not invoke fallback.
+    for(int positive=0;positive<2;++positive) {
+        system_value=positive==0?0x18:0x2018;
+        const unsigned lnc_before=lnc_calls;
+        r=niak_launch_with_fallback("PPSA99386",expected_user,
+                                    call_system,call_lnc);
+        assert(r.method==1 && r.result==0 && r.system_rc==system_value);
+        assert(lnc_calls==lnc_before);
+    }
     system_value=(int)0x80940005u;lnc_value=0x60010001;
     r=niak_launch_with_fallback("PPSA99386",expected_user,
                                 call_system,call_lnc);
     assert(r.result==0 && r.method==2 && r.lnc_rc==lnc_value);
-    assert(system_calls==2 && lnc_calls==1);
+    assert(system_calls==4 && lnc_calls==1);
     lnc_value=0;
     r=niak_launch_with_fallback("PPSA99386",expected_user,
                                 call_system,call_lnc);
