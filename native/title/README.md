@@ -1,6 +1,23 @@
 # NiakPS5 — véritable accueil graphique, en application PS5
 
-#### Reconstruction des jaquettes — faces absentes uniquement
+#### Installation des six gabarits privés sans fusion manuelle
+
+Le ZIP `NiakPS5_templates_prives_PS4_PS5.zip` contient les six PNG fournis
+par l'utilisateur, conservés hors du dépôt GitHub public. Depuis le Mac,
+après extraction du paquet standard `NiakPS5-PPSA99386.zip`, exécuter :
+
+```bash
+python3 PPSA99386/tools/ftp_install.py --host IP_PS5 --preserve-autoload --case-templates NiakPS5_templates_prives_PS4_PS5.zip
+```
+
+L'installateur vérifie l'archive et les proportions des six modèles avant tout
+transfert FTP et ne modifie pas `autoload.txt`. Une jaquette authentique
+prend systématiquement priorité pour chaque face indépendamment.
+
+Les modèles utilisateur comportent des codes-barres, classifications et
+mentions propres aux jeux photographiés. Ils restent des éléments visuels
+de référence, pas des informations légales valides pour un autre jeu.
+## Reconstruction des jaquettes — faces absentes uniquement
 
 La priorité de chaque face est **indépendante** : si le front/back/spine
 commercial est disponible dans les scans privés LaunchBox/TheGamesDB, il
