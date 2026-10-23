@@ -11,7 +11,9 @@ import xml.etree.ElementTree as ET
 SOURCE="https://gamesdb.launchbox-app.com/Metadata.zip"
 IMAGE=re.compile(r"^(?:r2_)?[A-Fa-f0-9-]{36}\.(?:png|jpe?g)$")
 KINDS={"Box - Front":"front","Box - Back":"back","Box - Spine":"spine",
-       "Clear Logo":"logo"}
+       "Clear Logo":"logo", "Fanart - Background":"hero",
+       "Screenshot - Gameplay":"screenshot",
+       "Screenshot - Game Title":"screenshot"}
 PLATFORMS={"Sony Playstation 4":"ps4","Sony Playstation 5":"ps5",
            "Sony PlayStation 4":"ps4","Sony PlayStation 5":"ps5"}
 REGIONS={"france":"fr","europe":"eu","world":"world","united kingdom":"uk",
@@ -141,9 +143,23 @@ def parse(xml,installed):
         info=games[gid];images=media.get(gid,{})
         faces=[face_options(images.get(kind,[])) for kind in
                ("front","back","spine","logo")]
+        # A genuine scene and gameplay captures have their own slots. Use
+        # unique source filenames: never promote the same hero to two images.
+        hero=face_options(images.get("hero",[]))
+        used={part.split(":",1)[1] for part in hero.split(";")
+              if ":" in part}
+        shots=[]
+        for candidate in face_options(images.get("screenshot",[])).split(";"):
+            if ":" not in candidate:continue
+            filename=candidate.split(":",1)[1]
+            if filename in used:continue
+            used.add(filename)
+            shots.append(candidate)
+            if len(shots)==2:break
+        shot1,shot2=(shots+["-","-"])[:2]
         for title in sorted(set(ids)):
             overview=info[2] or "-"
-            rows.append((title,overview,*faces,gid))
+            rows.append((title,overview,*faces,hero,shot1,shot2,gid))
     rows.sort()
     return rows
 
@@ -157,7 +173,7 @@ def build(archive,ids_file,out):
             rows=parse(source,installed)
     output=Path(out)
     output.parent.mkdir(parents=True,exist_ok=True)
-    output.write_text("# title\tOverview\tFront\tBack\tSpine\tLogo\tLaunchBoxID\n"+
+    output.write_text("# title\tOverview\tFront\tBack\tSpine\tLogo\tHero\tShot1\tShot2\tLaunchBoxID\n"+
                       "".join("\t".join(parts)+"\n" for parts in rows),"utf8")
     fronts=sum(row[2]!="-" for row in rows)
     backs=sum(row[3]!="-" for row in rows)
