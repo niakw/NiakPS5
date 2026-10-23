@@ -188,7 +188,7 @@ static int broker_already_ready(void) {
     peer.sin_port=htons(19187);
     peer.sin_addr.s_addr=htonl(0x7f000001u);
     int ok=niak_connect_bounded(probe,(struct sockaddr*)&peer,sizeof(peer),100)==0;
-    if(ok)ok=niak_socket_send(probe,"PING\\n",5)==5;
+    if(ok)ok=niak_socket_send(probe,"PING\n",5)==5;
     char reply[5]={0};size_t got=0;
     while(ok && got<sizeof(reply)) {
         const ssize_t n=recv(probe,reply+got,sizeof(reply)-got,0);
@@ -196,7 +196,7 @@ static int broker_already_ready(void) {
         got+=(size_t)n;
     }
     close(probe);
-    return ok && got==5 && memcmp(reply,"PONG\\n",5)==0;
+    return ok && got==5 && memcmp(reply,"PONG\n",5)==0;
 }
 static void serve_launch_requests(void) {
     if(broker_already_ready()) {

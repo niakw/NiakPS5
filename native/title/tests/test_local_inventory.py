@@ -40,13 +40,13 @@ class LocalInventoryTests(unittest.TestCase):
             (root/"main.c").write_text(SOURCE)
             inventory=root/"titles.tsv"
             inventory.write_text(
-                "PPSA12345\\tMon Jeu\\tJeu\\t\\t\\n"
-                "CUSA99999\\tJeu PS4\\tJeu\\t\\t\\n"
-                "NPXS98765\\tService système\\tJeu\\t\\t\\n"
-                "NPXS12345\\tApplication média\\tApplication\\t\\t\\n"
-                "PPSA99386\\tNiakPS5\\tApplication\\t\\t\\n"
-                "PPSA12345\\tDoublon\\tJeu\\t\\t\\n"
-                "BADID\\tInvalide\\tJeu\\t\\t\\n",
+                "PPSA12345\tMon Jeu\tJeu\t\t\n"
+                "CUSA99999\tJeu PS4\tJeu\t\t\n"
+                "NPXS98765\tService système\tJeu\t\t\n"
+                "NPXS12345\tApplication média\tApplication\t\t\n"
+                "PPSA99386\tNiakPS5\tApplication\t\t\n"
+                "PPSA12345\tDoublon\tJeu\t\t\n"
+                "BADID\tInvalide\tJeu\t\t\n",
                 encoding="utf-8")
             binary=root/"test"
             subprocess.run([compiler,"-std=c11","-Wall","-Wextra","-Werror",
