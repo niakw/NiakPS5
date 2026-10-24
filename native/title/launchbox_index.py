@@ -74,9 +74,9 @@ def face_options(entries):
 def layered_media(*groups):
     """Keep source-platform preference before regional alternatives.
 
-    Every slot can contain a console choice followed by other-console and
-    Windows choices. Only scenic art uses this; retail box scans never fall
-    through to a PC edition or a different platform's front.
+    Every slot can contain a PS5 choice followed by PS4 and Windows
+    alternatives. Back scans may fall through all three platforms; Box - Front
+    remains a true scan from the installed console platform only.
     """
     best=[]
     extras=[]
@@ -179,13 +179,16 @@ def parse(xml,installed,diagnostics=None):
         # has excellent PC fanart/gameplay/screenshots. Do NOT discard it:
         # create a scenery-only record and leave its physical FRONT empty.
         # Exact console IDs must never become an unrelated Windows box scan.
-        other_platform="ps4" if key[0]=="ps5" else "ps5"
-        other_ids=related(key,other_platform)
+        ps5_ids=related(key,"ps5")
+        ps4_ids=related(key,"ps4")
         pc_ids=related(key,"windows")
-        other_gid=next(iter(other_ids)) if len(other_ids)==1 else None
+        ps5_gid=next(iter(ps5_ids)) if len(ps5_ids)==1 else None
+        ps4_gid=next(iter(ps4_ids)) if len(ps4_ids)==1 else None
         pc_gid=next(iter(pc_ids)) if len(pc_ids)==1 else None
-        other=media.get(other_gid,{}) if other_gid else {}
+        ps5=media.get(ps5_gid,{}) if ps5_gid else {}
+        ps4=media.get(ps4_gid,{}) if ps4_gid else {}
         pc=media.get(pc_gid,{}) if pc_gid else {}
+        other_gid=ps4_gid if key[0]=="ps5" else ps5_gid
         if len(candidates)==1:
             gid=next(iter(candidates))
             images=media.get(gid,{})
@@ -203,19 +206,17 @@ def parse(xml,installed,diagnostics=None):
                             images.get("back_fanart",[])),
                face_options(images.get("spine",[])),
                face_options(images.get("logo",[]))]
-        # Only PS5 BACK can borrow the matching PS4 physical back.
-        # FRONT remains strictly the installed console platform's Box - Front.
-        if key[0]=="ps5" and faces[1]=="-" and (
-                other.get("back") or other.get("back_fanart")):
-            faces[1]=face_options(other.get("back",[]) or
-                                  other.get("back_fanart",[]))
-        if faces[3]=="-" and other.get("logo"):
-            faces[3]=face_options(other["logo"])
-        if faces[3]=="-" and pc.get("logo"):
-            faces[3]=face_options(pc["logo"])
-        # On a CDN failure, the worker can try another source: first console,
-        # then matching opposite-console, finally the Windows edition.
-        hero=layered_media(images.get("hero",[]),other.get("hero",[]),
+        # Box - Front MUST be the installed platform's real retail cover.
+        # Box - Back may fall back PS5 -> PS4 -> PC, in that exact order,
+        # even when an earlier source has a broken CDN file. Never substitute
+        # a PC front as a retail front for a PlayStation game.
+        def box_back(group):
+            return group.get("back",[]) or group.get("back_fanart",[])
+        faces[1]=layered_media(box_back(ps5),box_back(ps4),box_back(pc))
+        # Supplementary media also follows PS5 -> PS4 -> PC.
+        faces[3]=layered_media(ps5.get("logo",[]),ps4.get("logo",[]),
+                               pc.get("logo",[]))
+        hero=layered_media(ps5.get("hero",[]),ps4.get("hero",[]),
                            pc.get("hero",[]))
         used={part.split(":",1)[1] for part in hero.split(";") if ":" in part}
         # Two intentionally DIFFERENT screenshot classes:
@@ -226,7 +227,7 @@ def parse(xml,installed,diagnostics=None):
         shots=[]
         shot_kinds=[]
         def add_first(kind):
-            for group in (images,other,pc):
+            for group in (ps5,ps4,pc):
                 for area in ORDER:
                     for where,filename in group.get(kind,[]):
                         if where!=area or filename in used:continue
@@ -255,7 +256,7 @@ def parse(xml,installed,diagnostics=None):
             options=layered_media(*(
                 [(area,filename) for area,filename in group.get(shot_kinds[slot],[])
                  if filename not in forbidden]
-                for group in (images,other,pc)
+                for group in (ps5,ps4,pc)
             ))
             result=[primary]
             seen={primary_name}
@@ -269,7 +270,8 @@ def parse(xml,installed,diagnostics=None):
             return ";".join(result)
         shot1,shot2=screenshot_sources(0),screenshot_sources(1)
         overview=info[2] or (
-            games[other_gid][2] if other_gid else "") or (
+            games[ps5_gid][2] if ps5_gid else "") or (
+            games[ps4_gid][2] if ps4_gid else "") or (
             games[pc_gid][2] if pc_gid else "") or "-"
         for title in sorted(set(ids)):
             rows.append((title,overview,*faces,hero,shot1,shot2,gid))

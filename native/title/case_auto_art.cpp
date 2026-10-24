@@ -375,19 +375,22 @@ void work(){
    const auto &candidates=found->second[std::size_t(field)];
    if(candidates.empty()){++s.unmatched;continue;}
    const std::string target=cache_path(task);
-   bool reusable=false;
-   for(const std::string &source:candidates)
-     if(existing(target,source)){reusable=true;break;}
-   if(reusable){
+   // The fallback image can remain usable offline, but must not permanently
+   // mask a newly available higher-priority PS5/PS4 Box - Back. Upgrade it
+   // when possible, only trying entries BEFORE its cached source.
+   std::size_t reusable_rank=candidates.size();
+   for(std::size_t i=0;i<candidates.size();++i)
+     if(existing(target,candidates[i])){reusable_rank=i;break;}
+   if(reusable_rank==0){
      if(task.side=="front")official_front_ready=true;
      if(task.side=="back")official_back_ready=true;
      continue;
    }
    // Region/server variation: a missing FR image can fall back to EU or
    // another validated image, without ever trusting an arbitrary URL.
-   // At most three CDN candidates per requested side: platform-native,
-   // matching other-console and then PC scenic alternatives. Never attempt
-   // PC physical Box - Front/Back: indexer excludes those source categories.
+   // Up to three CDN candidates per side, ordered by the LaunchBox index:
+   // PS5 -> PS4 -> PC for backs, hero, gameplay, game title and logos.
+   // Fronts remain native console retail scans only.
    const unsigned candidate_limit=3u;
    unsigned examined=0;
    bool transient_failure=false,downloaded=false;
@@ -396,7 +399,8 @@ void work(){
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.generation!=s.generation || task.id!=s.selected)break;
      }
-     if(examined++>=candidate_limit)break;
+     if(examined>=candidate_limit || examined>=reusable_rank)break;
+     ++examined;
      // No lifetime cap: seven sides with at most three passes each.
      ++s.requests;
      std::vector<std::uint8_t> bytes;
@@ -441,6 +445,13 @@ void work(){
      }
      if(saved)break;
      std::this_thread::sleep_for(std::chrono::milliseconds(150));
+   }
+   // Retain a valid lower-priority back while online promotion fails.
+   // Never discard an existing PC/PS4 fallback just because the PS5 CDN
+   // cannot be reached. Reattempt transient failures with bounded backoff.
+   if(!downloaded && reusable_rank<candidates.size()){
+     if(task.side=="front")official_front_ready=true;
+     if(task.side=="back")official_back_ready=true;
    }
    // Retry temporary HTTP failures without changing selection. Navigation
    // cancels both pending and delayed work for the previous title.

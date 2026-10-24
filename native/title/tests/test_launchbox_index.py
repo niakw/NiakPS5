@@ -308,6 +308,64 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(len(set(row[7].split(";")) & set(row[8].split(";"))),0)
   self.assertIn("000000000600",row[2])
 
+ def test_box_back_ps5_then_ps4_then_pc_and_front_stays_ps5(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>810</DatabaseID><Platform>Sony Playstation 5</Platform><Name>Priority Game</Name></Game>
+   <Game><DatabaseID>811</DatabaseID><Platform>Sony Playstation 4</Platform><Name>Priority Game</Name></Game>
+   <Game><DatabaseID>812</DatabaseID><Platform>Windows</Platform><Name>Priority Game</Name></Game>
+   <GameImage><DatabaseID>810</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000810.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>811</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000811.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>812</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000812.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>810</DatabaseID><Type>Box - Back</Type>
+    <FileName>00000000-0000-0000-0000-000000000820.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>811</DatabaseID><Type>Box - Back</Type>
+    <FileName>00000000-0000-0000-0000-000000000821.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>812</DatabaseID><Type>Box - Back</Type>
+    <FileName>00000000-0000-0000-0000-000000000822.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  rows=mod.parse(io.BytesIO(xml),{("ps5","priority game"):["PPSA12345"],
+                                    ("ps4","priority game"):["CUSA12345"]})
+  for row in rows:
+   self.assertEqual([x.split(":")[1][-7:] for x in row[3].split(";")][:3],
+                    ["820.jpg","821.jpg","822.jpg"])
+  ps5=next(row for row in rows if row[0]=="PPSA12345")
+  ps4=next(row for row in rows if row[0]=="CUSA12345")
+  self.assertIn("000000000810",ps5[2])
+  self.assertNotIn("000000000812",ps5[2])
+  self.assertIn("000000000811",ps4[2])
+  self.assertNotIn("000000000812",ps4[2])
+
+ def test_box_back_pc_last_resort_even_without_console_entry(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>812</DatabaseID><Platform>Windows</Platform><Name>Priority Game</Name></Game>
+   <GameImage><DatabaseID>812</DatabaseID><Type>Box - Back</Type>
+    <FileName>00000000-0000-0000-0000-000000000822.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>812</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000812.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  row=mod.parse(io.BytesIO(xml),{("ps5","priority game"):["PPSA12345"]})[0]
+  self.assertEqual(row[2],"-")
+  self.assertEqual(row[3],"other:00000000-0000-0000-0000-000000000822.jpg")
+  self.assertEqual(row[4],"-")
+
+ def test_box_back_pc_last_when_ps5_and_ps4_missing(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>810</DatabaseID><Platform>Sony Playstation 5</Platform><Name>Priority Game</Name></Game>
+   <Game><DatabaseID>811</DatabaseID><Platform>Sony Playstation 4</Platform><Name>Priority Game</Name></Game>
+   <Game><DatabaseID>812</DatabaseID><Platform>Windows</Platform><Name>Priority Game</Name></Game>
+   <GameImage><DatabaseID>810</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000810.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>812</DatabaseID><Type>Box - Back</Type>
+    <FileName>00000000-0000-0000-0000-000000000822.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  row=mod.parse(io.BytesIO(xml),{("ps5","priority game"):["PPSA12345"]})[0]
+  self.assertIn("000000000810",row[2])
+  self.assertIn("000000000822",row[3])
+  self.assertNotIn("000000000822",row[2])
+
  def test_ambiguous_pc_name_cannot_supply_console_art(self):
   xml=b"""<LaunchBox>
    <Game><DatabaseID>601</DatabaseID><Platform>Windows</Platform>
