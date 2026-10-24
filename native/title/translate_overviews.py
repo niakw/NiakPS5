@@ -12,7 +12,9 @@ import urllib.request
 
 VALID_ID=re.compile(r"^(?:PPSA|CUSA)[0-9]{5}$")
 def safe_overview(text):
-    return " ".join(str(text).replace("\t"," ").replace("\r"," ").replace("\n"," ").split())[:900]
+    """Translate at most three short sentences of publicly supplied text."""
+    compact=" ".join(str(text).replace("\t"," ").replace("\r"," ").replace("\n"," ").split())
+    return " ".join(re.split(r"(?<=[.!?])\s+",compact)[:3])[:360].rstrip()
 
 def eligible_rows(index,installed):
     result={}

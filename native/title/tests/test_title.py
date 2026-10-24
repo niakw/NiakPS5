@@ -32,6 +32,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("settings_link_rc_=niak_open_system_settings()",ui)
         self.assertIn("Raccourci refusé par le système",ui)
 
+    def test_short_game_overview_in_native_ui(self):
+        metadata=(ROOT/"title"/"title_meta.cpp").read_text()
+        self.assertIn("niak_short_overview(",metadata)
+        self.assertIn("description.size()>360",metadata)
+
     def test_return_to_niak_for_explicit_game_launch_without_opt_in(self):
         source=(ROOT/"title"/"autostart.c").read_text()
         self.assertIn("!is_regular_file(NIAK_RESUME_DISABLED)",source)

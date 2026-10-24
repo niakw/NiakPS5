@@ -44,8 +44,10 @@ def safe_titles(name):
     return tuple(dict.fromkeys(variants))
 
 def clean_overview(notes):
-    text=html.unescape(re.sub(r"<[^>]*>"," ",str(notes)))
-    return re.sub(r"\s+"," ",text).replace("\t"," ").strip()[:620]
+    """Only a short, sourced description, never the complete LaunchBox essay."""
+    text=re.sub(r"\s+"," ",html.unescape(re.sub(r"<[^>]*>"," ",str(notes)))).strip()
+    sentences=re.split(r"(?<=[.!?])\s+",text)
+    return " ".join(sentences[:3])[:360].rstrip()
 def targets(path):
     index={}
     with Path(path).open(encoding="utf8") as f:

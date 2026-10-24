@@ -5,6 +5,11 @@ MODULE=Path(__file__).parents[1]/"launchbox_index.py"
 spec=importlib.util.spec_from_file_location("niak_index",MODULE)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class TestRetailCases(unittest.TestCase):
+ def test_overview_keeps_only_three_source_sentences(self):
+  original="One. Two! Three? Four. Five."
+  self.assertEqual(mod.clean_overview(original),"One. Two! Three?")
+  self.assertLessEqual(len(mod.clean_overview("Sentence. "*200)),360)
+
  def test_language_platform_and_ambiguity(self):
   sources={("ps5","ea sports fc 27"):["PPSA34015"],
            ("ps4","ea sports fc 27"):["CUSA77777"]}

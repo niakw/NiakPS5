@@ -139,6 +139,24 @@ std::string niak_title_summary(const NiakTitleMetadata &v){
  return text;
 }
 
+static std::string niak_short_overview(std::string description) {
+ // Imported, older indexes may contain a full English essay. The UI
+ // displays only 2-3 sourced sentences, regardless of translation provider.
+ std::size_t sentences=0;
+ for(std::size_t i=0;i+1<description.size();++i) {
+   if((description[i]=='.'||description[i]=='!'||description[i]=='?') &&
+      description[i+1]==' ' && ++sentences>=3) {
+     description.resize(i+1);
+     break;
+   }
+ }
+ if(description.size()>360) {
+   const auto boundary=description.rfind(' ',360);
+   description.resize(boundary!=std::string::npos && boundary>180?
+                      boundary:360);
+ }
+ return description;
+}
 std::string niak_title_overview(const char *id) {
  if(!id || std::strlen(id)!=9)return {};
  // Explicit local French translation has priority over LaunchBox original.
@@ -167,7 +185,7 @@ std::string niak_title_overview(const char *id) {
    std::fclose(f);return data;
  }();
  const auto localized=french.find(id);
- if(localized!=french.end())return localized->second;
+ if(localized!=french.end())return niak_short_overview(localized->second);
  static const auto index=[]() {
    std::unordered_map<std::string,std::string> data;
    FILE *f=std::fopen(
@@ -195,5 +213,5 @@ std::string niak_title_overview(const char *id) {
    std::fclose(f);return data;
  }();
  const auto it=index.find(id);
- return it==index.end()?std::string{}:it->second;
+ return it==index.end()?std::string{}:niak_short_overview(it->second);
 }

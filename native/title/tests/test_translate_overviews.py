@@ -9,6 +9,11 @@ spec=importlib.util.spec_from_file_location("niak_translate",SCRIPT)
 translation=importlib.util.module_from_spec(spec);spec.loader.exec_module(translation)
 
 class TranslationTests(unittest.TestCase):
+    def test_only_short_sourced_excerpt_is_eligible(self):
+        original="First. Second! Third? Fourth. Fifth."
+        self.assertEqual(translation.safe_overview(original),"First. Second! Third?")
+        self.assertLessEqual(len(translation.safe_overview("Long sentence. "*200)),360)
+
     def test_no_key_keeps_untranslated_launchbox_text(self):
         source=b"PPSA02387\tA richly imagined historical adventure.\tfront\n"
         self.assertIsNone(translation.translation_file(
