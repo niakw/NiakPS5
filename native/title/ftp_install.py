@@ -327,14 +327,26 @@ def _decode_retail_image(raw,side):
                     raise ValueError("Not a landscape game artwork/screenshot")
                 image=source.convert("RGB")
                 image.thumbnail((960,640),Image.Resampling.LANCZOS)
-                image=image.quantize(colors=192,method=Image.Quantize.MEDIANCUT)
             else:
                 if source.height<200 or source.width/source.height>(0.42 if side=="spine" else 1.4):
                     raise ValueError("Not a retail box scan")
                 image=source.convert("RGB")
                 image.thumbnail((600,900),Image.Resampling.LANCZOS)
-                image=image.quantize(colors=160,method=Image.Quantize.MEDIANCUT)
+            # The native PS5 renderer decodes WebP directly. Encoder quality
+            # 80 does NOT imply an 80 percent reduction in storage size.
             out=BytesIO()
+            try:
+                image.save(out,"WEBP",quality=80,method=6)
+                encoded=out.getvalue()
+                if encoded[:4]==b"RIFF" and encoded[8:12]==b"WEBP":
+                    return encoded
+            except (OSError,ValueError):
+                pass  # The local Pillow build may lack WebP support.
+            out=BytesIO()
+            if image.mode=="RGB":
+                image=image.quantize(colors=192 if side in
+                    ("hero","shot1","shot2") else 160,
+                    method=Image.Quantize.MEDIANCUT)
             image.save(out,"PNG",optimize=True)
             return out.getvalue()
     # macOS has sips preinstalled: use it to convert JPG to PNG locally
@@ -379,8 +391,9 @@ def _case_png_usable(raw,side):
     The PS5 renderer needs portrait retail covers, thin spines, or wide
     gameplay art. Corrupted/incompatible legacy cache is retried.
     """
-    if not raw or len(raw)>3*1024*1024 or raw[:8]!=b"\x89PNG\r\n\x1a\n":
-        return False
+    if not raw or len(raw)>3*1024*1024:return False
+    webp=raw[:4]==b"RIFF" and raw[8:12]==b"WEBP"
+    if not webp and raw[:8]!=b"\x89PNG\r\n\x1a\n":return False
     try:
         from PIL import Image
         with Image.open(BytesIO(raw)) as image:
@@ -388,6 +401,7 @@ def _case_png_usable(raw,side):
         with Image.open(BytesIO(raw)) as image:
             width,height=image.size
     except ImportError:
+        if webp:return False  # No safe WebP parser without Pillow.
         # Pillow is optional on macOS. Verify complete PNG chunks and CRCs,
         # rather than trusting a filename or the eight magic bytes.
         import struct,zlib
@@ -557,19 +571,24 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
             slots += [("hero",6),("shot1",7),("shot2",8)]
         used_images=set()
         for side,field in slots:
-            destination=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
+            stem=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}"
+            webp_dest=stem+".webp"
+            png_dest=stem+".png"
             choices=columns[field]
             if choices=="-":continue
             # The first entry is the highest-priority valid source (for
             # Box - Back: PS5 -> PS4 -> PC). A cached PC image must not
             # permanently prevent promotion to the native PlayStation back.
             first_source=choices.split(";",1)[0].split(":",1)[-1]
-            if posixpath.basename(destination) in cached and not force:
+            existing=[file for file in (webp_dest,png_dest)
+                      if posixpath.basename(file) in cached]
+            if existing and not force:
                 source=sources.get((ident,side))
-                if source==first_source and _cache_hit(ftp,destination,side):
+                if source==first_source and any(
+                        _cache_hit(ftp,file,side) for file in existing):
                     reusable+=1
                     continue
-                stale+=1   # Lower-ranked or invalid: retry, keep image on failure.
+                stale+=1  # Replace older images only after a valid download.
             for candidate in choices.split(";")[:8]:
                 parts=candidate.split(":",1)
                 if len(parts)!=2:continue
@@ -595,15 +614,18 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
                     failed_image+=1
                     continue
                 try:
-                    png=_decode_retail_image(raw,side)
+                    encoded=_decode_retail_image(raw,side)
                 except (OSError,ValueError,TimeoutError):
                     failed_image+=1
                     continue
-                if not png or len(png)>3*1024*1024:
+                if not encoded or len(encoded)>3*1024*1024:
                     failed_image+=1
                     continue
                 try:
-                    upload(ftp,destination,png)
+                    is_webp=(encoded[:4]==b"RIFF" and
+                             encoded[8:12]==b"WEBP")
+                    destination=webp_dest if is_webp else png_dest
+                    upload(ftp,destination,encoded)
                 except (OSError,ValueError):
                     failed_ftp+=1
                     continue
