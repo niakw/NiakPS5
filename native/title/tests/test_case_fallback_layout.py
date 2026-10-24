@@ -43,11 +43,11 @@ class CaseFallbackTests(unittest.TestCase):
         assert 'item.case_template_front=niak_load_case_template' in staged
         assert 'item.case_template_back=niak_load_case_template' in staged
         assert "niak_case_cover_crop(" in source
-        assert "item.logo_art" in source
+        assert "item.logo_art" not in source
         assert "layout.front_header" in source
         assert "layout.back_footer" in source
         assert "item.case_scene_aspect" in source
-        assert "item.logo_art_aspect" in source
+        assert "item.logo_art_aspect" not in source
         assert "if(!back)" in source
         assert "if(item.case_template_back)" in source
         assert "if(item.case_template_front)" in source

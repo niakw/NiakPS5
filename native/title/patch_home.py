@@ -248,10 +248,10 @@ def patch(kit):
         std::snprintf(media_label,sizeof(media_label),
                       "HTTP 0x%08X (%s; %s) · expirés %u",
                       cdn_code,cdn_hint,cdn_stages[cdn_stage],cdn.exhausted);
-        ui::text(list,fonts.regular,media_label,1430,598,14,
-                 kWhite.with_alpha(0.85f));
+        ui::paragraph(list,fonts.regular,media_label,
+                      1430,600,14,400,18,kWhite.with_alpha(0.85f),2);
         ui::text(list,fonts.semibold,"Installation du payload ELF",
-                 1430,612,20,kWhite);
+                 1430,661,20,kWhite);
         const char *install_label= install_status==1
             ? "Fichiers mis à jour. Relancer la chaîne jailbreak."
             : install_status==0
@@ -262,7 +262,7 @@ def patch(kit):
             ? "Installation refusée : fichiers ou droits invalides."
             : "Pas de tentative (aperçu hôte).";
         ui::paragraph(list,fonts.regular,install_label,
-                      1430,650,18,420,27,kWhite.with_alpha(0.78f),3);
+                      1430,691,16,398,21,kWhite.with_alpha(0.78f),2);
         const char *labels[] = {"Resolution d'affichage (redemarrage)",
                                 "Volume de l'interface", "Musique de fond",
                                 "Animations reduites", "Afficher FPS",
@@ -367,16 +367,16 @@ def patch(kit):
         // Diagnostics belong in the RIGHT status rail, never across the
         // ten clickable settings rows on the left.
         ui::text(list, fonts.semibold, "Démarrage automatique",
-                 1430, 752, 20, kWhite);
+                 1430, 766, 20, kWhite);
         ui::paragraph(list, fonts.regular,
                  disabled ? "Désactivé" :
                  live_broker ? "Payload actif (service local joignable)" :
                                service_diagnostic,
-                 1430, 786, 17, 406, 23, kWhite.with_alpha(0.78f), 3);
+                 1430, 796, 16, 398, 21, kWhite.with_alpha(0.78f), 2);
         ui::paragraph(list, fonts.regular,
                  live_broker && std::strcmp(journal_status,"Journal inaccessible")==0
                    ? "Service actif ; journal inaccessible depuis la sandbox"
-                   : journal_status, 1430, 871, 16, 406, 21,
+                   : journal_status, 1430, 862, 15, 398, 20,
                  kWhite.with_alpha(0.66f), 2);
         char broker_identity[96];
         if(live_broker && broker_pid)
@@ -387,7 +387,7 @@ def patch(kit):
                 live_broker ? "Service Jouer : actif (PID non disponible)" :
                               "Service Jouer : absent ou inaccessible");
         ui::paragraph(list, fonts.regular, broker_identity,
-                 1430, 926, 16, 406, 21,kWhite.with_alpha(0.75f),2);
+                 1430, 930, 16, 398, 20,kWhite.with_alpha(0.75f),2);
         ui::text(list, fonts.regular, niak::revision, 110, 950, 20,
                  kWhite.with_alpha(0.72f));
         ui::paragraph(list, fonts.regular,
