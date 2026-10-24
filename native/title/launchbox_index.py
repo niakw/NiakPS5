@@ -22,7 +22,9 @@ PLATFORMS={"Sony Playstation 4":"ps4","Sony Playstation 5":"ps5",
 REGIONS={"france":"fr","europe":"eu","world":"world","united kingdom":"uk",
          "north america":"us","united states":"us","canada":"ca","germany":"de",
          "japan":"jp","spain":"es","italy":"it","portugal":"pt"}
-ORDER=("fr","eu","world","uk","ca","us","de","es","it","pt","jp","other")
+# French first, then shared European editions, then English UK/US/CA,
+# finally worldwide and other territories. All regions remain available.
+ORDER=("fr","eu","uk","us","ca","world","de","es","it","pt","jp","other")
 
 def normalize(name):
     name=unicodedata.normalize("NFKD",str(name)).encode("ascii","ignore").decode()
@@ -62,14 +64,17 @@ def targets(path):
 
 def region(value):return REGIONS.get(str(value).strip().lower(),"other")
 def face_options(entries):
-    out=[]
+    first=[]
+    alternates=[]
     for area in ORDER:
-        group=[name for where,name in entries if where==area]
-        for name in group[:2]:
-            choice=area+":"+name
-            if choice not in out:out.append(choice)
-        if len(out)>=12:break
-    return ";".join(out[:12]) or "-"
+        group=list(dict.fromkeys(name for where,name in entries if where==area))
+        if not group:continue
+        first.append(area+":"+group[0])
+        alternates.extend(area+":"+name for name in group[1:3])
+    # With 3 bounded runtime CDN requests, first visit THREE regions before
+    # trying the second FR variant. Otherwise two failed FR scans can mask
+    # a perfectly valid English retail image at candidate index four.
+    return ";".join((first+alternates)[:12]) or "-"
 
 def layered_media(*groups):
     """Keep source-platform preference before regional alternatives.

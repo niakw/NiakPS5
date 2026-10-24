@@ -28,6 +28,19 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(mod.clean_overview(original),"One. Two! Three?")
   self.assertLessEqual(len(mod.clean_overview("Sentence. "*200)),360)
 
+ def test_front_prioritizes_french_europe_english_before_other(self):
+  entries=[("world","00000000-0000-0000-0000-000000000900.jpg"),
+           ("us","00000000-0000-0000-0000-000000000901.jpg"),
+           ("fr","00000000-0000-0000-0000-000000000902.jpg"),
+           ("fr","00000000-0000-0000-0000-000000000903.jpg"),
+           ("uk","00000000-0000-0000-0000-000000000904.jpg"),
+           ("eu","00000000-0000-0000-0000-000000000905.jpg")]
+  faces=mod.face_options(entries).split(";")
+  self.assertEqual([x.split(":")[0] for x in faces[:4]],
+                   ["fr","eu","uk","us"])
+  self.assertEqual(faces[0].split(":")[1][-7:],"902.jpg")
+  self.assertIn("903.jpg",faces[-1])
+
  def test_language_platform_and_ambiguity(self):
   sources={("ps5","ea sports fc 27"):["PPSA34015"],
            ("ps4","ea sports fc 27"):["CUSA77777"]}
