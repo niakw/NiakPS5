@@ -217,9 +217,10 @@ def patch(kit):
                  kWhite.with_alpha(0.7f));
         const char *const cdn_stages[]={
             "aucune","initialisation","template","connexion","requête",
-            "envoi","statut HTTP","lecture","taille","nom invalide"};
+            "envoi","statut HTTP","lecture","taille","nom invalide",
+            "libcurl/OpenSSL"};
         const int cdn_stage=cdn.last_network_stage>=0 &&
-            cdn.last_network_stage<10?cdn.last_network_stage:0;
+            cdn.last_network_stage<11?cdn.last_network_stage:0;
         // Keep the precise hexadecimal PS5 result AND identify known
         // certificate, HTTPS authorization, DNS and remote HTTP errors.
         // No bypass of TLS verification or additional network request.
@@ -231,6 +232,9 @@ def patch(kit):
           case 404: cdn_hint="image absente"; break;
           case 408: cdn_hint="délai HTTP"; break;
           case 429: cdn_hint="limite CDN"; break;
+          case 0x8095F00Cu: cdn_hint="sceSsl refus après élévation"; break;
+          case static_cast<unsigned>(-10060): cdn_hint="certificat OpenSSL"; break;
+          case static_cast<unsigned>(-10028): cdn_hint="délai libcurl"; break;
           case 0x80435060u: cdn_hint="certificat TLS"; break;
           case 0x80435061u: cdn_hint="négociation TLS"; break;
           case 0x8043506Bu: cdn_hint="HTTPS interdit"; break;
