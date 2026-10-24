@@ -22,8 +22,22 @@ def patch(kit):
     # Procedural covers are FBO textures (bottom-left); actual PS5 PNG images
     # are uploaded top-row-first and REQUIRE kFullUv. kCanvasUv flips the PNG.
     s=exactly(s,'list.image(it.cover, art, gfx::kCanvasUv, kWhite, 36);',
-                 'niak_draw_rotating_case(list,it,art,'
-                 'context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_, fonts);')
+                 '''// The hero cross-fades two titles while navigating. Only the
+        // focused game may create a tessellated 3D case each frame; the
+        // departing title and all applications keep a simple 2D visual.
+        // This prevents overlapping full-mesh case renders on rapid scroll.
+        if(it.application || !it.title_id[0] || index != focused_item()) {
+            if(it.cover)
+                list.image(it.cover, art,
+                           it.cover_is_image ? gfx::kFullUv : gfx::kCanvasUv,
+                           kWhite, 36);
+            else
+                list.rounded_rect(art, 36, it.dark);
+        } else {
+            niak_draw_rotating_case(list,it,art,
+                context_.settings.reduced_motion ? 0.0f : clock_ - case_selected_at_,
+                fonts);
+        }''')
     s=exactly(s,'list.image(it.cover, rect, gfx::kCanvasUv, kWhite.with_alpha(0.82f), 22);',
                  '''if(it.cover) {
                     list.image(it.cover,rect,
