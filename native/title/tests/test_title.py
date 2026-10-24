@@ -568,7 +568,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("0.18f+v*0.59f",source)
         self.assertNotIn("block(0,0.90f,1,1",source)
         self.assertIn("fonts.regular,description",source)
-        self.assertIn("if(std::fabs(camera.cs)>0.90f)",source)
+        self.assertIn("if(copy_opacity>0.01f)",source)
         self.assertNotIn("case_wrap",source)
 
         self.assertIn("item.cover_is_image",source)
