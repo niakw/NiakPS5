@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+from urllib.parse import urlsplit
 import os
 from pathlib import Path
 import tempfile
@@ -113,9 +114,12 @@ class SourceTests(unittest.TestCase):
                 def read(self,n):return self.body
             def query(request,timeout=12):
                 url=request.full_url
-                if url.startswith("https://api.thegamesdb.net"):
+                parsed=urlsplit(url)
+                if parsed.scheme=="https" and parsed.hostname=="api.thegamesdb.net":
                     return Response(url,json.dumps(tgdb_response()).encode())
-                if url.startswith(TGDB_URL):
+                if (parsed.scheme=="https" and
+                    parsed.hostname=="cdn.thegamesdb.net" and
+                    parsed.path.startswith("/images/original/")):
                     return Response(url,b"fake JPG")
                 raise AssertionError("Unexpected URL: "+url.split("?")[0])
             with (patch.dict(os.environ,{"NIAK_THEGAMESDB_KEY":"secret-test",

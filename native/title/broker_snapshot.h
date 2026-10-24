@@ -80,21 +80,19 @@ static inline int niak_snapshot_write(const char *path,const char *ids,
 static inline int niak_snapshot_read(const char *path,NiakGame *games,
                                      size_t cap) {
     if(!path || !games || !cap || cap>NIAK_SNAPSHOT_MAX_GAMES)return -1;
-    struct stat before;
-    if(lstat(path,&before)!=0 || !S_ISREG(before.st_mode) ||
-       before.st_size<20 || before.st_size>8192)return -1;
-    /* O_NOFOLLOW also protects the open itself if a concurrent actor
-     * replaces the file after lstat. Compare the resulting inode below.
+    /* Open first, verify the SAME descriptor afterwards. Never pair a
+     * pre-open lstat with a path-based open: that is a TOCTOU window.
+     * O_NONBLOCK also prevents a swapped FIFO from blocking on open.
      */
-    const int fd=open(path,O_RDONLY|O_NOFOLLOW);
+    const int fd=open(path,O_RDONLY|O_NOFOLLOW|O_NONBLOCK);
     if(fd<0)return -1;
+    struct stat opened;
+    if(fstat(fd,&opened)!=0 || !S_ISREG(opened.st_mode) ||
+       opened.st_size<20 || opened.st_size>8192) {
+        close(fd);return -1;
+    }
     FILE *in=fdopen(fd,"rb");
     if(!in){close(fd);return -1;}
-    struct stat after;
-    if(fd<0 || fstat(fd,&after)!=0 || before.st_ino!=after.st_ino ||
-       before.st_dev!=after.st_dev || !S_ISREG(after.st_mode)) {
-        fclose(in);return -1;
-    }
     char line[96];long long stamp=0;int count=-1;int result=-1;
     int header_bytes=0;
     if(!fgets(line,sizeof(line),in) ||

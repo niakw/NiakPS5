@@ -60,6 +60,13 @@ int main(void) {
     file_at(param,"{\"applicationCategoryType\":\"65792\","
                   "\"localizedParameters\":{\"en-US\":{\"titleName\":\"Video\"}}}");
     assert(niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
+    // A symlinked param.json must not authorize a title by swapping files.
+    assert(unlink(param)==0);
+    assert(symlink("/etc/passwd",param)==0);
+    assert(!niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
+    assert(unlink(param)==0);
+    file_at(param,"{\"titleId\":\"NPXS00001\",\"applicationCategoryType\":65536}");
+    assert(niak_title_is_launchable("NPXS00001","PPSA99386",roots,1));
     // 64 KiB remains a hard input bound even if valid metadata is at the start.
     char huge[65600];
     memset(huge,' ',sizeof(huge));

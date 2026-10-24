@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "title_category.h"
 
 static inline int niak_title_is_launchable(
@@ -29,29 +31,32 @@ static inline int niak_title_is_launchable(
         const int len=snprintf(path,sizeof(path),"%s%s%s",roots[i],
                                roots[i][root_len-1]=='/'?"":"/",id);
         if(len<=0 || (size_t)len>=sizeof(path))continue;
+        /* Resolve each trusted component relative to an already-opened
+         * directory. A symlink swap cannot replace the checked inode.
+         */
+        const int title_fd=open(path,O_RDONLY|O_DIRECTORY|O_NOFOLLOW);
+        if(title_fd<0)continue;
         struct stat installed;
-        // Refuse symlink names masquerading as installed titles. Do not
-        // follow arbitrary directories into the system filesystem.
-        if(lstat(path,&installed)!=0 || !S_ISDIR(installed.st_mode))continue;
-        if(strncmp(id,"NPXS",4)!=0)return 1;
-        char meta_dir[240],meta_path[256];
-        const int dir_len=snprintf(meta_dir,sizeof(meta_dir),
-                                   "%s/sce_sys",path);
-        if(dir_len<=0 || (size_t)dir_len>=sizeof(meta_dir))continue;
-        struct stat meta_folder;
-        // Prevent a symlinked metadata folder from authorizing a protected
-        // NPXS service using a JSON file from another installation.
-        if(lstat(meta_dir,&meta_folder)!=0 ||
-           !S_ISDIR(meta_folder.st_mode))continue;
-        const int n=snprintf(meta_path,sizeof(meta_path),
-                             "%s/param.json",meta_dir);
-        if(n<=0 || (size_t)n>=sizeof(meta_path))continue;
+        if(fstat(title_fd,&installed)!=0 || !S_ISDIR(installed.st_mode)){
+            close(title_fd);continue;
+        }
+        if(strncmp(id,"NPXS",4)!=0){close(title_fd);return 1;}
+        const int sys_fd=openat(title_fd,"sce_sys",
+                                O_RDONLY|O_DIRECTORY|O_NOFOLLOW);
+        close(title_fd);
+        if(sys_fd<0)continue;
+        const int param_fd=openat(sys_fd,"param.json",
+                                  O_RDONLY|O_NONBLOCK|O_NOFOLLOW);
+        close(sys_fd);
+        if(param_fd<0)continue;
         struct stat meta_stat;
-        if(lstat(meta_path,&meta_stat)!=0 ||
+        if(fstat(param_fd,&meta_stat)!=0 ||
            !S_ISREG(meta_stat.st_mode) ||
-           meta_stat.st_size<30 || meta_stat.st_size>65536)continue;
-        FILE *meta=fopen(meta_path,"rb");
-        if(!meta)continue;
+           meta_stat.st_size<30 || meta_stat.st_size>65536){
+            close(param_fd);continue;
+        }
+        FILE *meta=fdopen(param_fd,"rb");
+        if(!meta){close(param_fd);continue;}
         char data[65537]={0};
         const size_t size=fread(data,1,sizeof(data)-1,meta);
         const int bad=ferror(meta) || size!=(size_t)meta_stat.st_size;
