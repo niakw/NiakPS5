@@ -11,7 +11,7 @@ jobs:
   host:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install host catalogue dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends gcc libsqlite3-dev
       - name: Compile catalogue and test with an isolated filesystem
