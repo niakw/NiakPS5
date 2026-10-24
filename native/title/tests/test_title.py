@@ -46,7 +46,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("mkstemp(temp)",auto)
         self.assertIn("lodepng::decode(pixels,w,h,raw)",auto)
         self.assertIn("for(const std::string& filename:paths)",case)
-        self.assertIn("valid_filename(source)",auto)
+        self.assertIn("valid_filename(filename)",auto)
 
     def test_short_game_overview_in_native_ui(self):
         metadata=(ROOT/"title"/"title_meta.cpp").read_text()
