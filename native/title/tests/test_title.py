@@ -26,7 +26,7 @@ class NativeTitleTests(unittest.TestCase):
             actual=destination.read_text(encoding="utf-8")
             self.assertNotIn("\\\\t",actual)
             self.assertEqual(len(actual.splitlines()),len(rows))
-            self.assertTrue(all(len(line.split("\\t"))==3 for line in actual.splitlines()))
+            self.assertTrue(all(len(line.split("\t"))==3 for line in actual.splitlines()))
         for bad in ("CUSA12345\\thttps://evil.example/fr\\tTexte",
                     "BADID\\thttps://www.jeuxvideo.com/jeu\\tTexte",
                     "CUSA12345\\thttps://www.jeuxvideo.com/jeu\\t"):
