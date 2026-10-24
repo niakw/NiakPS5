@@ -48,6 +48,9 @@ bool valid_download_source(const std::string &image_path) {
  return ext==".jpg"||ext==".jpeg"||ext==".png";
 }
 } // namespace
+void niak_track_case_texture(std::uint32_t texture,unsigned width,unsigned height){
+ track_case_texture(texture,width,height);
+}
 std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
                                  const char *id,const char *side,float *aspect) {
  if(!niak_valid_title_id(id)||!side ||

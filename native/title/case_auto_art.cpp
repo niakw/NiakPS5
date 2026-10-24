@@ -270,15 +270,27 @@ bool write_atomic(const std::string &path,
 bool save(const Task& task,const std::string& name,
           const std::vector<unsigned char>& png){
  const std::string path=cache_path(task);
- if(!write_atomic(path,png.data(),png.size()))return false;
- // Treat image plus provenance as one logical cache entry. A validated PNG
- // without its matching source marker is not reusable and must not count as
- // a completed download. Remove both parts if the second write fails.
  const std::string marker=path+".source";
- if(!write_atomic(marker,
+ // Stage both files BEFORE invalidating the current cache entry.
+ // A new PNG must never be advertised by an obsolete .source marker.
+ const std::string staged_png=path+".pending";
+ const std::string staged_source=marker+".pending";
+ if(!write_atomic(staged_png,png.data(),png.size()))return false;
+ if(!write_atomic(staged_source,
        reinterpret_cast<const unsigned char*>(name.data()),name.size())){
+   (void)std::remove(staged_png.c_str());
+   return false;
+ }
+ (void)std::remove(marker.c_str());
+ if(std::rename(staged_png.c_str(),path.c_str())!=0){
+   (void)std::remove(staged_png.c_str());
+   (void)std::remove(staged_source.c_str());
+   return false;
+ }
+ if(std::rename(staged_source.c_str(),marker.c_str())!=0){
+   // A PNG without committed provenance is never reusable.
    (void)std::remove(path.c_str());
-   (void)std::remove(marker.c_str());
+   (void)std::remove(staged_source.c_str());
    return false;
  }
  return true;

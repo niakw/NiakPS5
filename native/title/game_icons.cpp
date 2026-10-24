@@ -2,6 +2,7 @@
 // Real installed PS5 game icons, read over the local ShadowMountPlus API.
 // This client never requests mount/uninstall/write endpoints.
 #include "niak/game_icons.hpp"
+#include "niak/case_art.hpp"
 extern "C" {
 #include "niak/catalog.h"
 }
@@ -281,7 +282,10 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
         }
         const auto texture=renderer.create_texture(
             int(target_w),int(target_h),scaled.data());
-        if(texture && aspect)*aspect=float(target_w)/float(target_h);
+        if(texture) {
+            niak_track_case_texture(texture,target_w,target_h);
+            if(aspect)*aspect=float(target_w)/float(target_h);
+        }
         return texture;
     }
     return 0;

@@ -10,3 +10,5 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,const char *p
 void niak_release_case_templates(hui::gfx::Renderer &renderer);
 // Renderer-thread only: free the case texture and update resident VRAM estimate.
 void niak_destroy_case_texture(hui::gfx::Renderer &renderer,std::uint32_t &texture);
+// Track GPU bytes for local game backgrounds used as reconstructed sleeve art.
+void niak_track_case_texture(std::uint32_t texture,unsigned width,unsigned height);
