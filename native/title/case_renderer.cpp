@@ -147,28 +147,41 @@ void outer_face(DrawList &list,const Camera &camera,
             printed(list,image,coords,near_frontal?12:24,
                     near_frontal?8:15,false,0.f,1.f,region);
         };
+        // ONE uninterrupted opaque printable sheet lives between plastic
+        // and ALL front/back elements. The design never gives screenshots,
+        // captions or blank areas their own separate background cards.
+        block(0.f,0.f,1.f,1.f,back?
+              Color::rgb(ps4?0x161a19:0xffffff):
+              Color::rgb(0x0c1727));
         if(!back) {
-            // TRUE FULL BLEED from the exact lower edge of the console banner
-            // to the plastic's bottom. Never lay a centered app icon on top
-            // of an already full-width illustration.
-            block(0.f,0.f,1.f,1.f,Color::rgb(0x0c1727));
+            // Artwork covers the entire PRINT below the PS4/PS5 masthead.
+            // Background-size: cover uses cropped UVs, not width stretching.
             const auto art=item.case_poster?item.case_poster:
                 item.case_scene?item.case_scene:
                 (item.cover_is_image?item.cover:0);
             const float art_aspect=item.case_poster?item.poster_aspect:
                 item.case_scene?item.case_scene_aspect:1.0f;
-            if(art && art==item.cover && !item.case_poster &&
-               !item.case_scene) {
-                // Square icon fallback: preserve its entire width and keep
-                // an opaque cover-colored background around it.
+            const bool icon_fallback=art && art==item.cover &&
+                !item.case_poster && !item.case_scene;
+            if(icon_fallback) {
+                // Layer 1: same icon as FULL-BLEED background of the paper,
+                // below the console masthead. Centre crop to the print aspect
+                // (UV cover), NEVER stretch a square icon along the width.
+                // The continuous opaque sheet remains behind transparent PNGs.
+                panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
+                // Layer 2: the actual icon, fitted ENTIRELY inside the cover
+                // (contain). Its box has the source aspect and NO dark card.
                 const float space=1.f-layout.front_header;
                 const float h=std::min(space*0.74f,
                     case_aspect*0.88f/std::max(0.1f,art_aspect));
-                const float w=std::min(0.88f,h*art_aspect/case_aspect);
+                const float w=h*art_aspect/case_aspect;
                 const float x=(1.f-w)*0.5f;
                 const float y=layout.front_header+(space-h)*0.5f;
                 panel(art,art_aspect,x,y,x+w,y+h);
-            } else panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
+            } else {
+                // Poster/fanart also uses cover UVs, respecting source aspect.
+                panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
+            }
             if(item.case_template_front) {
                 // The masthead is invariant and occupies only the top ~10.8%.
                 const auto banner=[&](float u,float v){
@@ -196,10 +209,9 @@ void outer_face(DrawList &list,const Camera &camera,
                         near_frontal?12:18,near_frontal?3:5);
             }
         } else {
-            // FULLY OPAQUE printable back under every image, text block and
-            // footer. Plastic is visible only on the external 3D case edges.
-            block(0.f,0.f,1.f,1.f,
-                  Color::rgb(ps4?0x161a19:0xffffff));
+            // The base print was already painted ONCE above, from top to
+            // bottom. Even if every screenshot and fixed footer is absent,
+            // no section may expose bare blue plastic.
             const float gutter=0.018f;
             // Only two genuinely different gameplay screenshots can form
             // two columns. With zero/one screenshot, select ONE existing
@@ -231,9 +243,8 @@ void outer_face(DrawList &list,const Camera &camera,
                           1.f-gutter,layout.back_art_bottom);
                 }
             }
-            // Clear an actual print gap between the image mosaic and footer.
-            block(0.f,layout.back_art_bottom,1.f,layout.back_footer,
-                  Color::rgb(ps4?0x161a19:0xffffff));
+            // The naturally exposed gap shows the SAME underlying paper;
+            // no extra rectangle over the print and no seams between pieces.
             if(item.case_template_back) {
                 const auto footer=[&](float u,float v) {
                     return paper(u,layout.back_footer+
@@ -241,12 +252,9 @@ void outer_face(DrawList &list,const Camera &camera,
                 };
                 printed(list,item.case_template_back,footer,
                         near_frontal?12:24,near_frontal?6:9);
-            } else {
-                // No proprietary footer available: use a neutral blank strip,
-                // never fake ratings, barcodes, technical labels or legal text.
-                block(0.f,layout.back_footer,1.f,1.f,
-                      Color::rgb(0xdde7f0));
             }
+            // Without a footer image, leave the SAME opaque paper visible;
+            // do not attach a separately coloured rectangle to the bottom.
         }
         // Text in a perspective plane is legible only when the face is nearly
         // straight. Hide these planar labels edge-on; never overlay the spine.
@@ -290,7 +298,7 @@ void outer_face(DrawList &list,const Camera &camera,
                     hui::ui::paragraph(list,fonts.regular,
                         "APERÇU RECONSTITUÉ — NON OFFICIEL",
                         foot.first,pos.y,10.f,foot.second,15.f,
-                        Color::rgb(0x18394f),2);
+                        Color::rgb(ps4?0xf3f7ff:0x18394f),2);
                 }
             }
         }

@@ -18,6 +18,20 @@ class CaseFallbackTests(unittest.TestCase):
                             "-o",str(binary)],check=True,capture_output=True,text=True)
             subprocess.run([str(binary)],check=True,capture_output=True,text=True)
 
+    def test_reconstructed_case_uses_one_full_sheet_below_every_element(self):
+        source=(ROOT/"case_renderer.cpp").read_text()
+        self.assertEqual(source.count("block(0.f,0.f,1.f,1.f,"),1)
+        self.assertIn("Color::rgb(ps4?0x161a19:0xffffff)",source)
+        self.assertIn("Color::rgb(0x0c1727)",source)
+        self.assertNotIn("block(0.f,layout.back_art_bottom",source)
+        self.assertNotIn("block(0.f,layout.back_footer,1.f,1.f",source)
+        self.assertNotIn("Color::rgb(0xdde7f0)",source)
+        self.assertIn("const bool icon_fallback=",source)
+        self.assertIn("panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);",source)
+        self.assertIn("panel(art,art_aspect,x,y,x+w,y+h);",source)
+        self.assertIn("const float w=h*art_aspect/case_aspect",source)
+        self.assertIn("niak_case_cover_crop(",source)
+
     def test_official_faces_override_independently(self):
         source=(ROOT/"case_renderer.cpp").read_text()
         staged=(ROOT/"prepare.py").read_text()
