@@ -71,7 +71,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("task.id==s.selected)s.retries.push_back",auto)
         self.assertIn("task.attempt<2",auto)
         self.assertIn("transient_network_failure(error)",auto)
-        self.assertIn("cdn.last_network_stage",ui)
+        self.assertIn("cdn.last_network_stage",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("if(stage)*stage=3",(ROOT/"title"/"daily_runtime.cpp").read_text())
         net=(ROOT/"title"/"daily_runtime.cpp").read_text()
         self.assertIn("16u*1024u*1024u",net)
