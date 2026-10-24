@@ -23,8 +23,13 @@
 
 namespace {
 constexpr std::size_t MAX_BYTES=7u*1024u*1024u;
-std::array<std::uint32_t,14> images{};
+// Each decoded 1280x720 RGBA wallpaper uses 3.52 MiB on the GPU.
+// Keep ONE packaged texture, rather than preloading fourteen (~49.2 MiB).
+std::array<std::string,14> packaged_paths{};
 std::array<std::string,14> wallpaper_labels{};
+std::array<bool,14> packaged_failed{};
+std::uint32_t packaged_texture=0;
+int packaged_index=-1;
 int count=0;
 int override_offset=0;
 int override_day=-1;
@@ -112,6 +117,44 @@ bool load_packaged(const char *path,std::vector<std::uint8_t> &rgba) {
     std::fclose(file);if(!ok)return false;
     unsigned w=0,h=0;
     return decode_png(buffer,w,h,rgba) && w==1280 && h==720;
+}
+// Catalog only small image headers. Full PNG/WebP decoding happens when the
+// wallpaper becomes visible, on the GL-owning thread, and never for all 14.
+bool packaged_header_ok(const char *path) {
+    std::FILE *file=std::fopen(path,"rb");if(!file)return false;
+    if(std::fseek(file,0,SEEK_END)!=0){std::fclose(file);return false;}
+    const long size=std::ftell(file);
+    if(size<33 || size>long(MAX_BYTES) || std::fseek(file,0,SEEK_SET)!=0) {
+        std::fclose(file);return false;
+    }
+    std::uint8_t header[32]{};
+    const auto n=std::fread(header,1,sizeof(header),file);
+    std::fclose(file);
+    if(n!=sizeof(header))return false;
+    static constexpr std::uint8_t png_sig[]={137,80,78,71,13,10,26,10};
+    return (std::memcmp(header,"RIFF",4)==0 &&
+            std::memcmp(header+8,"WEBP",4)==0) ||
+           std::memcmp(header,png_sig,8)==0;
+}
+std::uint32_t packaged_backdrop(int index) {
+    if(index<0 || index>=count)return 0;
+    const auto slot=std::size_t(index);
+    if(packaged_index==index)return packaged_texture;
+    if(packaged_failed[slot])return 0;
+    Runtime &runtime=state();
+    if(!runtime.renderer)return 0;
+    std::vector<std::uint8_t> rgba;
+    if(!load_packaged(packaged_paths[slot].c_str(),rgba)) {
+        packaged_failed[slot]=true;
+        return 0;
+    }
+    const auto new_texture=runtime.renderer->create_texture(1280,720,rgba.data());
+    if(!new_texture){packaged_failed[slot]=true;return 0;}
+    const auto previous=packaged_texture;
+    packaged_texture=new_texture;
+    packaged_index=index;
+    if(previous)runtime.renderer->destroy_texture(previous);
+    return packaged_texture;
 }
 bool read_cache(const char *day,std::vector<std::uint8_t> &bytes) {
     FILE *id=std::fopen("/download0/niak-wallpaper-date.txt","rb");
@@ -214,8 +257,17 @@ int day_now(char (&date)[11]) {
 }
 }
 void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *directory) {
-    Runtime &runtime=state();runtime.renderer=&renderer;
+    Runtime &runtime=state();
+    if(packaged_texture && runtime.renderer)
+        runtime.renderer->destroy_texture(packaged_texture);
+    runtime.renderer=&renderer;
+    packaged_texture=0;
+    packaged_index=-1;
+    packaged_failed.fill(false);
+    packaged_paths.fill({});
+    wallpaper_labels.fill({});
     count=0;
+    override_day=-1;
     std::array<std::string,14> by_file{};
     char manifest[256];
     if(std::snprintf(manifest,sizeof(manifest),"%s/labels.tsv",directory)>0) {
@@ -240,25 +292,28 @@ void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *director
     }
     for(int i=0;i<14;++i) {
         char path[256];
-        std::snprintf(path,sizeof(path),"%s/wall-%02d.webp",directory,i);
-        std::vector<std::uint8_t> pixels;
-        if(!load_packaged(path,pixels)) {
-            std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
-            if(!load_packaged(path,pixels))continue;
+        int n=std::snprintf(path,sizeof(path),"%s/wall-%02d.webp",directory,i);
+        if(n<=0 || n>=int(sizeof(path)) || !packaged_header_ok(path)) {
+            n=std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
+            if(n<=0 || n>=int(sizeof(path)) || !packaged_header_ok(path))
+                continue;
         }
-        const auto texture=renderer.create_texture(1280,720,pixels.data());
-        if(texture) {
-            images[std::size_t(count)]=texture;
-            wallpaper_labels[std::size_t(count)]=std::move(by_file[std::size_t(i)]);
-            ++count;
-        }
+        packaged_paths[std::size_t(count)]=path;
+        wallpaper_labels[std::size_t(count)]=std::move(by_file[std::size_t(i)]);
+        ++count;
     }
-    hui::sys::log("[NiakPS5] packaged PS5 wallpapers=%d, online refresh is optional",count);
+    hui::sys::log("[NiakPS5] packaged PS5 wallpaper files=%d; GPU loads on demand",count);
 }
 std::uint32_t niak_daily_backdrop() {
     Runtime &s=state();char today[11]={};const int day=day_now(today);
-    if(day<0)return count?images[0]:0;
+    if(day<0)return packaged_backdrop(0);
     restore_day_choice(day);
+    // Do not retain yesterday's unused online RGBA GPU allocation.
+    if(s.texture && s.live_day!=day && s.renderer) {
+        s.renderer->destroy_texture(s.texture);
+        s.texture=0;
+        s.live_day=-1;
+    }
 #if defined(__PROSPERO__)
     if(s.started_day!=day) {
         s.started_day=day;
@@ -290,18 +345,20 @@ std::uint32_t niak_daily_backdrop() {
         }
     }
     if(override_offset==0 && s.texture&&s.live_day==day)return s.texture;
-    return count?images[std::size_t(((day+override_offset)%count+count)%count)]:0;
+    return count?packaged_backdrop(((day+override_offset)%count+count)%count):0;
 }
 
 const char *niak_daily_backdrop_caption() {
     static constexpr const char *kUnknown="Fond · Sélection PS5";
     static constexpr const char *kLive="Fond du jour · Sélection PS5 en ligne";
     char today[11]{};const int day=day_now(today);
-    if(day<0 || count==0)return kUnknown;
+    if(day<0)return kUnknown;
     restore_day_choice(day);
     Runtime &s=state();
     if(override_offset==0 && s.texture && s.live_day==day)return kLive;
+    if(count==0)return kUnknown;
     const int idx=((day+override_offset)%count+count)%count;
+    if(packaged_index!=idx || !packaged_texture)return kUnknown;
     const std::string &label=wallpaper_labels[std::size_t(idx)];
     return label.empty()?kUnknown:label.c_str();
 }
