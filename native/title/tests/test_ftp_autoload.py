@@ -531,8 +531,8 @@ class AutoloadTests(unittest.TestCase):
         source="00000000-0000-0000-0000-000000000001.jpg"
         (self.root/"assets").mkdir(exist_ok=True)
         (self.root/"assets/niak-launchbox-cases.tsv").write_text(
-            ident+"\\tOverview\\tfr:"+source+"\\t-\\t-\\t-\\t8\\n"
-        .replace("\\\\t","\\t").replace("\\\\n","\\n"))
+            (ident+"\\tOverview\\tfr:"+source+"\\t-\\t-\\t-\\t8\\n")
+            .replace("\\\\t","\\t").replace("\\\\n","\\n"))
         f=FakeFTP({"/user/app/"+ident+"/eboot.bin":b"installed"})
         class Response:
             def __enter__(self):return self
