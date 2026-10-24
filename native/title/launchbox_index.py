@@ -71,7 +71,7 @@ def face_options(entries):
         if len(out)>=12:break
     return ";".join(out[:12]) or "-"
 
-def parse(xml,installed):
+def parse(xml,installed,diagnostics=None):
     games,aliases,media={}, {}, {}
     # Metadata.zip can group GameImage/GameAlternateName independently of
     # Game entries. Never assume an image's game was already encountered.
@@ -207,6 +207,13 @@ def parse(xml,installed):
         for title in sorted(set(ids)):
             rows.append((title,overview,*faces,hero,shot1,shot2,gid))
     rows.sort()
+    if diagnostics is not None:
+        # The public Metadata.zip must really contain all three media types.
+        # Only aggregate counts are printed; no private PS5 IDs/names.
+        diagnostics.update({
+            kind:sum(len(group.get(kind,())) for group in media.values())
+            for kind in ("hero","gameplay","game_title")
+        })
     return rows
 
 def build(archive,ids_file,out):
@@ -216,7 +223,12 @@ def build(archive,ids_file,out):
         if len(xml)!=1 or xml[0].file_size>2*1024**3:
             raise ValueError("LaunchBox archive is malformed")
         with bundle.open(xml[0]) as source:
-            rows=parse(source,installed)
+            stats={}
+            rows=parse(source,installed,stats)
+    back_types=[stats.get(k,0) for k in ("hero","gameplay","game_title")]
+    print("LaunchBox real media [fanart, gameplay, game title]:",back_types)
+    if len(rows)>1000 and min(back_types)<100:
+        raise ValueError("LaunchBox back image category missing from live metadata")
     output=Path(out)
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text("# title\tOverview\tFront\tBack\tSpine\tLogo\tHero\tShot1\tShot2\tLaunchBoxID\n"+

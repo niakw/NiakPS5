@@ -124,7 +124,11 @@ class TestRetailCases(unittest.TestCase):
    <GameImage><DatabaseID>100</DatabaseID><Type>Screenshot - Game Title</Type>
     <FileName>00000000-0000-0000-0000-000000000005.jpg</FileName></GameImage>
    </LaunchBox>"""
-  row=mod.parse(io.BytesIO(xml),installed)[0]
+  stats={}
+  row=mod.parse(io.BytesIO(xml),installed,stats)[0]
+  self.assertEqual(stats["hero"],1)
+  self.assertEqual(stats["gameplay"],2)
+  self.assertEqual(stats["game_title"],1)
   self.assertIn("000000000002",row[6])  # Fanart is not discarded
   self.assertIn("000000000003",row[7])  # Gameplay
   self.assertIn("000000000005",row[8])  # Title screen, not second gameplay
