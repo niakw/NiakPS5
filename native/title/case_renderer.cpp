@@ -243,9 +243,13 @@ void outer_face(DrawList &list,const Camera &camera,
             // Without a footer image, leave the SAME opaque paper visible;
             // do not attach a separately coloured rectangle to the bottom.
         }
-        // Text in a perspective plane is legible only when the face is nearly
-        // straight. Hide these planar labels edge-on; never overlay the spine.
-        if(std::fabs(camera.cs)>0.90f) {
+        // Draw description at the START of the back-cover approach and
+        // fade into place, rather than suddenly popping at 90% rotation.
+        // Keep text invisible edge-on so it never crosses the case spine.
+        const float copy_opacity=std::clamp(
+            (std::fabs(camera.cs)-0.35f)/0.40f,0.f,1.f);
+        if(copy_opacity>0.01f) {
+            list.push_opacity(copy_opacity);
             const auto text_bounds=[&](float left,float right,float line){
                 const auto aa=paper(left,line),bb=paper(right,line);
                 return std::pair<float,float>{std::min(aa.x,bb.x),
@@ -288,6 +292,7 @@ void outer_face(DrawList &list,const Camera &camera,
                         Color::rgb(ps4?0xf3f7ff:0x18394f),2);
                 }
             }
+            list.pop_opacity();
         }
     }
     const auto topL=at(L,T),topR=at(R,T),botL=at(L,B),botR=at(R,B);
