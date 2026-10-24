@@ -192,6 +192,12 @@ def parse(xml,installed,diagnostics=None):
         if len(candidates)==1:
             gid=next(iter(candidates))
             images=media.get(gid,{})
+            # The chosen native edition is authoritative even when the
+            # broader alias lookup finds several editions on this platform.
+            if key[0]=="ps5":
+                ps5,ps5_gid=images,gid
+            else:
+                ps4,ps4_gid=images,gid
         else:
             # Ambiguous native matches/editions are not assigned at random.
             # A unique secondary record can still supply non-box media.

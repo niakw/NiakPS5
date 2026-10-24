@@ -228,7 +228,9 @@ class TestRetailCases(unittest.TestCase):
     row=rows[0]
     self.assertEqual(row[0],title)
     self.assertEqual(row[1],"PC game description.")
-    self.assertEqual(row[2:5],("-","-","-"))  # never Windows retail scans
+    self.assertEqual(row[2],"-")  # never Windows Box - Front
+    self.assertIn("000000000502",row[3])  # PC Box - Back is allowed last
+    self.assertEqual(row[4],"-")  # no Windows spine
     self.assertIn("000000000503",row[6])
     self.assertIn("000000000504",row[7])
     self.assertIn("000000000505",row[8])
