@@ -51,11 +51,13 @@ def stage(folder:Path):
                 # replace these six paths later over FTP.
                 # Preserve genuine alpha in fixed elements; do not flatten overlays.
                 image=image.convert("RGBA").resize(size,Image.Resampling.LANCZOS)
-                dest=output/(name+".png")
+                # The six original-derived strips can remain compact.
+                # Preserve alpha; leave private full-res PNG overrides alone.
+                dest=output/(name+".webp")
                 if not dest.is_file():
-                    image.save(dest,"PNG",optimize=True)
-    if len(list(output.glob("*.png")))!=6:
-        raise ValueError("Incomplete six-template default installation")
+                    image.save(dest,"WEBP",quality=80,method=6,exact=True)
+    if len(list(output.glob("*.webp")))!=6:
+        raise ValueError("Incomplete six-template WebP installation")
     print("Six original-derived PS4/PS5 strips staged for drag-and-drop.")
 
 if __name__=="__main__":

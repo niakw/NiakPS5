@@ -234,6 +234,21 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
         "/app0/assets/niak-templates/%s-%s.png",platform,part);
      fp=std::fopen(file,"rb");
  }
+ // User-provided PNG originals always win over the built-in compressed
+ // WebP defaults. This works entirely inside the NiakPS5 native title.
+#if defined(__PROSPERO__)
+ if(!fp) {
+     std::snprintf(file,sizeof(file),
+        "/data/homebrew/PPSA99386/assets/niak-templates/%s-%s.webp",
+        platform,part);
+     fp=std::fopen(file,"rb");
+ }
+ if(!fp) {
+     std::snprintf(file,sizeof(file),
+        "/app0/assets/niak-templates/%s-%s.webp",platform,part);
+     fp=std::fopen(file,"rb");
+ }
+#endif
  if(!fp)return fail("not found"); // Optional on offline PS5, required in CI.
  if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
  const long size=std::ftell(fp);
@@ -242,11 +257,26 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  std::vector<unsigned char> bytes(static_cast<std::size_t>(size));
  const bool complete=std::fread(bytes.data(),1,bytes.size(),fp)==bytes.size();
  std::fclose(fp);if(!complete)return 0;
- if(bytes.size()<24||std::memcmp(bytes.data(),"\x89PNG\r\n\x1a\n",8)!=0)return 0;
- const unsigned width=(unsigned(bytes[16])<<24)|(unsigned(bytes[17])<<16)|
-                      (unsigned(bytes[18])<<8)|bytes[19];
- const unsigned height=(unsigned(bytes[20])<<24)|(unsigned(bytes[21])<<16)|
-                       (unsigned(bytes[22])<<8)|bytes[23];
+ if(bytes.size()<24)return 0;
+ const bool webp=std::memcmp(bytes.data(),"RIFF",4)==0 &&
+                  std::memcmp(bytes.data()+8,"WEBP",4)==0;
+ unsigned width=0,height=0;
+ if(webp) {
+#if defined(__PROSPERO__)
+     int iw=0,ih=0;
+     if(!WebPGetInfo(bytes.data(),bytes.size(),&iw,&ih) ||
+        iw<=0||ih<=0)return 0;
+     width=unsigned(iw);height=unsigned(ih);
+#else
+     return fail("WebP template unsupported by host preview");
+#endif
+ } else {
+     if(std::memcmp(bytes.data(),"\x89PNG\r\n\x1a\n",8)!=0)return 0;
+     width=(unsigned(bytes[16])<<24)|(unsigned(bytes[17])<<16)|
+           (unsigned(bytes[18])<<8)|bytes[19];
+     height=(unsigned(bytes[20])<<24)|(unsigned(bytes[21])<<16)|
+            (unsigned(bytes[22])<<8)|bytes[23];
+ }
  // Wide brand header/back legal strip or narrow tall spine; do not decode
  // accidentally swapped art, malicious PNG dimensions or an icon.
  // The standard GitHub OpenGL preview carries two *downscaled* copies
@@ -275,8 +305,19 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
      return fail("invalid dimensions");
  }
  std::vector<unsigned char> pixels;
- unsigned w=0,h=0;
- const unsigned decode_error=lodepng::decode(pixels,w,h,bytes);
+ unsigned w=width,h=height;
+ unsigned decode_error=0;
+ if(webp) {
+#if defined(__PROSPERO__)
+     pixels.resize(std::size_t(w)*h*4u);
+     if(!WebPDecodeRGBAInto(bytes.data(),bytes.size(),pixels.data(),
+                            pixels.size(),int(w*4u)))decode_error=1;
+#else
+     decode_error=1;
+#endif
+ } else {
+     decode_error=lodepng::decode(pixels,w,h,bytes);
+ }
  if(decode_error || w!=width || h!=height ||
     pixels.size()!=std::size_t(w)*h*4) {
 #if defined(__linux__)

@@ -718,6 +718,12 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('"case_footer_alpha.hpp"',(ROOT/"title"/"prepare.py").read_text())
         self.assertNotIn('opaque sample footer rejected',(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn('convert("RGBA")',(ROOT/"title"/"stage_case_templates.py").read_text())
+        templates=(ROOT/"title"/"stage_case_templates.py").read_text()
+        native_art=(ROOT/"title"/"case_art.cpp").read_text()
+        self.assertIn('image.save(dest,"WEBP",quality=80,method=6,exact=True)',templates)
+        self.assertIn('len(list(output.glob("*.webp")))',templates)
+        self.assertIn("/app0/assets/niak-templates/%s-%s.webp",native_art)
+        self.assertIn("WebPDecodeRGBAInto(bytes.data(),bytes.size(),pixels.data()",native_art)
         self.assertIn("item.application=false",host)
         self.assertIn("reconstructed back artwork block missing",validator)
         for platform in ("ps4","ps5"):
