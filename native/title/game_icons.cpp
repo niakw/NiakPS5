@@ -24,6 +24,7 @@ extern "C" {
 #include <unistd.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <array>
 #include <cstdio>
 #include <cstring>
