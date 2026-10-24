@@ -143,9 +143,19 @@ bool read_local_png(const char *path,std::vector<unsigned char> &png) {
     std::fclose(fp);return ok;
 }
 // Verified installed PNG and modern quality-80 WebP, bounded before allocation.
+// Inspect scene geometry before decoding potentially large source images.
+// An icon, portrait or square cover must not consume 16 MiB of RGBA
+// allocation only to be rejected as a background after decompression.
+bool valid_scene_dimensions(unsigned width,unsigned height) {
+    return width>=512 && height>=256 &&
+           width<=2048 && height<=1536 &&
+           std::uint64_t(width)*10u>=std::uint64_t(height)*13u &&
+           std::uint64_t(width)*2u<=std::uint64_t(height)*5u;
+}
 bool decode_installed_art(const std::vector<unsigned char> &bytes,
                           std::vector<unsigned char> &rgba,
-                          unsigned &w,unsigned &h)
+                          unsigned &w,unsigned &h,
+                          bool landscape_scene=false)
 {
     if(bytes.size()<24||bytes.size()>kMaximumPng)return false;
     const bool webp=std::memcmp(bytes.data(),"RIFF",4)==0 &&
@@ -156,6 +166,7 @@ bool decode_installed_art(const std::vector<unsigned char> &bytes,
         if(!WebPGetInfo(bytes.data(),bytes.size(),&iw,&ih)||
            iw<32||ih<32||iw>2048||ih>2048)return false;
         w=unsigned(iw);h=unsigned(ih);
+        if(landscape_scene && !valid_scene_dimensions(w,h))return false;
         rgba.resize(std::size_t(w)*h*4u);
         return WebPDecodeRGBAInto(bytes.data(),bytes.size(),rgba.data(),
                                   rgba.size(),int(w*4u))!=nullptr;
@@ -167,6 +178,7 @@ bool decode_installed_art(const std::vector<unsigned char> &bytes,
     if(std::memcmp(bytes.data(),signature,8)!=0)return false;
     const unsigned iw=size32(bytes.data()+16),ih=size32(bytes.data()+20);
     if(iw<32||ih<32||iw>2048||ih>2048)return false;
+    if(landscape_scene && !valid_scene_dimensions(iw,ih))return false;
     if(lodepng::decode(rgba,w,h,bytes)!=0||w!=iw||h!=ih)return false;
     return rgba.size()==std::size_t(w)*h*4u;
 }
@@ -285,10 +297,8 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
         if(!read_local_png(path.c_str(),png))continue;
         std::vector<unsigned char> rgba;
         unsigned w=0,h=0;
-        if(!decode_installed_art(png,rgba,w,h))continue;
-        // A landscape scene must never be confused with an icon/retail cover.
-        if(w<512||h<256||w>2048||h>1536||
-           w<h*1.3f||w>h*2.5f)continue;
+        // Reject non-landscape art before a costly PNG/WebP pixel decode.
+        if(!decode_installed_art(png,rgba,w,h,true))continue;
         const unsigned target_w=768;
         const unsigned target_h=std::max(320u,std::min(560u,
             static_cast<unsigned>((std::uint64_t(target_w)*h)/w)));
@@ -306,10 +316,10 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
         }
         const auto texture=renderer.create_texture(
             int(target_w),int(target_h),scaled.data());
-        if(texture) {
-            niak_track_case_texture(texture,target_w,target_h);
-            if(aspect)*aspect=float(target_w)/float(target_h);
-        }
+        // A rejected GPU allocation must not suppress the next local image.
+        if(!texture)continue;
+        niak_track_case_texture(texture,target_w,target_h);
+        if(aspect)*aspect=float(target_w)/float(target_h);
         return texture;
     }
     return 0;
