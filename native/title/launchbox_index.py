@@ -224,6 +224,7 @@ def parse(xml,installed,diagnostics=None):
         # reconstructed back even if gameplay has many regional images.
         # The Fanart Background remains an independent HERO slot.
         shots=[]
+        shot_kinds=[]
         def add_first(kind):
             for group in (images,other,pc):
                 for area in ORDER:
@@ -231,6 +232,7 @@ def parse(xml,installed,diagnostics=None):
                         if where!=area or filename in used:continue
                         used.add(filename)
                         shots.append(area+":"+filename)
+                        shot_kinds.append(kind)
                         return True
             return False
         add_first("gameplay")
@@ -240,7 +242,32 @@ def parse(xml,installed,diagnostics=None):
         for kind in ("gameplay","game_title"):
             if len(shots)>=2:break
             add_first(kind)
-        shot1,shot2=(shots+["-","-"])[:2]
+        # Each of the TWO distinct screenshot slots may fall back to its
+        # matching PC image when a console CDN candidate is unavailable.
+        # Never use the same primary frame as another slot or any hero image.
+        def screenshot_sources(slot):
+            if slot>=len(shots):return "-"
+            primary=shots[slot]
+            primary_name=primary.split(":",1)[1]
+            forbidden={x.split(":",1)[1] for x in hero.split(";") if ":" in x}
+            forbidden.update(x.split(":",1)[1] for i,x in enumerate(shots)
+                             if i!=slot)
+            options=layered_media(*(
+                [(area,filename) for area,filename in group.get(shot_kinds[slot],[])
+                 if filename not in forbidden]
+                for group in (images,other,pc)
+            ))
+            result=[primary]
+            seen={primary_name}
+            for choice in options.split(";"):
+                if ":" not in choice:continue
+                filename=choice.split(":",1)[1]
+                if filename not in seen:
+                    seen.add(filename)
+                    result.append(choice)
+                if len(result)>=4:break
+            return ";".join(result)
+        shot1,shot2=screenshot_sources(0),screenshot_sources(1)
         overview=info[2] or (
             games[other_gid][2] if other_gid else "") or (
             games[pc_gid][2] if pc_gid else "") or "-"
