@@ -42,6 +42,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("std::thread(work).detach()",auto)
         self.assertIn("niak_fetch_launchbox_asset(",auto)
         self.assertIn("requested>112u",auto)
+        self.assertIn("for(const std::string &source:candidates)",auto)
         self.assertIn("mkstemp(temp)",auto)
         self.assertIn("lodepng::decode(pixels,w,h,raw)",auto)
         self.assertIn("for(const std::string& filename:paths)",case)

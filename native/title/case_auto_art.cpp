@@ -13,6 +13,7 @@
 #define STBI_NO_HDR
 #define STBI_NO_LINEAR
 #include "niak/stb_image.h"
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <condition_variable>
@@ -31,7 +32,7 @@
 namespace {
 constexpr const char *ROOT="/download0/niak-case-";
 constexpr std::size_t kMaxQueued=400;
-using ArtSlots=std::array<std::string,7>;
+using ArtSlots=std::array<std::vector<std::string>,7>;
 struct Task { std::string id,side; };
 struct State {
  std::mutex mutex;
@@ -124,12 +125,22 @@ std::unordered_map<std::string,ArtSlots> read_index(){
    ArtSlots parts{};
    for(int i=0;i<7;++i) {
      const auto& col=columns[std::size_t(i+2)];
-     const auto semicolon=col.find(';');
-     const std::string candidate=col.substr(0,semicolon);
-     const auto colon=candidate.find(':');
-     if(colon==std::string::npos)continue;
-     const std::string filename=candidate.substr(colon+1);
-     if(valid_filename(filename))parts[std::size_t(i)]=filename;
+     std::size_t begin=0;
+     while(begin<col.size() && parts[std::size_t(i)].size()<8) {
+       const auto end=col.find(';',begin);
+       const std::string candidate=col.substr(
+           begin,end==std::string::npos?end:end-begin);
+       const auto colon=candidate.find(':');
+       if(colon!=std::string::npos) {
+         const std::string filename=candidate.substr(colon+1);
+         auto &sources=parts[std::size_t(i)];
+         if(valid_filename(filename) &&
+            std::find(sources.begin(),sources.end(),filename)==sources.end())
+            sources.push_back(filename);
+       }
+       if(end==std::string::npos)break;
+       begin=end+1;
+     }
    }
    index.emplace(columns[0],std::move(parts));
  }
@@ -225,17 +236,24 @@ void work(){
    if(found==index.end())continue;
    const int field=side_index(task.side);
    if(field<0)continue;
-   const std::string &source=found->second[std::size_t(field)];
-   if(!valid_filename(source))continue;
+   const auto &candidates=found->second[std::size_t(field)];
+   if(candidates.empty())continue;
    const std::string target=cache_path(task);
-   if(existing(target,source))continue;
-   if(++requested>112u)continue; // Per-launch bandwidth/CPU limit.
-   std::vector<std::uint8_t> bytes;
-   if(!niak_fetch_launchbox_asset(source.c_str(),bytes))continue;
-   std::vector<unsigned char> png;
-   if(convert_png(bytes,source,task.side,png))
-     (void)save(task,source,png);
-   std::this_thread::sleep_for(std::chrono::milliseconds(150));
+   bool reusable=false;
+   for(const std::string &source:candidates)
+     if(existing(target,source)){reusable=true;break;}
+   if(reusable)continue;
+   // Region/server variation: a missing FR image can fall back to EU or
+   // another validated image, without ever trusting an arbitrary URL.
+   for(const std::string &source:candidates) {
+     if(++requested>112u)break; // Per-launch bandwidth/CPU limit.
+     std::vector<std::uint8_t> bytes;
+     if(!niak_fetch_launchbox_asset(source.c_str(),bytes))continue;
+     std::vector<unsigned char> png;
+     if(convert_png(bytes,source,task.side,png) &&
+        save(task,source,png))break;
+     std::this_thread::sleep_for(std::chrono::milliseconds(150));
+   }
  }
 }
 } // namespace
