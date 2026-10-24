@@ -340,6 +340,12 @@ audio::SoundSet Shell::sound_set() const''')
                 ++niak::case_media_stats.titles;
                 niak::case_media_stats.icons+=item.cover!=0;
             } else {
+            // GPU-heavy retail case art belongs to the SELECTED game.
+            // Streaming the remaining library decodes only its local icons.
+            // Offline Mesa demo fixtures still exercise all physical faces.
+#if defined(__PROSPERO__)
+            if(index==niak::case_media_stats.preferred_index) {
+#endif
             item.case_front = niak_load_case_art(renderer,item.title_id,"front");
             item.case_back = niak_load_case_art(renderer,item.title_id,"back");
             item.case_spine = niak_load_case_art(renderer,item.title_id,"spine");
@@ -371,6 +377,9 @@ audio::SoundSet Shell::sound_set() const''')
             if(!item.case_spine)
                 item.case_template_spine=niak_load_case_template(
                     renderer,platform,"spine");
+#if defined(__PROSPERO__)
+            } // selected case only, never preload the full shelf.
+#endif
             item.cover = niak_load_game_icon(renderer, item.title_id);
             auto &stats=niak::case_media_stats;
             ++stats.titles;
@@ -438,7 +447,7 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     last_case_focus_=index;
     last_case_completed_=completed;
     Item &selected=items_[static_cast<std::size_t>(index)];
-    if(selected.application || !selected.title_id[0] || !selected.cover)
+    if(selected.application || !selected.title_id[0])
         return false;
     bool changed=false;
     const auto missing=[&](std::uint32_t &texture,const char *side,
@@ -450,13 +459,28 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     missing(selected.case_front,"front");
     missing(selected.case_back,"back");
     missing(selected.case_spine,"spine");
-    if(!selected.case_front)
+    const char *platform=selected.title_id[0]=='C'?"ps4":"ps5";
+    if(!selected.case_front) {
+        if(!selected.case_template_front)
+            selected.case_template_front=niak_load_case_template(
+                renderer,platform,"front");
         missing(selected.logo_art,"logo",&selected.logo_art_aspect);
+        missing(selected.case_poster,"poster",&selected.poster_aspect);
+    }
     if(!selected.case_back) {
+        if(!selected.case_template_back)
+            selected.case_template_back=niak_load_case_template(
+                renderer,platform,"back");
+        if(!selected.case_scene)
+            selected.case_scene=niak_load_game_background(
+                renderer,selected.title_id,&selected.case_scene_aspect);
         missing(selected.case_hero,"hero",&selected.case_hero_aspect);
         missing(selected.case_shot1,"shot1",&selected.case_shot1_aspect);
         missing(selected.case_shot2,"shot2",&selected.case_shot2_aspect);
     }
+    if(!selected.case_spine && !selected.case_template_spine)
+        selected.case_template_spine=niak_load_case_template(
+            renderer,platform,"spine");
     return changed;
 }
 } // namespace hui::demo""")
