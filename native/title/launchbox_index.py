@@ -87,7 +87,8 @@ def parse(xml,installed):
             gid=el.findtext("DatabaseID","")
             if platform and gid.isdecimal():
                 games[gid]=(platform,el.findtext("Name",""),
-                            clean_overview(el.findtext("Notes","")))
+                            clean_overview(el.findtext("Overview","") or
+                                           el.findtext("Notes","")))
         elif tag=="GameAlternateName":
             gid=el.findtext("DatabaseID","")
             if gid.isdecimal():

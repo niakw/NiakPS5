@@ -48,6 +48,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("for(const std::string& filename:paths)",case)
         self.assertIn("valid_filename(filename)",auto)
 
+    def test_launchbox_metadata_build_rejects_empty_overviews(self):
+        build=(ROOT/"title"/"build.sh").read_text()
+        self.assertIn("LaunchBox overviews missing:",build)
+        self.assertIn('el.findtext("Overview","")',(ROOT/"title"/"launchbox_index.py").read_text())
+
     def test_short_game_overview_in_native_ui(self):
         metadata=(ROOT/"title"/"title_meta.cpp").read_text()
         self.assertIn("niak_short_overview(",metadata)

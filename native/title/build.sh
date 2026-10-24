@@ -30,6 +30,19 @@ if ! python3 "$root/native/title/launchbox_index.py" --download \
   printf '# title\tOverview\tFront\tBack\tSpine\tLogo\tLaunchBoxID\n' \
     > "$stage/assets/niak-launchbox-cases.tsv"
 fi
+# A successfully downloaded LaunchBox database with thousands of matches
+# MUST contain at least some real short overviews. Do not ship an empty
+# description catalogue again when a field name changes upstream.
+python3 - "$stage/assets/niak-launchbox-cases.tsv" <<'PY'
+from pathlib import Path
+import sys
+rows=Path(sys.argv[1]).read_text(encoding="utf8").splitlines()
+if len(rows)>1000:
+    actual=sum(1 for row in rows[1:] if len(row.split("\t"))>=10 and row.split("\t")[1]!="-")
+    if actual<50:
+        raise SystemExit(f"LaunchBox overviews missing: {actual} of {len(rows)-1} matches")
+    print(f"LaunchBox indexed descriptions: {actual}/{len(rows)-1}")
+PY
 python3 "$root/native/title/patch_home.py" --kit "$stage"
 python3 "$root/native/title/polish.py" --kit "$stage"
 # Upstream ps5-opengl release URL was withdrawn; use a mirrored archive

@@ -5,6 +5,24 @@ MODULE=Path(__file__).parents[1]/"launchbox_index.py"
 spec=importlib.util.spec_from_file_location("niak_index",MODULE)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class TestRetailCases(unittest.TestCase):
+ def test_real_launchbox_overview_field_is_preferred(self):
+  xml=b'''<LaunchBox>
+    <Game><DatabaseID>427261</DatabaseID>
+      <Platform>Sony Playstation 5</Platform>
+      <Name>A Plague Tale: Innocence</Name>
+      <Overview>Follow two siblings. Escape danger. Protect each other. Fourth is removed.</Overview>
+      <Notes>Incorrect application-only field.</Notes>
+    </Game>
+    <GameImage><DatabaseID>427261</DatabaseID><Type>Box - Front</Type>
+      <FileName>742c24d1-1bee-4baf-8ca7-70b28613cefc.png</FileName>
+    </GameImage>
+  </LaunchBox>'''
+  rows=mod.parse(io.BytesIO(xml),{("ps5","a plague tale innocence"):["PPSA02387"]})
+  self.assertEqual(len(rows),1)
+  self.assertEqual(rows[0][1],"Follow two siblings. Escape danger. Protect each other.")
+  self.assertNotIn("Incorrect",rows[0][1])
+
+
  def test_overview_keeps_only_three_source_sentences(self):
   original="One. Two! Three? Four. Five."
   self.assertEqual(mod.clean_overview(original),"One. Two! Three?")
