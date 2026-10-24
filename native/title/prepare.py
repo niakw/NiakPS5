@@ -517,6 +517,24 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     if(!selected.case_spine && !selected.case_template_spine)
         selected.case_template_spine=niak_load_case_template(
             renderer,platform,"spine");
+    // A newly arrived official retail scan replaces ONLY its face.
+    // Free fallback media no longer drawn for that face, but keep the
+    // installed background while a missing FRONT still needs it.
+    if(selected.case_front) {
+        niak_destroy_case_texture(renderer,selected.logo_art);
+        niak_destroy_case_texture(renderer,selected.case_poster);
+        selected.case_template_front=0; // shared template stays resident
+    }
+    if(selected.case_back) {
+        niak_destroy_case_texture(renderer,selected.case_hero);
+        niak_destroy_case_texture(renderer,selected.case_shot1);
+        niak_destroy_case_texture(renderer,selected.case_shot2);
+        selected.case_template_back=0;
+    }
+    if(selected.case_spine)
+        selected.case_template_spine=0;
+    if(selected.case_front && selected.case_back)
+        niak_destroy_case_texture(renderer,selected.case_scene);
     recount_case_faces();
     return changed;
 }
