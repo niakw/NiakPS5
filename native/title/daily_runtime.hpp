@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <vector>
 // Strict HTTPS only, official PlayStation image host; never includes console
@@ -14,4 +15,6 @@ bool niak_fetch_launchbox_asset(const char *filename,
                                std::vector<std::uint8_t> &bytes);
 bool niak_fetch_launchbox_asset_ex(const char *filename,
                                std::vector<std::uint8_t> &bytes,int *failure,
-                               int *failure_stage=nullptr);
+                               int *failure_stage=nullptr,
+                               const std::atomic<unsigned> *selection_epoch=nullptr,
+                               unsigned expected_epoch=0);

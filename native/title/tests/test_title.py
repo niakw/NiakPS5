@@ -146,7 +146,13 @@ class NativeTitleTests(unittest.TestCase):
         # Sandboxed PS5 uses the system sceHttp client. Elevated titles use
         # certificate-verified curl/OpenSSL with a bounded response body.
         self.assertIn("if(niak::payload_process_elevated)",net)
-        self.assertIn("return get_curl(url,limit,result,failure,stage);",net)
+        self.assertIn("return get_curl(url,limit,result,failure,stage,",net)
+        self.assertIn("CURLOPT_XFERINFOFUNCTION,curl_cancel_stale",net)
+        self.assertIn("CURLOPT_XFERINFODATA,&epoch",net)
+        self.assertIn("CURLOPT_NOPROGRESS,0L",net)
+        self.assertIn("selection_epoch->load(std::memory_order_relaxed)",net)
+        self.assertIn("&s.generation,task.generation",auto)
+        self.assertIn("std::atomic<unsigned> generation{0};",auto)
         self.assertIn("console_curl_setup(easy)",net)
         self.assertIn('CURLOPT_PROTOCOLS_STR,"https"',net)
         self.assertIn("CURLOPT_SSL_VERIFYPEER,1L",net)

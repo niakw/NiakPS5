@@ -63,8 +63,20 @@ std::size_t curl_write(char *ptr,std::size_t size,std::size_t nmemb,void *contex
      reinterpret_cast<std::uint8_t*>(ptr)+n);
  return n;
 }
+struct CurlEpoch {
+ const std::atomic<unsigned> *value=nullptr;
+ unsigned expected=0;
+};
+int curl_cancel_stale(void *context,curl_off_t,curl_off_t,
+                      curl_off_t,curl_off_t) {
+ const auto &epoch=*static_cast<CurlEpoch*>(context);
+ return epoch.value && epoch.value->load(std::memory_order_relaxed)!=
+        epoch.expected ? 1 : 0;
+}
 bool get_curl(const std::string &url,std::size_t limit,
-              std::vector<std::uint8_t> &result,int *failure,int *stage){
+              std::vector<std::uint8_t> &result,int *failure,int *stage,
+              const std::atomic<unsigned> *selection_epoch=nullptr,
+              unsigned expected_epoch=0){
  static std::once_flag started;
  static CURLcode initialized=CURLE_FAILED_INIT;
  std::call_once(started,[]{initialized=curl_global_init(CURL_GLOBAL_DEFAULT);});
@@ -92,6 +104,14 @@ bool get_curl(const std::string &url,std::size_t limit,
  curl_easy_setopt(easy,CURLOPT_WRITEFUNCTION,curl_write);
  curl_easy_setopt(easy,CURLOPT_WRITEDATA,&body);
  curl_easy_setopt(easy,CURLOPT_MAXFILESIZE_LARGE,static_cast<curl_off_t>(limit));
+ // Stop superseded artwork requests during slow connects or transfers.
+ // This callback only reads an atomic epoch, never UI or GPU objects.
+ CurlEpoch epoch{selection_epoch,expected_epoch};
+ if(selection_epoch) {
+   curl_easy_setopt(easy,CURLOPT_XFERINFOFUNCTION,curl_cancel_stale);
+   curl_easy_setopt(easy,CURLOPT_XFERINFODATA,&epoch);
+   curl_easy_setopt(easy,CURLOPT_NOPROGRESS,0L);
+ }
  const CURLcode rc=curl_easy_perform(easy);
  long status=0;
  if(rc==CURLE_OK)curl_easy_getinfo(easy,CURLINFO_RESPONSE_CODE,&status);
@@ -141,9 +161,14 @@ bool launchbox_filename(const std::string &name) {
   return ext==".png" || ext==".jpg" || ext==".jpeg";
 }
 bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &result,
-         int *failure=nullptr,int *stage=nullptr) {
+         int *failure=nullptr,int *stage=nullptr,
+         const std::atomic<unsigned> *selection_epoch=nullptr,
+         unsigned expected_epoch=0) {
   if(failure)*failure=0;
   if(stage)*stage=0;
+  if(selection_epoch &&
+     selection_epoch->load(std::memory_order_relaxed)!=expected_epoch)
+     return false;
   // Host list is exact, not a substring. Refuse custom ports, parameters,
   // path traversal and redirects. No arbitrary user-supplied URLs.
   const bool feed=url==FEED;
@@ -158,7 +183,8 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
   // identity. sceSsl can then reject public TLS with 0x8095F00C. libcurl
   // with OpenSSL retains peer/hostname verification under this identity.
   if(niak::payload_process_elevated)
-     return get_curl(url,limit,result,failure,stage);
+     return get_curl(url,limit,result,failure,stage,
+                     selection_epoch,expected_epoch);
   const int ctx=context();
   if(ctx<0){if(failure)*failure=ctx;if(stage)*stage=1;return false;}
   int tmpl=sceHttpCreateTemplate(ctx,"NiakPS5-public-media/1.0",2,1);
@@ -197,6 +223,10 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
     std::vector<std::uint8_t> chunk(32768);
     int n=0;
     while((n=sceHttpReadData(req,chunk.data(),chunk.size()))>0) {
+      if(selection_epoch &&
+         selection_epoch->load(std::memory_order_relaxed)!=expected_epoch) {
+        ok=false;break; // old focus, cleanly close HTTP handles below
+      }
       if(bytes.size()+std::size_t(n)>limit){
         ok=false;if(failure)*failure=-103;if(stage)*stage=8;break;
       }
@@ -278,7 +308,10 @@ bool niak_fetch_latest_ps5_wallpaper(const char *today_yyyy_mm_dd,
 }
 
 bool niak_fetch_launchbox_asset_ex(const char *filename,
-                               std::vector<std::uint8_t>& bytes,int *failure,int *failure_stage) {
+                               std::vector<std::uint8_t>& bytes,int *failure,
+                               int *failure_stage,
+                               const std::atomic<unsigned> *selection_epoch,
+                               unsigned expected_epoch) {
 #if defined(__PROSPERO__)
   if(!filename || !launchbox_filename(filename)){
       if(failure)*failure=-100;
@@ -288,9 +321,11 @@ bool niak_fetch_launchbox_asset_ex(const char *filename,
   // Public CDN name only. Never include a profile, console title ID, token
   // or user-supplied URL in the outbound request.
   // Eden Encore likewise allows full originals before decoding/downscaling.
-  return get(std::string(LAUNCHBOX)+filename,16u*1024u*1024u,bytes,failure,failure_stage);
+  return get(std::string(LAUNCHBOX)+filename,16u*1024u*1024u,bytes,
+             failure,failure_stage,selection_epoch,expected_epoch);
 #else
   (void)filename;(void)bytes;
+  (void)selection_epoch;(void)expected_epoch;
   if(failure)*failure=-200;
   if(failure_stage)*failure_stage=9;
   return false;

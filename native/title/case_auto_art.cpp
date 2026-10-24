@@ -75,7 +75,7 @@ struct State {
  std::deque<Task> retries;
  std::set<std::string> seen;
  bool started=false;
- unsigned generation=0;
+ std::atomic<unsigned> generation{0};
  std::string selected;
  std::atomic<unsigned> indexed{0},queued{0},completed{0},
      network_failed{0},decode_failed{0},write_failed{0},unmatched{0};
@@ -407,7 +407,7 @@ void work(){
      std::vector<std::uint8_t> bytes;
      int error=0,stage=0;
      const bool fetched=niak_fetch_launchbox_asset_ex(
-         source.c_str(),bytes,&error,&stage);
+         source.c_str(),bytes,&error,&stage,&s.generation,task.generation);
      // A request may finish after the player has moved to another game.
      // Never attribute its HTTP failure or decode result to the new focus.
      {
