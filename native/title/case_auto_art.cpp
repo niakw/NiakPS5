@@ -129,17 +129,18 @@ bool existing(const std::string& path,const std::string& source){
  std::vector<unsigned char> raw(static_cast<std::size_t>(length));
  const bool complete=std::fread(raw.data(),1,raw.size(),f)==raw.size();
  std::fclose(f);
- if(!complete ||
-    std::memcmp(raw.data(),"\x89PNG\r\n\x1a\n",8)!=0)return false;
- const unsigned iw=(unsigned(raw[16])<<24)|(unsigned(raw[17])<<16)|
-                   (unsigned(raw[18])<<8)|raw[19];
- const unsigned ih=(unsigned(raw[20])<<24)|(unsigned(raw[21])<<16)|
-                   (unsigned(raw[22])<<8)|raw[23];
- if(iw<16||ih<20||iw>2048||ih>1536||
-    std::uint64_t(iw)*ih>2500000u)return false;
- std::vector<unsigned char> pixels;unsigned w=0,h=0;
- return lodepng::decode(pixels,w,h,raw)==0 && w==iw && h==ih &&
-        pixels.size()==std::size_t(w)*h*4u;
+ if(!complete || raw.size()<20 ||
+    std::memcmp(raw.data(),"RIFF",4)!=0 ||
+    std::memcmp(raw.data()+8,"WEBP",4)!=0)return false;
+ int iw=0,ih=0;
+ if(!WebPGetInfo(raw.data(),raw.size(),&iw,&ih) ||
+    iw<16||ih<20||iw>2048||ih>1536||
+    std::uint64_t(iw)*std::uint64_t(ih)>2500000u)return false;
+ // A complete decode prevents corrupt or truncated WebP from acquiring
+ // authoritative cache status and hiding an otherwise valid fallback.
+ std::vector<unsigned char> pixels(std::size_t(iw)*ih*4u);
+ return WebPDecodeRGBAInto(raw.data(),raw.size(),pixels.data(),
+                          pixels.size(),iw*4)!=nullptr;
 }
 std::unordered_map<std::string,ArtSlots> read_index(){
  std::unordered_map<std::string,ArtSlots> index;
