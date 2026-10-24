@@ -222,3 +222,17 @@ unsigned niak_launch_broker_pid() {
     }
     return pid;
 }
+
+#if defined(__PROSPERO__)
+extern "C" int sceSystemServiceLaunchWebBrowser(const char *uri,void *params);
+#endif
+int niak_open_system_settings() {
+#if defined(__PROSPERO__)
+    // Fixed Sony-owned pssettings scheme (no arbitrary URL or custom input).
+    // This is an experimental root target; some firmware/sandboxes may deny it.
+    return sceSystemServiceLaunchWebBrowser(
+        "pssettings:play?mode=settings",nullptr);
+#else
+    return -2;
+#endif
+}

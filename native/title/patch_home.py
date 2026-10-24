@@ -142,7 +142,12 @@ def patch(kit):
             case 6: s.light_bar = !s.light_bar; break;
             case 7: s.sfx_volume = (s.sfx_volume + 1) % 11; break;
             case 8: niak_next_daily_backdrop(); feedback.play(audio::Cue::complete); return;
-            case 9: sys::quit(); return; // Return to Sony Home to access native settings
+            case 9:
+                settings_link_tried_=true;
+                settings_link_rc_=niak_open_system_settings();
+                feedback.play(settings_link_rc_==0?
+                              audio::Cue::complete:audio::Cue::back);
+                return; // Keep UI alive if firmware refuses the deep link.
 
             }
             context_.settings_changed = true;
@@ -216,7 +221,7 @@ def patch(kit):
                                 "Vibrations DualSense", "Couleur lumineuse",
                                 "Volume des effets sonores",
                                 "Changer le fond du jour",
-                                "Retour à l’accueil Sony"};
+                                "Ouvrir les réglages PS5 (essai)"};
         const auto &s=context_.settings;
         char value[40];
         for (int i=0;i<10;++i)
@@ -237,7 +242,7 @@ def patch(kit):
                 display=value;
             }
             else if(i==8) display="CHANGER";
-            else if(i==9) display="QUITTER NIAKPS5";
+            else if(i==9) display="OUVRIR";
             else
             {
                 const bool on=i==3 ? s.reduced_motion : i==4 ? s.show_fps :
@@ -338,9 +343,12 @@ def patch(kit):
         ui::text(list, fonts.regular, niak::revision, 110, 950, 20,
                  kWhite.with_alpha(0.72f));
         ui::paragraph(list, fonts.regular,
-                      "Les réglages système restent accessibles via l’accueil Sony. "
-                      "Le dernier choix quitte uniquement NiakPS5. "
-                      "Rond : revenir aux onglets.",
+                      settings_link_tried_ ?
+                        (settings_link_rc_==0 ?
+                         "Raccourci PS5 demandé ; ouverture à vérifier sur console." :
+                         "Raccourci refusé par le système. Accès manuel via accueil Sony.") :
+                        "Réglages PS5 : raccourci système expérimental. "
+                        "Rond : revenir aux onglets.",
                       104, 990, 20, 1450, 30, kWhite.with_alpha(0.55f), 2);
     }
 
@@ -382,6 +390,8 @@ def patch(kit):
     int active_tab_ = 0;
     int selected_tab_ = 0;
     int settings_cursor_ = 0;
+    bool settings_link_tried_ = false;
+    int settings_link_rc_ = -1;
     bool top_focus_ = false;
 """)
     file.write_text(text)

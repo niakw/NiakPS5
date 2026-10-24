@@ -10,3 +10,7 @@ bool niak_launch_broker_ready();
 const char *niak_launch_broker_diagnostic();
 // Exact live PID from STATUS over loopback; zero means unavailable.
 unsigned niak_launch_broker_pid();
+
+// Request the PS5 system settings deep link. Sandbox/firmware may reject it.
+// Returns raw SystemService status; a 0 is acceptance, not display proof.
+int niak_open_system_settings();

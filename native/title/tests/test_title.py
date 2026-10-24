@@ -25,6 +25,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('"checksum": hashlib.sha256(elf.read_bytes()).hexdigest()',build)
         self.assertIn('json.dumps(meta, ensure_ascii=False, indent=2)',build)
 
+    def test_system_settings_deep_link_is_fixed_and_failure_is_nonfatal(self):
+        impl=(ROOT/"title"/"launch_bridge.cpp").read_text()
+        ui=(ROOT/"title"/"patch_home.py").read_text()
+        self.assertIn("pssettings:play?mode=settings",impl)
+        self.assertIn("settings_link_rc_=niak_open_system_settings()",ui)
+        self.assertIn("Raccourci refusé par le système",ui)
+
     def test_return_to_niak_for_explicit_game_launch_without_opt_in(self):
         source=(ROOT/"title"/"autostart.c").read_text()
         self.assertIn("!is_regular_file(NIAK_RESUME_DISABLED)",source)
