@@ -385,8 +385,11 @@ void work(){
    }
    // Region/server variation: a missing FR image can fall back to EU or
    // another validated image, without ever trusting an arbitrary URL.
+   // Three sources for retail fronts/backs and for scenic backgrounds:
+   // prefer the installed platform, then the related console, then PC.
+   // Screenshots remain single-shot to keep focus navigation responsive.
    const unsigned candidate_limit=
-       (task.side=="front"||task.side=="back")?3u:1u;
+       (task.side=="front"||task.side=="back"||task.side=="hero")?3u:1u;
    unsigned examined=0;
    bool transient_failure=false,downloaded=false;
    for(const std::string &source:candidates) {
