@@ -32,7 +32,7 @@ int main() {
     assert(::bind(server,reinterpret_cast<sockaddr*>(&local),sizeof(local))==0);
     assert(::listen(server,4)==0);
     std::thread worker([&]() {
-        for(int i=0;i<5;++i) {
+        for(int i=0;i<6;++i) {
             int client=::accept(server,nullptr,nullptr);
             assert(client>=0);
             char buffer[40]{};
@@ -48,6 +48,9 @@ int main() {
                 assert(std::strncmp(buffer,"PING\n",5)==0);
                 // A dead broker accepted the socket but never replied.
                 std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            } else if(i==5) {
+                assert(std::strncmp(buffer,"SETTINGS\n",9)==0);
+                send_parts(client,"RC 0000","0000\n");
             } else {
                 assert(std::strncmp(buffer,"LAUNCH PPSA12345\n",17)==0);
                 if(i==2)send_parts(client,"RC 0000","0000\n");
@@ -75,6 +78,7 @@ int main() {
     const auto milliseconds=std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now()-before).count();
     assert(milliseconds<220);
+    assert(niak_open_system_settings()==0);
     worker.join();
     ::close(server);
     const auto offline=std::chrono::steady_clock::now();
