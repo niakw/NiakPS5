@@ -53,7 +53,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_queue_auto_case_art(id,side)",case)
         self.assertIn("/download0/niak-case-%s-%s.png",case)
         self.assertIn("std::thread(work).detach()",auto)
-        self.assertIn("niak_fetch_launchbox_asset(",auto)
+        self.assertIn("niak_fetch_launchbox_asset_ex(",auto)
         self.assertIn("requested>=512u",auto)
         self.assertIn("s.tasks.push_front({title_id,side})",auto)
         self.assertIn("cdn.last_network_error",ui)
