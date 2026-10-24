@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #define _POSIX_C_SOURCE 200809L
 #include "catalog.h"
-#include "localized_name.h"
+#include "title/localized_name.h"
 #include <sqlite3.h>
 #include <dirent.h>
 #include <stdlib.h>

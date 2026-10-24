@@ -275,6 +275,12 @@ audio::SoundSet Shell::sound_set() const''')
         + revision + '";}\n',encoding="utf8")
     for filename in ("catalog.c", "catalog.h", "shadowmount_api.c", "shadowmount_api.h", "shadowmount_http.h"):
         shutil.copy2(project / "native" / filename, src_niak / filename)
+    # The native catalog also builds directly with -I native in host tests:
+    # preserve its title/ subdirectory in the pinned PS5 source tree.
+    catalog_headers=src_niak / "title"
+    catalog_headers.mkdir(parents=True,exist_ok=True)
+    for name in ("localized_name.h","title_category.h"):
+        shutil.copy2(project / "native" / "title" / name,catalog_headers / name)
     for filename in ("title_meta.cpp", "title_meta.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     shutil.copy2(project / "native" / "title" / "ps_titles.tsv",
