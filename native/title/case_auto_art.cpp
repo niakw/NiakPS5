@@ -512,7 +512,9 @@ void niak_select_case_art(const char *title_id) {
  if(!valid)return;
  // Eden Encore: originals first; scenery only for reconstruction. push_front
  // for front/back means both actual faces precede the optional resources.
- for(const char *side:{"spine","logo","hero","shot1","shot2","back","front"})
+ // No redundant clear logo is printed on the case or above the title.
+ // Avoid its CDN request, decode, and GPU allocation.
+ for(const char *side:{"spine","hero","shot1","shot2","back","front"})
    niak_queue_auto_case_art(title_id,side);
 #else
  (void)title_id;

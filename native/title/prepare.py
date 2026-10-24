@@ -365,8 +365,6 @@ audio::SoundSet Shell::sound_set() const''')
             if(!item.case_front) {
                 item.case_template_front=niak_load_case_template(
                     renderer,platform,"front");
-                item.logo_art=niak_load_case_art(
-                    renderer,item.title_id,"logo",&item.logo_art_aspect);
                 item.case_poster=niak_load_case_art(
                     renderer,item.title_id,"poster",&item.poster_aspect);
             }
@@ -454,7 +452,8 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     const auto case_status=niak_case_art_download_status();
     const unsigned completed=case_status.completed;
     if(index<0 || static_cast<std::size_t>(index)>=items_.size())return false;
-    if(index==last_case_focus_ && completed==last_case_completed_)
+    const bool same_focus=index==last_case_focus_;
+    if(same_focus && completed==last_case_completed_)
         return false;
     if(index!=last_case_focus_) {
         // Keep only the current and immediate previous 3D case resident.
@@ -479,7 +478,8 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     last_case_completed_=completed;
     std::array<bool,7> updated{};
     for(std::size_t side=0;side<updated.size();++side)
-        updated[side]=case_status.sides_completed[side]!=last_case_sides_[side];
+        updated[side]=same_focus &&
+            case_status.sides_completed[side]!=last_case_sides_[side];
     last_case_sides_=case_status.sides_completed;
     // Show CURRENT resident media, not historical texture creations.
     // Reconcile only on focus changes and completed CDN downloads.
@@ -502,9 +502,10 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         return false;
     }
     bool changed=false;
-    // A loaded fallback MUST be replaced after a higher-priority CDN
-    // candidate arrives. Release only the affected face, not every
-    // reconstructed texture on each of the seven independent downloads.
+    // Only invalidate faces belonging to the SAME title. The worker's
+    // completion counters are global: switching games must never interpret
+    // a previous game's download as a new change for this selected game.
+    // Release only the affected face, not the whole 3D case.
     for(std::pair<bool,std::uint32_t*> updated_side : {
          std::pair<bool,std::uint32_t*>{updated[0],&selected.case_front},
          {updated[1],&selected.case_back},
@@ -532,7 +533,6 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         if(!selected.case_scene)
             selected.case_scene=niak_load_game_background(
                 renderer,selected.title_id,&selected.case_scene_aspect);
-        missing(selected.logo_art,"logo",&selected.logo_art_aspect);
         missing(selected.case_poster,"poster",&selected.poster_aspect);
     }
     // Fanart can fill a missing FRONT when no local pic1 is available.
@@ -580,15 +580,22 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     replace_once(kit / "src/main.cpp",
         '        shell.update(input, dt);',
         '''        shell.update(input, dt);
-        if(frames>0 && frames%4u==0 && input.nav==Direction::none &&
-           input.pressed==0 && input.held==0 && !input.focus_lost)
+        // Load the new focused title on the FIRST idle frame; during rapid
+        // navigation do not decode/upload textures at every button repeat.
+        const bool navigation_idle=frames>0 &&
+            input.nav==Direction::none && input.pressed==0 &&
+            input.held==0 && !input.focus_lost;
+        static int prepared_focus=-1;
+        const int focus=niak::case_media_stats.preferred_index;
+        const bool first_idle_focus=navigation_idle && focus!=prepared_focus;
+        if(navigation_idle && (frames%4u==0 || first_idle_focus))
             (void)catalog.stream_next_covers(renderer,fonts,1);
         if(frames>0 && frames%600u==0 && input.nav==Direction::none &&
             input.pressed==0 && input.held==0 && !input.focus_lost)
             niak_profile_refresh_avatar(renderer);
-        if(frames>0 && frames%12u==0 && input.nav==Direction::none &&
-           input.pressed==0 && input.held==0 && !input.focus_lost)
+        if(navigation_idle && (frames%12u==0 || first_idle_focus))
             (void)catalog.refresh_selected_case_art(renderer);
+        if(first_idle_focus)prepared_focus=focus;
         // PLDmgr or title-mount services may start AFTER Catalog construction.
         // Poll at most once per ~600 frames while the UI is idle. Rebuild both
         // catalogue art and Aurora shelves on this same renderer thread; no
