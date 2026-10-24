@@ -429,6 +429,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sharpemu/sharpemu-site", source)
         self.assertIn("image.api.playstation.com", source)
         self.assertIn("niak_daily_backdrop", native)
+        self.assertIn('quality=80,method=6',source)
+        self.assertIn("wall-{len(records):02d}.webp",source)
+        self.assertIn("WebPDecodeRGBAInto(raw.data(),raw.size()",native)
+        self.assertIn("wall-%02d.webp",native)
+        self.assertIn("wall-%02d.png",native)
         self.assertIn("std::localtime", native)
 
     def test_optional_french_translation_never_requires_api_at_runtime(self):

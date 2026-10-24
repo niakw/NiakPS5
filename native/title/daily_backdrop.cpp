@@ -4,6 +4,9 @@
 #include "niak/daily_backdrop.hpp"
 #include "niak/daily_runtime.hpp"
 #include "niak/lodepng.h"
+#if defined(__PROSPERO__)
+#include <webp/decode.h>
+#endif
 #include "gfx/renderer.hpp"
 #include "platform/ps5/system.hpp"
 #include <array>
@@ -67,6 +70,22 @@ Runtime &state() {
 bool decode_png(const std::vector<std::uint8_t> &raw,
                 unsigned &w,unsigned &h,
                 std::vector<std::uint8_t> &rgba) {
+    // Package media uses WebP 80; older caches and live downloads remain PNG.
+    if(raw.size()>=24 && std::memcmp(raw.data(),"RIFF",4)==0 &&
+       std::memcmp(raw.data()+8,"WEBP",4)==0) {
+#if defined(__PROSPERO__)
+        int iw=0,ih=0;
+        if(!WebPGetInfo(raw.data(),raw.size(),&iw,&ih)||
+           iw<320||ih<320||iw>4096||ih>4096||
+           std::uint64_t(iw)*ih>10'000'000)return false;
+        w=unsigned(iw);h=unsigned(ih);
+        rgba.resize(std::size_t(w)*h*4u);
+        return WebPDecodeRGBAInto(raw.data(),raw.size(),rgba.data(),
+                                  rgba.size(),int(w*4u))!=nullptr;
+#else
+        return false;
+#endif
+    }
     static const std::uint8_t sig[]={137,80,78,71,13,10,26,10};
     if(raw.size()<33||raw.size()>MAX_BYTES ||
        std::memcmp(raw.data(),sig,8)!=0)return false;
@@ -205,8 +224,10 @@ void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *director
             char line[320];
             while(std::fgets(line,sizeof(line),labels)) {
                 int idx=-1;char title[140]{},date[24]{};
-                if(std::sscanf(line,"wall-%02d.png\t%139[^\t]\t%23[^\r\n]",
-                               &idx,title,date)==3 &&
+                if((std::sscanf(line,"wall-%02d.webp\\t%139[^\\t]\\t%23[^\\r\\n]",
+                                &idx,title,date)==3 ||
+                    std::sscanf(line,"wall-%02d.png\\t%139[^\\t]\\t%23[^\\r\\n]",
+                                &idx,title,date)==3) &&
                    idx>=0 && idx<14 && std::strlen(date)==10 &&
                    date[4]=='-' && date[7]=='-') {
                     by_file[std::size_t(idx)]=std::string("Fond · ")+title+
@@ -218,9 +239,13 @@ void niak_load_daily_backdrops(hui::gfx::Renderer &renderer,const char *director
         }
     }
     for(int i=0;i<14;++i) {
-        char path[256];std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
+        char path[256];
+        std::snprintf(path,sizeof(path),"%s/wall-%02d.webp",directory,i);
         std::vector<std::uint8_t> pixels;
-        if(!load_packaged(path,pixels))continue;
+        if(!load_packaged(path,pixels)) {
+            std::snprintf(path,sizeof(path),"%s/wall-%02d.png",directory,i);
+            if(!load_packaged(path,pixels))continue;
+        }
         const auto texture=renderer.create_texture(1280,720,pixels.data());
         if(texture) {
             images[std::size_t(count)]=texture;

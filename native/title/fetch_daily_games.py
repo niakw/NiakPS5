@@ -3,7 +3,7 @@
 
 The package rotates the results by local day without contacting an external
 service from the console. New PlayStation media is fetched on CI rebuilds only.
-Images are resized, quantized and stored as optimized PNG (not unsupported WebP).
+Images are resized and stored as native-decodable WebP at quality 80.
 """
 from datetime import date,datetime,timedelta
 from io import BytesIO
@@ -84,11 +84,9 @@ def build(folder,now=None,limit=MAX_WALLS):
                     foreground.thumbnail((510,670),Image.Resampling.LANCZOS)
                     visual.paste(foreground,((1280-foreground.width)//2,
                                               (720-foreground.height)//2))
-                # Quantized PNG is universally decoded by the vendored LodePNG.
-                # WebP would require a separate runtime decoder on PS5.
-                optimized=visual.quantize(colors=160,method=Image.Quantize.MEDIANCUT)
-                output=folder/f"wall-{len(records):02d}.png"
-                optimized.save(output,format="PNG",optimize=True)
+                # Native PS5 build now links libwebp. Keep colours in RGB.
+                output=folder/f"wall-{len(records):02d}.webp"
+                visual.save(output,format="WEBP",quality=80,method=6)
             records.append({"game":name,"date":day.isoformat(),"conceptId":ident,
                             "source":cover,"file":output.name,
                             "bytes":output.stat().st_size})
@@ -96,8 +94,9 @@ def build(folder,now=None,limit=MAX_WALLS):
             print("Skipped artwork:",name,type(exc).__name__,file=sys.stderr)
     # Remove previous unused files so art count can't lag after a rebuild.
     keep={item["file"] for item in records}
-    for path in folder.glob("wall-*.png"):
-        if path.name not in keep:path.unlink()
+    for pattern in ("wall-*.png","wall-*.webp"):
+        for path in folder.glob(pattern):
+            if path.name not in keep:path.unlink()
     manifest={"source":"PlayStation 5 media, sharpemu public title catalogue",
               "generated":today.isoformat(),"games":records}
     (folder/"index.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2),"utf8")
@@ -106,7 +105,7 @@ def build(folder,now=None,limit=MAX_WALLS):
     (folder/"labels.tsv").write_text(
         "".join(f"{r['file']}\t{r['game'].replace(chr(9),' ').replace(chr(10),' ')[:110]}\t{r['date']}\n"
                 for r in records),"utf8")
-    print("PS5 backgrounds",len(records),"optimized PNG files",
+    print("PS5 backgrounds",len(records),"quality-80 WebP files",
           sum(x["bytes"] for x in records),"bytes")
     return len(records)
 
