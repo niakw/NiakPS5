@@ -166,11 +166,19 @@ class AutoloadTests(unittest.TestCase):
             self.assertEqual(ftpmod.stage_installed_artwork(console,2),0)
         cached="/data/homebrew/PPSA99386/assets/niak-installed/"
         self.assertEqual(len([p for p in console.files if p.startswith(cached)]),2)
-        self.assertTrue(console.files[cached+title+"-icon.png"].startswith(b"\x89PNG"))
-        self.assertTrue(console.files[cached+title+"-scene.png"].startswith(b"\x89PNG"))
+        for side in ("icon","scene"):
+            candidates=[cached+title+"-"+side+ext for ext in (".webp",".png")]
+            present=[path for path in candidates if path in console.files]
+            self.assertEqual(len(present),1)
+            payload=console.files[present[0]]
+            self.assertTrue(payload.startswith(b"RIFF") and payload[8:12]==b"WEBP"
+                            or payload.startswith(b"\x89PNG"))
         native=(SCRIPT.parent/"game_icons.cpp").read_text()
         self.assertIn('"/app0/assets/niak-installed/%s-icon.png"',native)
         self.assertIn('"/app0/assets/niak-installed/%s-scene.png"',native)
+        self.assertIn('"/app0/assets/niak-installed/%s-icon.webp"',native)
+        self.assertIn('"/app0/assets/niak-installed/%s-scene.webp"',native)
+        self.assertIn("decode_installed_art(",native)
 
 
     def test_only_verified_npxs_media_is_staged(self):

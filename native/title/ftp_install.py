@@ -217,7 +217,7 @@ def _installed_title_ids(ftp, limit=150):
 INSTALLED_ART_ROOT=f"/data/homebrew/{TITLE}/assets/niak-installed"
 
 def _prepare_installed_png(data,scene=False):
-    """Bounded PNG for the native decoder, reduced with Pillow if available."""
+    """Bounded, locally resized art; WebP quality 80 with PNG fallback."""
     if not data or len(data)>5*1024*1024 or data[:8]!=b"\x89PNG\r\n\x1a\n":
         return None
     if len(data)<33:return None
@@ -233,9 +233,17 @@ def _prepare_installed_png(data,scene=False):
         with Image.open(BytesIO(data)) as source:
             if source.format!="PNG":return None
             source.load()
-            source.thumbnail((1024,768) if scene else (512,512),Image.Resampling.LANCZOS)
-            source.convert("RGB" if scene else "RGBA").save(
-                output,format="PNG",optimize=True,compress_level=9)
+            source.thumbnail((1024,768) if scene else (256,256),Image.Resampling.LANCZOS)
+            image=source.convert("RGB" if scene else "RGBA")
+            try:
+                image.save(output,format="WEBP",quality=80,method=6,exact=not scene)
+                encoded=output.getvalue()
+                if len(encoded)<=4*1024*1024 and encoded[8:12]==b"WEBP":
+                    return encoded
+            except (ValueError,OSError):
+                pass
+            output=BytesIO()
+            image.save(output,format="PNG",optimize=True,compress_level=9)
         encoded=output.getvalue()
         if len(encoded)<=4*1024*1024:return encoded
     except ImportError:
@@ -272,8 +280,9 @@ def stage_installed_artwork(ftp,maximum_titles=150,force=False):
     rejected=0
     for ident in ids:
         for side,filename in (("icon","icon0.png"),("scene","pic1.png")):
-            destination=f"{INSTALLED_ART_ROOT}/{ident}-{side}.png"
-            if posixpath.basename(destination) in existing and not force:
+            stem=f"{INSTALLED_ART_ROOT}/{ident}-{side}"
+            if (stem.rsplit("/",1)[-1]+".webp" in existing or
+                    stem.rsplit("/",1)[-1]+".png" in existing) and not force:
                 continue
             sources=(
                 f"/data/homebrew/{ident}/sce_sys/{filename}",
@@ -296,6 +305,8 @@ def stage_installed_artwork(ftp,maximum_titles=150,force=False):
                 if not png:
                     rejected+=1
                     continue
+                destination=stem+(".webp" if png[:4]==b"RIFF" and
+                                  png[8:12]==b"WEBP" else ".png")
                 try:upload(ftp,destination,png)
                 except (OSError,error_perm):
                     rejected+=1
@@ -303,7 +314,7 @@ def stage_installed_artwork(ftp,maximum_titles=150,force=False):
                 existing.add(posixpath.basename(destination))
                 count+=1
                 break
-    print(f"Visuels installés : {count} PNG copiés depuis {len(ids)} titres "
+    print(f"Visuels installés : {count} PNG/WebP depuis {len(ids)} titres "
           f"(rejets/permissions : {rejected}).")
     return count
 

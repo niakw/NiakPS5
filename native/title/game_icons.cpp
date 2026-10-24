@@ -7,6 +7,9 @@ extern "C" {
 #include "niak/catalog.h"
 }
 #include "niak/lodepng.h"
+#if defined(__PROSPERO__)
+#include <webp/decode.h>
+#endif
 #include "niak/socket_guard.h"
 #include "niak/http_icon_response.hpp"
 #include "niak/icon_endpoint_policy.hpp"
@@ -139,20 +142,40 @@ bool read_local_png(const char *path,std::vector<unsigned char> &png) {
     const bool ok=std::fread(png.data(),1,png.size(),fp)==png.size();
     std::fclose(fp);return ok;
 }
+// Verified installed PNG and modern quality-80 WebP, bounded before allocation.
+bool decode_installed_art(const std::vector<unsigned char> &bytes,
+                          std::vector<unsigned char> &rgba,
+                          unsigned &w,unsigned &h)
+{
+    if(bytes.size()<24||bytes.size()>kMaximumPng)return false;
+    const bool webp=std::memcmp(bytes.data(),"RIFF",4)==0 &&
+                    std::memcmp(bytes.data()+8,"WEBP",4)==0;
+    if(webp) {
+#if defined(__PROSPERO__)
+        int iw=0,ih=0;
+        if(!WebPGetInfo(bytes.data(),bytes.size(),&iw,&ih)||
+           iw<32||ih<32||iw>2048||ih>2048)return false;
+        w=unsigned(iw);h=unsigned(ih);
+        rgba.resize(std::size_t(w)*h*4u);
+        return WebPDecodeRGBAInto(bytes.data(),bytes.size(),rgba.data(),
+                                  rgba.size(),int(w*4u))!=nullptr;
+#else
+        return false;
+#endif
+    }
+    static const unsigned char signature[8]={137,80,78,71,13,10,26,10};
+    if(std::memcmp(bytes.data(),signature,8)!=0)return false;
+    const unsigned iw=size32(bytes.data()+16),ih=size32(bytes.data()+20);
+    if(iw<32||ih<32||iw>2048||ih>2048)return false;
+    if(lodepng::decode(rgba,w,h,bytes)!=0||w!=iw||h!=ih)return false;
+    return rgba.size()==std::size_t(w)*h*4u;
+}
 std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
                              const std::vector<unsigned char> &png)
 {
-    static const unsigned char signature[8] = {137,80,78,71,13,10,26,10};
-    if (png.size() < 33 || std::memcmp(png.data(),signature,8)) return 0;
-    const unsigned initial_w = size32(png.data()+16);
-    const unsigned initial_h = size32(png.data()+20);
-    if (initial_w < 32 || initial_h < 32 || initial_w > 2048 || initial_h > 2048)
-        return 0;
     std::vector<unsigned char> rgba;
-    unsigned w = 0, h = 0;
-    if (lodepng::decode(rgba,w,h,png) != 0 || w != initial_w || h != initial_h)
-        return 0;
-    if (rgba.size() != static_cast<std::size_t>(w)*h*4) return 0;
+    unsigned w=0,h=0;
+    if(!decode_installed_art(png,rgba,w,h))return 0;
     // Most installed icon0.png files are already 512x512. Upload these
     // directly: avoid another 1 MiB buffer and 262,144 CPU pixel copies
     // per game during the initial catalogue render.
@@ -198,6 +221,8 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     // Try the actual installed icon first. This also works for homebrews
     // when ShadowMountPlus does not expose their icon endpoint.
     for(const char *format : {
+        "/app0/assets/niak-installed/%s-icon.webp",
+        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.webp",
         "/app0/assets/niak-installed/%s-icon.png",
         "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.png",
         "/data/homebrew/%s/sce_sys/icon0.png",
@@ -240,6 +265,8 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
     }
 #endif
     for(const char *format : {
+        "/app0/assets/niak-installed/%s-scene.webp",
+        "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.webp",
         "/app0/assets/niak-installed/%s-scene.png",
         "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.png",
         "/data/homebrew/%s/sce_sys/pic1.png",
@@ -255,18 +282,13 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
     }
     for(const std::string &path:locations) {
         png.clear();
-        if(!read_local_png(path.c_str(),png) || png.size()<24)continue;
-        static const unsigned char signature[8]={137,80,78,71,13,10,26,10};
-        if(std::memcmp(png.data(),signature,8))continue;
-        const unsigned source_w=size32(png.data()+16);
-        const unsigned source_h=size32(png.data()+20);
-        // Artwork is a LANDSCAPE scene. Never mistake a game box or icon.
-        if(source_w<512||source_h<256||source_w>2048||source_h>1536||
-           source_w<source_h*1.3f||source_w>source_h*2.5f)continue;
+        if(!read_local_png(path.c_str(),png))continue;
         std::vector<unsigned char> rgba;
         unsigned w=0,h=0;
-        if(lodepng::decode(rgba,w,h,png)!=0||w!=source_w||h!=source_h||
-           rgba.size()!=std::size_t(w)*h*4)continue;
+        if(!decode_installed_art(png,rgba,w,h))continue;
+        // A landscape scene must never be confused with an icon/retail cover.
+        if(w<512||h<256||w>2048||h>1536||
+           w<h*1.3f||w>h*2.5f)continue;
         const unsigned target_w=768;
         const unsigned target_h=std::max(320u,std::min(560u,
             static_cast<unsigned>((std::uint64_t(target_w)*h)/w)));
