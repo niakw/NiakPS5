@@ -165,20 +165,10 @@ void outer_face(DrawList &list,const Camera &camera,
             const bool icon_fallback=art && art==item.cover &&
                 !item.case_poster && !item.case_scene;
             if(icon_fallback) {
-                // Layer 1: same icon as FULL-BLEED background of the paper,
-                // below the console masthead. Centre crop to the print aspect
-                // (UV cover), NEVER stretch a square icon along the width.
-                // The continuous opaque sheet remains behind transparent PNGs.
+                // One fallback illustration, not the same app/game icon
+                // twice. Cover-crop the source into the whole printable
+                // front below the console masthead without stretching width.
                 panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
-                // Layer 2: the actual icon, fitted ENTIRELY inside the cover
-                // (contain). Its box has the source aspect and NO dark card.
-                const float space=1.f-layout.front_header;
-                const float h=std::min(space*0.74f,
-                    case_aspect*0.88f/std::max(0.1f,art_aspect));
-                const float w=h*art_aspect/case_aspect;
-                const float x=(1.f-w)*0.5f;
-                const float y=layout.front_header+(space-h)*0.5f;
-                panel(art,art_aspect,x,y,x+w,y+h);
             } else {
                 // Poster/fanart also uses cover UVs, respecting source aspect.
                 panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);

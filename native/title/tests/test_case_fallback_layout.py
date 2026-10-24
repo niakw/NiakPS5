@@ -28,8 +28,8 @@ class CaseFallbackTests(unittest.TestCase):
         self.assertNotIn("Color::rgb(0xdde7f0)",source)
         self.assertIn("const bool icon_fallback=",source)
         self.assertIn("panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);",source)
-        self.assertIn("panel(art,art_aspect,x,y,x+w,y+h);",source)
-        self.assertIn("const float w=h*art_aspect/case_aspect",source)
+        self.assertNotIn("panel(art,art_aspect,x,y,x+w,y+h);",source)
+        self.assertNotIn("const float w=h*art_aspect/case_aspect",source)
         self.assertIn("niak_case_cover_crop(",source)
 
     def test_official_faces_override_independently(self):

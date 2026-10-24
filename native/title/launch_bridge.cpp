@@ -238,7 +238,7 @@ int niak_open_system_settings() {
     // the sandbox grants this private service.
     int module_result=0;
     const int module=sceKernelLoadStartModule(
-        "/system/common/lib/libSceShellUIUtil.sprx",
+        "/system_ex/common_ex/lib/libSceShellUIUtil.sprx",
         0,nullptr,0,0,&module_result);
     if(module<0)return module;
     using Initialize=int(*)();
