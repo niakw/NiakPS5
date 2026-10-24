@@ -76,14 +76,14 @@ jobs:
           print("NIAK_NATIVE_HOME_PREVIEW:",p)
           PY
       - name: Upload native home screenshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: NiakPS5-OpenGL-home
           path: build/niak-home/niakps5-home.png
           if-no-files-found: error
       - name: Upload genuine native UI previews
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: NiakPS5-OpenGL-interface-preview
           path: build/niak-preview/*.png
@@ -116,7 +116,7 @@ jobs:
       # GitHub Actions produces ONE ZIP directly from data/. Executable
       # permissions may be normalized and require checking on real PS5 FTP.
       - name: Upload single FTP directory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: NiakPS5-PPSA99386
           path: dist/ftp-dropin/
