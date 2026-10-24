@@ -438,7 +438,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("stats.fronts+=item.case_front!=0",stage)
         self.assertIn("stats.templates+=item.case_template_front!=0",stage)
         self.assertIn("Ouvrir les réglages PS5 (essai)",(ROOT/"title"/"patch_home.py").read_text())
-        self.assertIn("Raccourci refusé par le système",(ROOT/"title"/"patch_home.py").read_text())
+        self.assertIn("Accès ShellUI refusé",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("kWhite.with_alpha(active ? 1.0f : 0.88f)",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("Color::rgb(0x06101c, 0.28f)",(ROOT/"title"/"patch_home.py").read_text())
         self.assertNotIn("OUVRIR LE SYSTEME",(ROOT/"title"/"patch_home.py").read_text())
