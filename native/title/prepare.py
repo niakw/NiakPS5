@@ -771,7 +771,10 @@ void Catalog::reload()
             const auto &record=observed[static_cast<std::size_t>(j)];
             for(std::size_t i=0;i<count;++i)
                 if(std::strcmp(games[i].id,record.id)==0) {
-                    if(record.application_category)
+                    // Fresh, broker-verified applications cannot be
+                    // downgraded by a historical FTP "Jeu" label.
+                    if(record.application_category &&
+                       games[i].application_category!=2)
                         games[i].application_category=record.application_category;
                     if(std::strcmp(games[i].title,games[i].id)==0 && record.title[0])
                         std::snprintf(games[i].title,sizeof(games[i].title),

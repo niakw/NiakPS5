@@ -214,6 +214,11 @@ def patch(kit):
                       cdn.unmatched,cdn.decode_failed,cdn.write_failed);
         ui::text(list,fonts.regular,media_label,1430,578,15,
                  kWhite.with_alpha(0.7f));
+        std::snprintf(media_label,sizeof(media_label),
+                      "HTTP dernier code : %d · Essais : %u · Limite : %u",
+                      cdn.last_network_error,cdn.requests,cdn.exhausted);
+        ui::text(list,fonts.regular,media_label,1430,598,14,
+                 kWhite.with_alpha(0.85f));
         ui::text(list,fonts.semibold,"Installation du payload ELF",
                  1430,612,20,kWhite);
         const char *install_label= install_status==1

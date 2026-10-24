@@ -32,7 +32,7 @@
 
 namespace {
 constexpr const char *ROOT="/download0/niak-case-";
-constexpr std::size_t kMaxQueued=400;
+constexpr std::size_t kMaxQueued=512;
 using ArtSlots=std::array<std::vector<std::string>,7>;
 struct Task { std::string id,side; };
 struct State {
@@ -43,6 +43,8 @@ struct State {
  bool started=false;
  std::atomic<unsigned> indexed{0},queued{0},completed{0},
      network_failed{0},decode_failed{0},write_failed{0},unmatched{0};
+ std::atomic<int> last_network_error{0};
+ std::atomic<unsigned> requests{0}, exhausted{0};
 };
 State& state(){static State *instance=new State;return *instance;}
 int side_index(const std::string& side){
@@ -249,10 +251,17 @@ void work(){
    if(reusable)continue;
    // Region/server variation: a missing FR image can fall back to EU or
    // another validated image, without ever trusting an arbitrary URL.
+   const unsigned candidate_limit=
+       (task.side=="front"||task.side=="back")?3u:1u;
+   unsigned examined=0;
    for(const std::string &source:candidates) {
-     if(++requested>112u)break; // Per-launch bandwidth/CPU limit.
+     if(examined++>=candidate_limit)break;
+     if(requested>=512u) { ++s.exhausted;break; }
+     ++requested;++s.requests;
      std::vector<std::uint8_t> bytes;
-     if(!niak_fetch_launchbox_asset(source.c_str(),bytes)){
+     int error=0;
+     if(!niak_fetch_launchbox_asset_ex(source.c_str(),bytes,&error)){
+       s.last_network_error.store(error);
        ++s.network_failed;continue;
      }
      std::vector<unsigned char> png;
@@ -275,7 +284,12 @@ void niak_queue_auto_case_art(const char *title_id,const char *side){
  {
    std::lock_guard<std::mutex> lock(s.mutex);
    if(s.seen.size()>=kMaxQueued || !s.seen.insert(name).second)return;
-   s.tasks.push_back({title_id,side});
+   // Scan the entire library without starving all remaining box fronts:
+   // missing official front/back scans outrank extra logo/screenshots. New
+   // titles also get a chance when the user navigates a long game shelf.
+   if(std::strcmp(side,"front")==0||std::strcmp(side,"back")==0)
+     s.tasks.push_front({title_id,side});
+   else s.tasks.push_back({title_id,side});
    ++s.queued;
    if(!s.started){
      s.started=true;
@@ -293,7 +307,8 @@ NiakArtDownloadStatus niak_case_art_download_status(){
  const State &s=state();
  return {s.indexed.load(),s.queued.load(),s.completed.load(),
          s.network_failed.load(),s.decode_failed.load(),
-         s.write_failed.load(),s.unmatched.load()};
+         s.write_failed.load(),s.unmatched.load(),
+         s.last_network_error.load(),s.requests.load(),s.exhausted.load()};
 #else
  return {};
 #endif

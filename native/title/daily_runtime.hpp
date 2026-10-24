@@ -12,3 +12,5 @@ bool niak_fetch_latest_ps5_wallpaper(const char *today_yyyy_mm_dd,
 // game title, profile or console identifier is sent. PS5-only.
 bool niak_fetch_launchbox_asset(const char *filename,
                                std::vector<std::uint8_t> &bytes);
+bool niak_fetch_launchbox_asset_ex(const char *filename,
+                               std::vector<std::uint8_t> &bytes,int *failure);

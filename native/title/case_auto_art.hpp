@@ -8,5 +8,7 @@ void niak_queue_auto_case_art(const char *title_id,const char *side);
 // network access is denied. No user identifiers are exposed.
 struct NiakArtDownloadStatus {
  unsigned indexed,queued,completed,network_failed,decode_failed,write_failed,unmatched;
+ int last_network_error;
+ unsigned requests,exhausted;
 };
 NiakArtDownloadStatus niak_case_art_download_status();

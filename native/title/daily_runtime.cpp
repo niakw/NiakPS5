@@ -62,7 +62,9 @@ bool launchbox_filename(const std::string &name) {
   const auto ext=name.substr(start+36);
   return ext==".png" || ext==".jpg" || ext==".jpeg";
 }
-bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &result) {
+bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &result,
+         int *failure=nullptr) {
+  if(failure)*failure=0;
   // Host list is exact, not a substring. Refuse custom ports, parameters,
   // path traversal and redirects. No arbitrary user-supplied URLs.
   const bool feed=url==FEED;
@@ -72,20 +74,30 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
       url.rfind(".png")==url.size()-4;
   const bool cases=url.rfind(LAUNCHBOX,0)==0 &&
       launchbox_filename(url.substr(std::strlen(LAUNCHBOX)));
-  if(!feed&&!art&&!cases)return false;
-  const int ctx=context();if(ctx<0)return false;
+  if(!feed&&!art&&!cases){if(failure)*failure=-100;return false;}
+  const int ctx=context();
+  if(ctx<0){if(failure)*failure=ctx;return false;}
   int tmpl=sceHttpCreateTemplate(ctx,"NiakPS5-public-media/1.0",2,1);
-  if(tmpl<0)return false;
+  if(tmpl<0){if(failure)*failure=tmpl;return false;}
   (void)sceHttpSetAutoRedirect(tmpl,0);
   (void)sceHttpSetConnectTimeOut(tmpl,5000000);
   (void)sceHttpSetRecvTimeOut(tmpl,8000000);
   int conn=sceHttpCreateConnectionWithURL(tmpl,url.c_str(),0);
-  if(conn<0){sceHttpDeleteTemplate(tmpl);return false;}
+  if(conn<0){if(failure)*failure=conn;
+    sceHttpDeleteTemplate(tmpl);return false;}
   int req=sceHttpCreateRequestWithURL(conn,0,url.c_str(),0);
   bool ok=req>=0;
+  if(!ok && failure)*failure=req;
   int status=0;
-  if(ok)ok=sceHttpSendRequest(req,nullptr,0)>=0 &&
-             sceHttpGetStatusCode(req,&status)>=0 && status==200;
+  if(ok) {
+    const int sent=sceHttpSendRequest(req,nullptr,0);
+    if(sent<0){ok=false;if(failure)*failure=sent;}
+    else {
+      const int rc=sceHttpGetStatusCode(req,&status);
+      if(rc<0){ok=false;if(failure)*failure=rc;}
+      else if(status!=200){ok=false;if(failure)*failure=status;}
+    }
+  }
   std::vector<std::uint8_t> bytes;bytes.reserve(std::min(limit,std::size_t(1u<<20)));
   if(ok) {
     std::vector<std::uint8_t> chunk(32768);
@@ -94,7 +106,10 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
       if(bytes.size()+std::size_t(n)>limit){ok=false;break;}
       bytes.insert(bytes.end(),chunk.begin(),chunk.begin()+n);
     }
-    if(n<0||bytes.empty())ok=false;
+    if(n<0||bytes.empty()) {
+      ok=false;
+      if(failure)*failure=n<0?n:-101;
+    }
   }
   if(req>=0)(void)sceHttpDeleteRequest(req);
   (void)sceHttpDeleteConnection(conn);
@@ -165,14 +180,23 @@ bool niak_fetch_latest_ps5_wallpaper(const char *today_yyyy_mm_dd,
   return false;
 }
 
+bool niak_fetch_launchbox_asset_ex(const char *filename,
+                               std::vector<std::uint8_t>& bytes,int *failure) {
+#if defined(__PROSPERO__)
+  if(!filename || !launchbox_filename(filename)){
+      if(failure)*failure=-100;
+      return false;
+  }
+  // Public CDN name only. Never include a profile, console title ID, token
+  // or user-supplied URL in the outbound request.
+  return get(std::string(LAUNCHBOX)+filename,5u*1024u*1024u,bytes,failure);
+#else
+  (void)filename;(void)bytes;
+  if(failure)*failure=-200;
+  return false;
+#endif
+}
 bool niak_fetch_launchbox_asset(const char *filename,
                                std::vector<std::uint8_t>& bytes) {
-#if defined(__PROSPERO__)
-  if(!filename || !launchbox_filename(filename))return false;
-  // The request contains ONLY a public CDN filename; never game/title IDs,
-  // PS5 profiles, local network addresses, tokens or user data.
-  return get(std::string(LAUNCHBOX)+filename,5u*1024u*1024u,bytes);
-#else
-  (void)filename;(void)bytes;return false;
-#endif
+  return niak_fetch_launchbox_asset_ex(filename,bytes,nullptr);
 }
