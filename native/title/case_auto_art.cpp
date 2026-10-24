@@ -14,6 +14,7 @@
 #define STBI_NO_LINEAR
 #include "niak/stb_image.h"
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <chrono>
 #include <condition_variable>
@@ -40,6 +41,8 @@ struct State {
  std::deque<Task> tasks;
  std::set<std::string> seen;
  bool started=false;
+ std::atomic<unsigned> indexed{0},queued{0},completed{0},
+     network_failed{0},decode_failed{0},write_failed{0},unmatched{0};
 };
 State& state(){static State *instance=new State;return *instance;}
 int side_index(const std::string& side){
@@ -224,6 +227,7 @@ bool save(const Task& task,const std::string& name,
 void work(){
  const auto index=read_index();
  State &s=state();
+ s.indexed.store(static_cast<unsigned>(index.size()));
  unsigned requested=0;
  for(;;){
    Task task;
@@ -233,11 +237,11 @@ void work(){
      task=std::move(s.tasks.front());s.tasks.pop_front();
    }
    const auto found=index.find(task.id);
-   if(found==index.end())continue;
+   if(found==index.end()){++s.unmatched;continue;}
    const int field=side_index(task.side);
    if(field<0)continue;
    const auto &candidates=found->second[std::size_t(field)];
-   if(candidates.empty())continue;
+   if(candidates.empty()){++s.unmatched;continue;}
    const std::string target=cache_path(task);
    bool reusable=false;
    for(const std::string &source:candidates)
@@ -248,10 +252,15 @@ void work(){
    for(const std::string &source:candidates) {
      if(++requested>112u)break; // Per-launch bandwidth/CPU limit.
      std::vector<std::uint8_t> bytes;
-     if(!niak_fetch_launchbox_asset(source.c_str(),bytes))continue;
+     if(!niak_fetch_launchbox_asset(source.c_str(),bytes)){
+       ++s.network_failed;continue;
+     }
      std::vector<unsigned char> png;
-     if(convert_png(bytes,source,task.side,png) &&
-        save(task,source,png))break;
+     if(!convert_png(bytes,source,task.side,png)){
+       ++s.decode_failed;continue;
+     }
+     if(save(task,source,png)){++s.completed;break;}
+     ++s.write_failed;
      std::this_thread::sleep_for(std::chrono::milliseconds(150));
    }
  }
@@ -267,6 +276,7 @@ void niak_queue_auto_case_art(const char *title_id,const char *side){
    std::lock_guard<std::mutex> lock(s.mutex);
    if(s.seen.size()>=kMaxQueued || !s.seen.insert(name).second)return;
    s.tasks.push_back({title_id,side});
+   ++s.queued;
    if(!s.started){
      s.started=true;
      std::thread(work).detach();
@@ -275,5 +285,16 @@ void niak_queue_auto_case_art(const char *title_id,const char *side){
  s.cv.notify_one();
 #else
  (void)title_id;(void)side;
+#endif
+}
+
+NiakArtDownloadStatus niak_case_art_download_status(){
+#if defined(__PROSPERO__)
+ const State &s=state();
+ return {s.indexed.load(),s.queued.load(),s.completed.load(),
+         s.network_failed.load(),s.decode_failed.load(),
+         s.write_failed.load(),s.unmatched.load()};
+#else
+ return {};
 #endif
 }

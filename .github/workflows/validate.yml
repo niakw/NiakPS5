@@ -58,6 +58,10 @@ jobs:
         run: |
           g++ -std=c++20 -Wall -Wextra -Werror native/title/tests/cover_stream_state_test.cpp -o /tmp/niak-cover-queue
           /tmp/niak-cover-queue
+      - name: Validate game/application category routing
+        run: |
+          g++ -std=c++20 -Wall -Wextra -Werror native/title/tests/app_classification_test.cpp -o /tmp/niak-app-class
+          /tmp/niak-app-class
       - name: Validate bounded 3D case texture resampling
         run: |
           g++ -std=c++20 -Wall -Wextra -Werror native/title/tests/case_texture_scale_test.cpp -o /tmp/niak-case-texture

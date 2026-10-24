@@ -32,6 +32,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("settings_link_rc_=niak_open_system_settings()",ui)
         self.assertIn("Raccourci refusé par le système",ui)
 
+    def test_cover_network_errors_visible_in_settings(self):
+        worker=(ROOT/"title"/"case_auto_art.cpp").read_text()
+        ui=(ROOT/"title"/"patch_home.py").read_text()
+        self.assertIn("niak_case_art_download_status()",ui)
+        self.assertIn("cdn.network_failed",ui)
+        self.assertIn("++s.network_failed",worker)
+        self.assertIn("s.indexed.store(",worker)
+
     def test_artwork_refresh_is_native_and_outside_render_thread(self):
         builder=(ROOT/"title"/"prepare.py").read_text()
         case=(ROOT/"title"/"case_art.cpp").read_text()

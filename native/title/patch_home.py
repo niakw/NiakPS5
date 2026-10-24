@@ -16,6 +16,7 @@ def patch(kit):
     text = file.read_text()
     text = once(text, '#include "niak/daily_backdrop.hpp"',
                 '#include "niak/daily_backdrop.hpp"\n'
+                '#include "niak/case_auto_art.hpp"\n'
                 '#include "niak/one_shot_install.hpp"\n'
                 '#include "niak/launch_log_status.h"')
     text = once(text, "        if (sheet_open_)\n            update_sheet(input, feedback);\n        else\n            update_shelves(input, feedback);",
@@ -199,9 +200,20 @@ def patch(kit):
                       "Mémoire scans 3D : %.1f Mio (RGBA8)",
                       double(media.case_texture_bytes)/1048576.0);
         ui::text(list,fonts.regular,media_label,1430,477,18,kWhite);
-        ui::paragraph(list,fonts.regular,
-                      "0 signifie non chargé ou accès refusé, pas forcément absent du FTP.",
-                      1430,520,17,410,23,kWhite.with_alpha(0.65f),3);
+        const NiakArtDownloadStatus cdn=niak_case_art_download_status();
+        std::snprintf(media_label,sizeof(media_label),
+                      "LaunchBox : %u référencés · %u reçus",
+                      cdn.indexed,cdn.completed);
+        ui::text(list,fonts.regular,media_label,1430,524,17,kWhite);
+        std::snprintf(media_label,sizeof(media_label),
+                      "En file : %u · Échecs réseau : %u",
+                      cdn.queued,cdn.network_failed);
+        ui::text(list,fonts.regular,media_label,1430,550,17,kWhite);
+        std::snprintf(media_label,sizeof(media_label),
+                      "Sans médias : %u · Corrompus : %u · Stockage : %u",
+                      cdn.unmatched,cdn.decode_failed,cdn.write_failed);
+        ui::text(list,fonts.regular,media_label,1430,578,15,
+                 kWhite.with_alpha(0.7f));
         ui::text(list,fonts.semibold,"Installation du payload ELF",
                  1430,612,20,kWhite);
         const char *install_label= install_status==1
