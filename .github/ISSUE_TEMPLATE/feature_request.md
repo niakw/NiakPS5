@@ -1,23 +1,19 @@
 ---
-name: "Improvement / Amélioration"
-about: "Suggest a focused NiakPS5 improvement (FR/EN)"
+name: "Feature request / Amélioration"
+about: "Suggest a focused NiakPS5 enhancement (EN/FR)"
 title: "[Feature] "
 labels: []
 assignees: []
 ---
 
-### Besoin / User problem
+### Problem to solve / Besoin
+Which PS5 user workflow should improve ? / Quel parcours souhaitez-vous améliorer ?
 
-Quel comportement de l'accueil PS5 souhaitez-vous améliorer ? / Which console workflow needs improvement?
+### Expected behavior / Résultat attendu
+Describe DualSense interactions and offline fallback. / Décrivez les interactions et le fonctionnement hors ligne.
 
-### Résultat attendu / Expected result
+### Constraints / Contraintes
+Include permissions, performance, dependencies and privacy implications. / Droits, performances, dépendances et confidentialité.
 
-Décrivez l'interaction DualSense et le comportement de repli hors ligne. / Describe the DualSense interaction and offline fallback.
-
-### Contraintes / Constraints
-
-Précisez les dépendances, droits nécessaires, performances et risques de confidentialité. / Note permissions, dependencies, performance and privacy considerations.
-
-### Références / References
-
-Liens ou captures **sans données personnelles**. / Links or redacted screenshots.
+### References / Références
+Links or screenshots **without personal data**. / Liens ou captures sans données personnelles.

@@ -1,6 +1,12 @@
 # Contributing / Contribuer
 
-[Français](#français) · [English](#english)
+[English](#english) · [Français](#français)
+
+## English
+
+Contribute through a pull request targeting the single reference branch **`main`**. Explain the problem, include a regression test where practical, run the Python tests above, and check the native PS5 build for console-facing changes.
+
+Never commit personal console data, private screenshots, commercial box scans, game binaries, FTP credentials, API tokens, or private IP addresses. Use genuine OpenGL-renderer previews with sample data. Keep changes scoped and preserve third-party license notices. Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 ## Français
 
@@ -11,9 +17,3 @@ Avant de soumettre : vérifiez la compilation native lorsque le changement touch
 Respectez les métadonnées officielles et les licences tierces : ne placez aucun scan commercial LaunchBox, copie de jeux, FPKG, clé d'API, journal FTP, identifiant de compte ou adresse IP privée dans le dépôt. Les corrections d'accès au système doivent limiter les privilèges et ne jamais modifier les fichiers Sony ou supprimer des données sans nécessité.
 
 Pour les bugs, utilisez le modèle d'issue PS5. Pour les vulnérabilités, consultez [SECURITY.md](SECURITY.md) avant de publier des détails.
-
-## English
-
-Contribute through a pull request targeting the single reference branch **`main`**. Explain the problem, include a regression test where practical, run the Python tests above, and check the native PS5 build for console-facing changes.
-
-Never commit personal console data, private screenshots, commercial box scans, game binaries, FTP credentials, API tokens, or private IP addresses. Use genuine OpenGL-renderer previews with sample data. Keep changes scoped and preserve third-party license notices. Report security issues privately as described in [SECURITY.md](SECURITY.md).

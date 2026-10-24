@@ -1,11 +1,11 @@
 ---
 name: "Question / Support"
-about: "Ask a NiakPS5 usage question (FR/EN)"
+about: "Ask about NiakPS5 setup or usage (EN/FR)"
 title: "[Question] "
 labels: []
 assignees: []
 ---
 
-Expliquez l'étape concernée, la version installée et le résultat souhaité. / Explain the affected step, installed version, and expected behavior.
+Describe the affected feature, installed build and expected result. / Précisez la fonctionnalité, la version installée et le résultat attendu.
 
-Ne publiez pas de captures privées ou de journaux non expurgés. / Do not publish private screenshots or unredacted logs.
+Do not post private screenshots or unredacted logs. / Ne publiez pas de captures privées ni de journaux non expurgés.

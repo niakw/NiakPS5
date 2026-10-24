@@ -1,15 +1,17 @@
-# GitHub About / Profil du dépôt
+# GitHub repository profile
 
-**English — description to paste into GitHub About**
+## Description (English default)
 
-> Native PS5 homebrew launcher with a DualSense game library and animated PS4/PS5 3D cases.
+> Native PS5 homebrew dashboard with DualSense controls, a game library, and animated PS4/PS5 3D cases.
 
-**Français — description courte**
+## Suggested GitHub topics
+
+`ps5` · `ps5-homebrew` · `playstation-5` · `dualsense` · `homebrew` · `launcher` · `game-library` · `opengl` · `launchbox`
+
+## Description française (facultative)
 
 > Accueil natif PS5 homebrew : bibliothèque DualSense et boîtiers 3D PS4/PS5.
 
-Suggested topics: `ps5`, `homebrew`, `playstation-5`, `dualsense`, `opengl`, `launcher`, `launchbox`, `ps5-jailbreak`.
+The GitHub repository currently identifies **Python** as the predominant *programming* language. That is unrelated to the English prose language of the README. Do not falsify GitHub Linguist statistics.
 
-Website: leave empty unless an official project site exists.
-
-**Publishing:** This file only documents the intended description and topics. The connected GitHub integration can update source files but cannot edit repository About/topics. An authorized maintainer must set them in the GitHub repository sidebar; this document is not a claim that profile metadata has been updated.
+The repository description and topics must be set in **About → Edit repository details** by an authorized maintainer; publishing this document does not modify those GitHub settings. No external homepage is needed.

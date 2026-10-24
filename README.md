@@ -1,43 +1,43 @@
 # NiakPS5
 
-**Votre bibliothèque. Votre manette. Votre PS5.**
+**Your library. Your controller. Your PS5.**
 
-Un accueil **natif et plein écran** pour PS5 homebrew, avec navigation DualSense, jeux et applications, lancement local et boîtiers PS4/PS5 animés en 3D.
+A **native, full-screen home interface** for homebrew-enabled PS5 consoles, with DualSense navigation, games and apps, local launching, and animated PS4/PS5 3D cases.
 
-[English](README.en.md) · [Notes techniques](native/title/README.md) · [Versions et captures](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml)
+[Français](README.fr.md) · [Technical notes](native/title/README.en.md) · [Builds and previews](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml)
 
-![Capture réelle de l'accueil NiakPS5 via le moteur OpenGL et Mesa, avec données de démonstration](docs/images/niakps5-home.png)
+![Actual NiakPS5 OpenGL home interface under Mesa with sample data](docs/images/niakps5-home.png)
 
-*Capture du moteur OpenGL de NiakPS5 en prévisualisation Mesa (données de test). Pas une maquette ni une capture provenant directement de la console.*
+*Real OpenGL renderer preview under Mesa with sample data. Not a design mockup or a screenshot captured directly from a PS5.*
 
-## Une interface conçue pour la manette
+## Built for the controller
 
-Naviguez entre **Jeux**, **Applications** et **Réglages** avec la DualSense. Retrouvez les titres installés, leurs icônes, leurs informations disponibles, des fonds du jour et une animation de boîtier 3D sans passer par un navigateur.
+Use your DualSense to browse **Games**, **Applications**, and **Settings**. Explore installed titles, available game information, daily wallpapers, and animated 3D cases without a web browser.
 
-### Les jaquettes s'enrichissent automatiquement
+### Artwork refreshes automatically
 
-NiakPS5 privilégie les véritables rectos, versos et tranches LaunchBox. Pour les faces absentes, le titre **tente lui-même**, en arrière-plan, de récupérer les images connues de l'index LaunchBox public, de décoder JPEG/PNG et de les placer dans son cache privé. **Aucun script Mac n'est requis pour cette tentative automatique.** Les images récupérées sont utilisées lors du prochain lancement de l'application ; ce chargement n'est pas instantané.
+NiakPS5 prioritizes genuine LaunchBox front, back, and spine scans. When artwork is missing, the title **tries to fetch known public-index images itself** on a background thread, convert JPEG/PNG to its private cache, and use them on the **next app launch**. A separate Mac script is not needed for this automatic attempt.
 
-L'accès HTTPS dépend des autorisations réseau du firmware et de la disponibilité de LaunchBox. Si une image n'est pas disponible, le boîtier conserve son rendu recomposé avec les éléments PS4/PS5 appropriés. Les scans commerciaux ne sont pas inclus dans le paquet GitHub et aucune capture personnelle n'est publiée.
+HTTPS access depends on the console sandbox, firmware, and LaunchBox availability. If media cannot be fetched, NiakPS5 keeps a consistent reconstructed case with the correct PS4/PS5 elements. Third-party commercial scans are not distributed in the GitHub package.
 
-La description d'un jeu reste **courte : trois phrases maximum** issues des métadonnées disponibles, sans récit inventé. Les résumés LaunchBox étant souvent en anglais, l'application les affiche dans leur langue d'origine si elle n'a pas de traduction française. Elle ne traduit pas automatiquement tout le catalogue.
+Game descriptions use **up to three short sentences** from available sources, rather than fabricated or full-length essays. LaunchBox summaries are often in English; if no French version is available, the original text remains. NiakPS5 does not automatically translate the entire catalog.
 
-## État du projet
+## Project status
 
-Sur la PS5 13.60 de test, **48 titres ont été trouvés**, la bibliothèque s'affiche et « Jouer » a permis de démarrer un jeu. Le classement des applications, le téléchargement natif des visuels, le raccourci système et le retour après fermeture exigent encore une validation matérielle des derniers correctifs. Les [captures OpenGL des boîtiers](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml) et la compilation native sont vérifiées séparément en CI.
+On the PS5 13.60 test console, the local service discovered **48 titles**, the library appeared, and **Play** successfully launched a game. Recent fixes for app classification, native artwork downloads, system-settings access, and return-after-game still require hardware verification. CI checks compilation and genuine Mesa/OpenGL previews separately.
 
-## Installation et mise à jour
+## Install or update
 
-1. Télécharger l'artefact **`NiakPS5-PPSA99386`** d'un [run vert sur `main`](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml).
-2. Extraire une seule fois l'archive ; fusionner son dossier **`data/`** à la racine FTP **`/`** de la PS5 **sans effacer les dossiers existants**.
-3. Ouvrir le titre **`PPSA99386`** sur la console. Le payload compagnon est livré dans le même dossier à copier.
+1. Download **`NiakPS5-PPSA99386`** from a [successful `main` workflow run](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml).
+2. Extract it once and **merge** the top-level **`data/`** folder into the PS5 FTP root **`/`**. **Do not delete** existing folders.
+3. Open the registered title **`PPSA99386`**. The companion PLDmgr payload is already included in the same tree.
 
-Le paquet **ne modifie pas** `autoload.txt`, la configuration PLDmgr ni les fichiers du système Sony. Si un autoload NiakPS5 existe déjà et fonctionne, conservez-le. La simple copie FTP ne peut pas créer une entrée d'autoload manquante.
+The package does **not** edit `autoload.txt`, PLDmgr settings, or Sony system files. Keep an existing working autoload configuration; a basic FTP folder copy cannot activate a missing one.
 
-Le cache d'artwork automatique est interne à NiakPS5. Les outils FTP supplémentaires sont documentés **uniquement pour le diagnostic ou la réparation** dans les [notes techniques](native/title/README.md), pas comme une étape normale de mise à jour.
+Artwork refresh is built into the title. Separate FTP scripts are documented **only as troubleshooting tools** in the [technical notes](native/title/README.md), not as a normal setup requirement.
 
-## Confidentialité et limites
+## Privacy and limitations
 
-NiakPS5 n'intercepte pas le bouton PS, ne remplace pas `SceShellUI` et ne contourne aucune exigence de disque ou de licence. Le lancement des jeux passe par un courtier local sur `127.0.0.1`. Le téléchargement des images ne transmet à LaunchBox que leurs noms de fichiers publics, sans profil PS5 ni identifiant de jeu privé. Les visuels tiers restent la propriété de leurs auteurs.
+NiakPS5 does not intercept the PS button, replace `SceShellUI`, or bypass disc or license checks. The launch broker is bound to `127.0.0.1`. Automatic cover requests send only public CDN filenames, not personal PS5 profiles or console title IDs. Third-party artwork remains the property of its respective owners.
 
-Code **GPL-3.0-or-later**, licences tierces conservées. Projet indépendant, non affilié à Sony ni LaunchBox.
+**GPL-3.0-or-later**, with third-party licenses preserved. Independent homebrew project; not affiliated with Sony or LaunchBox.
