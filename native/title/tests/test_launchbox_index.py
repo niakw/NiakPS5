@@ -283,6 +283,31 @@ class TestRetailCases(unittest.TestCase):
   self.assertIn("000000000600",row[2])
   self.assertIn("000000000606",row[7])  # PC title shot if gameplay missing
 
+ def test_missing_console_capture_can_retry_matching_pc_capture(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>600</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>Example Title</Name></Game>
+   <Game><DatabaseID>601</DatabaseID><Platform>Windows</Platform>
+    <Name>Example Title</Name></Game>
+   <GameImage><DatabaseID>600</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000600.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>600</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000610.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>600</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000620.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000611.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000621.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  row=mod.parse(io.BytesIO(xml),{("ps5","example title"):["PPSA45678"]})[0]
+  self.assertEqual([x.split(":",1)[1][-7:] for x in row[7].split(";")][:2],
+                   ["610.jpg","611.jpg"])
+  self.assertEqual([x.split(":",1)[1][-7:] for x in row[8].split(";")][:2],
+                   ["620.jpg","621.jpg"])
+  self.assertEqual(len(set(row[7].split(";")) & set(row[8].split(";"))),0)
+  self.assertIn("000000000600",row[2])
+
  def test_ambiguous_pc_name_cannot_supply_console_art(self):
   xml=b"""<LaunchBox>
    <Game><DatabaseID>601</DatabaseID><Platform>Windows</Platform>
