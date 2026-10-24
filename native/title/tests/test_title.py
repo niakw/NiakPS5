@@ -261,7 +261,7 @@ class NativeTitleTests(unittest.TestCase):
                         auto.index("std::rename(staged_png.c_str(),path.c_str())"))
         self.assertIn("!valid_download_source(filename)",case)
         self.assertIn('filename.rfind("/download0/niak-case-",0)',case)
-        self.assertIn("lodepng::decode(pixels,w,h,raw)",auto)
+        self.assertIn("WebPDecodeRGBAInto(raw.data(),raw.size(),pixels.data()",auto)
         self.assertIn("for(const std::string& filename:paths)",case)
         self.assertIn("valid_filename(filename)",auto)
 
