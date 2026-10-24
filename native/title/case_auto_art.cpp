@@ -346,11 +346,13 @@ void work(){
      official_front_ready=false;
      official_back_ready=false;
    }
-   // Once the genuine BACK was validated, its reconstruction screenshots
-   // are unused; likewise, a real FRONT makes an extra fallback logo
-   // unnecessary. Avoid these CDN requests and their decode/write cost.
-   if(((task.side=="hero"||task.side=="shot1"||
-        task.side=="shot2") && official_back_ready) ||
+   // The screenshots are unused with an official BACK. A missing FRONT
+   // can still use the hero artwork even when the BACK is already present.
+   // Skip hero only once both official faces are ready.
+   if(((task.side=="shot1"||task.side=="shot2") &&
+        official_back_ready) ||
+      (task.side=="hero" && official_front_ready &&
+        official_back_ready) ||
       (task.side=="logo" && official_front_ready))
      continue;
    // Compare two cheap local file stamps. Avoid parsing thousands of
