@@ -83,9 +83,11 @@ bool existing(const std::string& path,const std::string& source){
 }
 std::unordered_map<std::string,ArtSlots> read_index(){
  std::unordered_map<std::string,ArtSlots> index;
- FILE *f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
- if(!f)f=std::fopen(
+ // Installed-title-specific metadata takes precedence over the generic
+ // bundled catalogue (exactly like the native overview reader).
+ FILE *f=std::fopen(
     "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv","rb");
+ if(!f)f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
  if(!f)return index;
  char line[8192];
  while(index.size()<50000 && std::fgets(line,sizeof(line),f)){

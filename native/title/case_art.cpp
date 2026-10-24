@@ -93,6 +93,11 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
  if(handle) {
      if(aspect)*aspect=float(w)/float(h);
      niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
+     // Check the original CDN provenance off-thread even for an existing
+     // sandbox copy. The current PNG remains usable until a valid replacement
+     // has been downloaded atomically for the next launch.
+     if(std::strstr(file,"/download0/niak-case-")==file)
+         niak_queue_auto_case_art(id,side);
  }
  return handle;
 }
