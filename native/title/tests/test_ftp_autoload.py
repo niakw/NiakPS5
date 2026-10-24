@@ -708,7 +708,9 @@ class AutoloadTests(unittest.TestCase):
                 ident="PPSA34015"
                 stored=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{ident}-front.png"
                 ftp=FakeFTP({stored:b"cached",
-                             f"/user/app/{ident}/eboot.bin":b"game"})
+                             f"/user/app/{ident}/eboot.bin":b"game",
+                             ftpmod.CASE_CACHE_SOURCES:(
+                        ident+"\tfront\t00000000-0000-0000-0000-000000000001.jpg\n").encode(),})
                 (self.root/"assets").mkdir(exist_ok=True)
                 (self.root/"assets/niak-launchbox-cases.tsv").write_text(
                     ident+"\\t-\\tfr:00000000-0000-0000-0000-000000000001.jpg"
@@ -724,6 +726,7 @@ class AutoloadTests(unittest.TestCase):
                                     for entry in returned]
                     return returned
                 with (patch.object(ftp,"nlst",side_effect=alternate_listing),
+                      patch.object(ftpmod,"_cache_hit",return_value=True),
                       patch.object(urllib.request,"urlopen") as net):
                     self.assertEqual(ftpmod.fetch_retail_covers(ftp,self.root),0)
                     net.assert_not_called()
@@ -734,11 +737,14 @@ class AutoloadTests(unittest.TestCase):
         import urllib.request
         id="PPSA34015"
         existing=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{id}-front.png"
-        f=FakeFTP({f"/user/app/{id}/eboot.bin":b"game",existing:b"image"})
+        f=FakeFTP({f"/user/app/{id}/eboot.bin":b"game",existing:b"image",
+                   ftpmod.CASE_CACHE_SOURCES:
+                   (id+"\tfront\t00000000-0000-0000-0000-000000000001.jpg\n").encode()})
         (self.root/"assets").mkdir(exist_ok=True)
         (self.root/"assets/niak-launchbox-cases.tsv").write_text(
             id+"\t-\tfr:00000000-0000-0000-0000-000000000001.jpg\t-\t-\t-\t4\n")
-        with patch.object(urllib.request,"urlopen") as open_url:
+        with (patch.object(urllib.request,"urlopen") as open_url,
+              patch.object(ftpmod,"_cache_hit",return_value=True)):
             result=ftpmod.fetch_retail_covers(f,self.root)
         self.assertEqual(result,0)
         open_url.assert_not_called()
@@ -752,6 +758,31 @@ class AutoloadTests(unittest.TestCase):
             refreshed=ftpmod.fetch_retail_covers(f,self.root,force=True)
         self.assertEqual(refreshed,1)
         self.assertEqual(f.files[existing],b"repaired-png")
+
+    def test_stale_cached_art_requires_redownload_and_rewrites_provenance(self):
+        from unittest.mock import patch
+        import urllib.request
+        ident="PPSA34015"
+        image="00000000-0000-0000-0000-000000000002.jpg"
+        old="00000000-0000-0000-0000-000000000001.jpg"
+        (self.root/"assets").mkdir(exist_ok=True)
+        (self.root/"assets/niak-launchbox-cases.tsv").write_text(
+            f"{ident}\t-\tfr:{image}\t-\t-\t-\t8\n")
+        asset=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{ident}-front.png"
+        f=FakeFTP({f"/user/app/{ident}/eboot.bin":b"present",
+                   asset:b"old",
+                   ftpmod.CASE_CACHE_SOURCES:
+                       f"{ident}\tfront\t{old}\n".encode()})
+        class Response:
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def read(self,n):return b"new source"
+        with (patch.object(urllib.request,"urlopen",return_value=Response()),
+              patch.object(ftpmod,"_decode_retail_image",return_value=b"new png")):
+            self.assertEqual(ftpmod.fetch_retail_covers(f,self.root),1)
+        self.assertEqual(f.files[asset],b"new png")
+        self.assertIn(image.encode(),f.files[ftpmod.CASE_CACHE_SOURCES])
+        self.assertNotIn(old.encode(),f.files[ftpmod.CASE_CACHE_SOURCES])
 
     def test_install_preflight_is_atomic_on_invalid_local_package(self):
         meta=self.root/"sce_sys/param.json"
