@@ -17,6 +17,8 @@
 #include <vector>
 
 #if defined(__PROSPERO__)
+#include "niak/console_curl.h"
+#include "niak/one_shot_install.hpp"
 #include <mutex>
 #include <chrono>
 extern "C" {
@@ -44,6 +46,66 @@ constexpr const char *FEED="https://raw.githubusercontent.com/sharpemu/sharpemu-
 constexpr const char *MEDIA="https://image.api.playstation.com/";
 constexpr const char *LAUNCHBOX="https://images.launchbox-app.com/";
 constexpr std::size_t MAX_FEED=5u*1024u*1024u, MAX_PNG=7u*1024u*1024u;
+// The bundled GPLv3 console_curl shim uses OpenSSL and the console CA list.
+// PS5 sceSsl may refuse public certificates once the GUI is elevated.
+struct CurlBuffer {
+ std::vector<std::uint8_t> bytes;
+ std::size_t cap=0;
+ bool oversized=false;
+};
+std::size_t curl_write(char *ptr,std::size_t size,std::size_t nmemb,void *context){
+ auto &buffer=*static_cast<CurlBuffer*>(context);
+ if(size && nmemb>SIZE_MAX/size){buffer.oversized=true;return 0;}
+ const std::size_t n=size*nmemb;
+ if(n>buffer.cap-buffer.bytes.size()){buffer.oversized=true;return 0;}
+ buffer.bytes.insert(buffer.bytes.end(),
+     reinterpret_cast<std::uint8_t*>(ptr),
+     reinterpret_cast<std::uint8_t*>(ptr)+n);
+ return n;
+}
+bool get_curl(const std::string &url,std::size_t limit,
+              std::vector<std::uint8_t> &result,int *failure,int *stage){
+ static std::once_flag started;
+ static CURLcode initialized=CURLE_FAILED_INIT;
+ std::call_once(started,[]{initialized=curl_global_init(CURL_GLOBAL_DEFAULT);});
+ if(initialized!=CURLE_OK){
+   if(failure)*failure=-10000-static_cast<int>(initialized);
+   if(stage)*stage=10;
+   return false;
+ }
+ CURL *easy=curl_easy_init();
+ if(!easy){if(failure)*failure=-10002;if(stage)*stage=10;return false;}
+ CurlBuffer body{};
+ body.cap=limit;
+ body.bytes.reserve(std::min(limit,std::size_t(1u<<20)));
+ console_curl_setup(easy); // verified CA; socket nonblocking; no signals
+ curl_easy_setopt(easy,CURLOPT_URL,url.c_str());
+ curl_easy_setopt(easy,CURLOPT_PROTOCOLS_STR,"https");
+ curl_easy_setopt(easy,CURLOPT_FOLLOWLOCATION,0L);
+ curl_easy_setopt(easy,CURLOPT_HTTP_VERSION,CURL_HTTP_VERSION_1_1);
+ curl_easy_setopt(easy,CURLOPT_IPRESOLVE,CURL_IPRESOLVE_V4);
+ curl_easy_setopt(easy,CURLOPT_CONNECTTIMEOUT_MS,5000L);
+ curl_easy_setopt(easy,CURLOPT_TIMEOUT_MS,15000L);
+ curl_easy_setopt(easy,CURLOPT_SSL_VERIFYPEER,1L);
+ curl_easy_setopt(easy,CURLOPT_SSL_VERIFYHOST,2L);
+ curl_easy_setopt(easy,CURLOPT_USERAGENT,"NiakPS5-public-media/1.0");
+ curl_easy_setopt(easy,CURLOPT_WRITEFUNCTION,curl_write);
+ curl_easy_setopt(easy,CURLOPT_WRITEDATA,&body);
+ curl_easy_setopt(easy,CURLOPT_MAXFILESIZE_LARGE,static_cast<curl_off_t>(limit));
+ const CURLcode rc=curl_easy_perform(easy);
+ long status=0;
+ if(rc==CURLE_OK)curl_easy_getinfo(easy,CURLINFO_RESPONSE_CODE,&status);
+ curl_easy_cleanup(easy);
+ if(rc!=CURLE_OK){
+   if(failure)*failure=body.oversized?-103:-10000-static_cast<int>(rc);
+   if(stage)*stage=body.oversized?8:10;
+   return false;
+ }
+ if(status!=200){if(failure)*failure=static_cast<int>(status);if(stage)*stage=6;return false;}
+ if(body.bytes.empty()){if(failure)*failure=-101;if(stage)*stage=7;return false;}
+ result=std::move(body.bytes);
+ return true;
+}
 int context() {
   // Never permanently poison the only public-media transport if an early
   // boot, offline network or temporary PS5 sandbox error breaks sceHttpInit.
@@ -92,6 +154,11 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
   const bool cases=url.rfind(LAUNCHBOX,0)==0 &&
       launchbox_filename(url.substr(std::strlen(LAUNCHBOX)));
   if(!feed&&!art&&!cases){if(failure)*failure=-100;if(stage)*stage=9;return false;}
+  // The one-shot payload installer grants this GUI a privileged filesystem
+  // identity. sceSsl can then reject public TLS with 0x8095F00C. libcurl
+  // with OpenSSL retains peer/hostname verification under this identity.
+  if(niak::payload_process_elevated)
+     return get_curl(url,limit,result,failure,stage);
   const int ctx=context();
   if(ctx<0){if(failure)*failure=ctx;if(stage)*stage=1;return false;}
   int tmpl=sceHttpCreateTemplate(ctx,"NiakPS5-public-media/1.0",2,1);
