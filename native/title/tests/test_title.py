@@ -151,9 +151,9 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("reusable_rank=candidates.size()",auto)
         self.assertIn("++s.side_completed[static_cast<std::size_t>(field)]",auto)
         self.assertIn("result.sides_completed[i]=s.side_completed[i].load();",auto)
-        self.assertIn("last_case_sides_=case_status.sides_completed;",builder)
-        self.assertIn("updated[1],&selected.case_back",builder)
-        self.assertIn("niak_destroy_case_texture(renderer,*updated_side.second);",builder)
+        self.assertIn("last_case_sides_=case_status.sides_completed;",(ROOT/"title"/"prepare.py").read_text())
+        self.assertIn("updated[1],&selected.case_back",(ROOT/"title"/"prepare.py").read_text())
+        self.assertIn("niak_destroy_case_texture(renderer,*updated_side.second);",(ROOT/"title"/"prepare.py").read_text())
         case_art=(ROOT/"title"/"case_art.cpp").read_text()
         ftp=(ROOT/"title"/"ftp_install.py").read_text()
         self.assertLess(case_art.index('"/download0/niak-case-%s-%s.png"'),
