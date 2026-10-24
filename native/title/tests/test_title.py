@@ -68,7 +68,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("requested>=512u",auto)
         self.assertIn("s.retries.clear();",auto)
         self.assertIn("s.cv.wait_until(lock,due)",auto)
-        self.assertIn("task.id==s.selected)s.retries.push_back",auto)
+        self.assertIn("s.retries.push_back(std::move(task));",auto)
         self.assertIn("task.attempt<2",auto)
         self.assertIn("transient_network_failure(error)",auto)
         self.assertIn("cdn.last_network_stage",(ROOT/"title"/"patch_home.py").read_text())
