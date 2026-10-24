@@ -96,6 +96,7 @@ PY
 cp "$root/native/title/ftp_install.py" "$out/tools/ftp_install.py"
 cp "$root/native/title/cover_sources.py" "$out/tools/cover_sources.py"
 cp "$root/native/title/launchbox_index.py" "$out/tools/launchbox_index.py"
+cp "$root/native/title/translate_overviews.py" "$out/tools/translate_overviews.py"
 cp "$root/native/title/AUTOSTART.md" "$out/tools/AUTOSTART.md"
 # GitHub automatically creates ONE downloadable ZIP from dist/ftp-dropin.
 # Do not produce extra ZIP layers or include archive files in FTP /data.

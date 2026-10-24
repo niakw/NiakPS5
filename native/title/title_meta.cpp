@@ -141,6 +141,33 @@ std::string niak_title_summary(const NiakTitleMetadata &v){
 
 std::string niak_title_overview(const char *id) {
  if(!id || std::strlen(id)!=9)return {};
+ // Explicit local French translation has priority over LaunchBox original.
+ // A missing/private file never triggers network requests on the PS5.
+ static const auto french=[]() {
+   std::unordered_map<std::string,std::string> data;
+   FILE *f=std::fopen(
+       "/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv","rb");
+   if(!f)f=std::fopen("/app0/assets/niak-overviews-fr.tsv","rb");
+   if(!f)return data;
+   char line[2048];
+   while(std::fgets(line,sizeof(line),f)) {
+     char *first=std::strchr(line,'\t');
+     if(!first || first-line!=9)continue;
+     char *second=std::strchr(first+1,'\t');
+     if(!second || second-first!=65)continue; // SHA-256 provenance
+     *first=0;*second=0;
+     bool sha_ok=true;
+     for(char *p=first+1;p<second;++p)
+       if(!std::isxdigit(static_cast<unsigned char>(*p)))sha_ok=false;
+     if(!sha_ok)continue;
+     char *translation=second+1;
+     translation[std::strcspn(translation,"\r\n")]=0;
+     if(*translation)data.emplace(line,translation);
+   }
+   std::fclose(f);return data;
+ }();
+ const auto localized=french.find(id);
+ if(localized!=french.end())return localized->second;
  static const auto index=[]() {
    std::unordered_map<std::string,std::string> data;
    FILE *f=std::fopen(

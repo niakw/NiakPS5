@@ -186,6 +186,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_daily_backdrop", native)
         self.assertIn("std::localtime", native)
 
+    def test_optional_french_translation_never_requires_api_at_runtime(self):
+        source=(ROOT/"title"/"title_meta.cpp").read_text()
+        script=(ROOT/"title"/"ftp_install.py").read_text()
+        self.assertIn("niak-overviews-fr.tsv",source)
+        self.assertIn("return localized->second",source)
+        self.assertIn("--translate-fr",script)
+        self.assertIn("NIAK_DEEPL_API_KEY",(ROOT/"title"/"translate_overviews.py").read_text())
+
     def test_long_launchbox_media_lines_keep_the_overview(self):
         meta=(ROOT/"title"/"title_meta.cpp").read_text()
         self.assertIn("char line[8192]",meta)

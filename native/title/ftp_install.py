@@ -479,6 +479,33 @@ def rebuild_installed_launchbox_index(ftp,folder,archive=None):
         print("LaunchBox : reconstruction locale impossible, index précédent conservé.")
         return False
 
+def translate_private_overviews(ftp,folder):
+    """Optional DeepL translation; do not invent localized game descriptions."""
+    import importlib.util
+    tool=Path(__file__).resolve().with_name("translate_overviews.py")
+    if not tool.is_file():
+        print("Traductions : module absent ; descriptions originales conservées.")
+        return 0
+    index=_bounded_retrieve(ftp,LAUNCHBOX_PRIVATE_INDEX,limit=4*1024*1024)
+    if not index:
+        path=folder/"assets/niak-launchbox-cases.tsv"
+        index=path.read_bytes() if path.is_file() else b""
+    spec=importlib.util.spec_from_file_location("niak_translate_overviews",tool)
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        result=module.translation_file(index,set(_installed_title_ids(ftp,300)))
+        if not result:
+            print("Traductions : aucune traduction API disponible, anglais conservé.")
+            return 0
+        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-overviews-fr.tsv",result)
+        translated=result.count(b"\n")
+        print(f"Traductions FR : {translated} descriptions sauvegardées localement.")
+        return translated
+    except (OSError,ValueError,KeyError):
+        print("Traductions : service indisponible, descriptions originales conservées.")
+        return 0
+
 def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     """Download LaunchBox regional scans directly to owner's PS5 via FTP.
     Build ZIP ships text index only; third-party scans never enter repository.
@@ -1245,6 +1272,8 @@ def main():
                      help="Vérifier les fichiers sur la PS5 sans rien modifier")
     cli.add_argument("--art-limit", type=int, default=150,
                      help="Limite des titres à enrichir avec les jaquettes (1–300)")
+    cli.add_argument("--translate-fr", action="store_true",
+                     help="Traduire les descriptions publiques LaunchBox via DeepL (clé NIAK_DEEPL_API_KEY, option --refresh-art)")
     cli.add_argument("--force-art", action="store_true",
                      help="Forcer le remplacement des scans déjà en cache (avec --refresh-art)")
     cli.add_argument("--refresh-art", action="store_true",
@@ -1256,6 +1285,8 @@ def main():
         cli.error("--art-limit doit être entre 1 et 300")
     if args.case_templates and args.status:
         cli.error("--case-templates n'est pas utilisable avec --status")
+    if args.translate_fr and not args.refresh_art:
+        cli.error("--translate-fr exige --refresh-art")
     if args.force_art and not args.refresh_art:
         cli.error("--force-art exige --refresh-art")
     if args.return_after_game and (not args.autoload or args.preserve_autoload) and not args.refresh_art and not args.status:
@@ -1274,6 +1305,7 @@ def main():
             upload_private_template_zip(ftp,owner_templates)
             upload_local_homebrew_names(ftp)
             rebuild_installed_launchbox_index(ftp,directory)
+            if args.translate_fr:translate_private_overviews(ftp,directory)
             stage_installed_artwork(ftp,args.art_limit,force=args.force_art)
             fetch_retail_covers(ftp, directory, args.art_limit, force=args.force_art)
             # A forced LaunchBox repair must NOT overwrite its valid scans
