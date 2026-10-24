@@ -81,7 +81,24 @@ s=f.read_text()
 old="wrap_options=()"
 if s.count(old)!=1:
     raise SystemExit("Pinned native linker wrap anchor changed")
-f.write_text(s.replace(old,"wrap_options=(--wrap=fcntl)",1))
+s=s.replace(old,"wrap_options=(--wrap=fcntl)",1)
+# PacBrew libwebp.pc currently supplies -D_THREAD_SAFE in the libs list.
+# That flag is a compiler definition, NOT a prospro-lld argument.
+# Keep linker archives, -L and -l untouched. Correct the pinned staging
+# script, never fork or mutate the SDK or globally suppress build errors.
+anchor='    pacbrew_root=$(python3 -c'
+if s.count(anchor)!=1:
+    raise SystemExit("Pinned PacBrew linkage anchor changed")
+filter_defs='''    # pkg-config -D flags must not leak from libs into prospro-lld.
+    pacbrew_link_flags=()
+    for arg in "${pacbrew_libs[@]}"; do
+        case "$arg" in -D*) continue ;; esac
+        pacbrew_link_flags+=("$arg")
+    done
+    pacbrew_libs=("${pacbrew_link_flags[@]}")
+'''
+s=s.replace(anchor,filter_defs+anchor,1)
+f.write_text(s)
 PY
 # Keep the reference kit's asset / runtime inputs and attribution.
 make -C "$stage" init TITLE_ID="$title" APP_NAME=NiakPS5 APP_CATEGORY=game
