@@ -357,7 +357,6 @@ audio::SoundSet Shell::sound_set() const''')
             // keeps eager fixture loading to check the complete 3D sleeve.
 #if !defined(__PROSPERO__)
             if(index==niak::case_media_stats.preferred_index) {
-#endif
             item.case_front = niak_load_case_art(renderer,item.title_id,"front");
             item.case_back = niak_load_case_art(renderer,item.title_id,"back");
             item.case_spine = niak_load_case_art(renderer,item.title_id,"spine");
@@ -389,7 +388,6 @@ audio::SoundSet Shell::sound_set() const''')
             if(!item.case_spine)
                 item.case_template_spine=niak_load_case_template(
                     renderer,platform,"spine");
-#if defined(__PROSPERO__)
             } // Host preview uses complete fixtures; PS5 hydrates while idle.
 #endif
             item.cover = niak_load_game_icon(renderer, item.title_id);
