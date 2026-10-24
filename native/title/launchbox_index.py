@@ -71,6 +71,25 @@ def face_options(entries):
         if len(out)>=12:break
     return ";".join(out[:12]) or "-"
 
+def layered_media(*groups):
+    """Keep source-platform preference before regional alternatives.
+
+    Every slot can contain a console choice followed by other-console and
+    Windows choices. Only scenic art uses this; retail box scans never fall
+    through to a PC edition or a different platform's front.
+    """
+    result=[]
+    used=set()
+    for group in groups:
+        for item in face_options(group).split(";"):
+            if item=="-":continue
+            filename=item.split(":",1)[1]
+            if filename not in used:
+                used.add(filename)
+                result.append(item)
+            if len(result)>=12:return ";".join(result)
+    return ";".join(result) or "-"
+
 def parse(xml,installed,diagnostics=None):
     games,aliases,media={}, {}, {}
     # Metadata.zip can group GameImage/GameAlternateName independently of
@@ -151,32 +170,48 @@ def parse(xml,installed,diagnostics=None):
             fronts={g for g in alternative if media.get(g,{}).get("front") or
                     media.get(g,{}).get("front_fanart")}
             if len(fronts)==1:candidates=fronts
-        if len(candidates)!=1:continue
-        gid=next(iter(candidates))
-        info=games[gid];images=media.get(gid,{})
-        # Secondary platform must be UNIQUE for this name. Ignore ambiguous
-        # alternatives, never mix scans from unrelated editions.
-        ps4_ids=related(key,"ps4") if key[0]=="ps5" else set()
+        # A console entry may be absent from LaunchBox while the same game
+        # has excellent PC fanart/gameplay/screenshots. Do NOT discard it:
+        # create a scenery-only record and leave its physical FRONT empty.
+        # Exact console IDs must never become an unrelated Windows box scan.
+        other_platform="ps4" if key[0]=="ps5" else "ps5"
+        other_ids=related(key,other_platform)
         pc_ids=related(key,"windows")
-        ps4=media.get(next(iter(ps4_ids)),{}) if len(ps4_ids)==1 else {}
-        pc=media.get(next(iter(pc_ids)),{}) if len(pc_ids)==1 else {}
+        other_gid=next(iter(other_ids)) if len(other_ids)==1 else None
+        pc_gid=next(iter(pc_ids)) if len(pc_ids)==1 else None
+        other=media.get(other_gid,{}) if other_gid else {}
+        pc=media.get(pc_gid,{}) if pc_gid else {}
+        if len(candidates)==1:
+            gid=next(iter(candidates))
+            images=media.get(gid,{})
+        else:
+            # Ambiguous native matches/editions are not assigned at random.
+            # A unique secondary record can still supply non-box media.
+            if len(matched)>1 or (not other_gid and not pc_gid):
+                continue
+            gid=other_gid or pc_gid
+            images={}
+        info=games[gid]
         faces=[face_options(images.get("front",[]) or
                             images.get("front_fanart",[])),
                face_options(images.get("back",[]) or
                             images.get("back_fanart",[])),
                face_options(images.get("spine",[])),
                face_options(images.get("logo",[]))]
-        # PS4 box BACK is explicitly allowed as last-resort companion art
-        # when the same game has no PS5 back; original PS5 FRONT remains.
-        if faces[1]=="-" and (ps4.get("back") or ps4.get("back_fanart")):
-            faces[1]=face_options(ps4.get("back",[]) or
-                                  ps4.get("back_fanart",[]))
-        if faces[3]=="-" and ps4.get("logo"):
-            faces[3]=face_options(ps4["logo"])
+        # Only PS5 BACK can borrow the matching PS4 physical back.
+        # FRONT remains strictly the installed console platform's Box - Front.
+        if key[0]=="ps5" and faces[1]=="-" and (
+                other.get("back") or other.get("back_fanart")):
+            faces[1]=face_options(other.get("back",[]) or
+                                  other.get("back_fanart",[]))
+        if faces[3]=="-" and other.get("logo"):
+            faces[3]=face_options(other["logo"])
         if faces[3]=="-" and pc.get("logo"):
             faces[3]=face_options(pc["logo"])
-        hero_entries=images.get("hero",[]) or ps4.get("hero",[]) or pc.get("hero",[])
-        hero=face_options(hero_entries)
+        # On a CDN failure, the worker can try another source: first console,
+        # then matching opposite-console, finally the Windows edition.
+        hero=layered_media(images.get("hero",[]),other.get("hero",[]),
+                           pc.get("hero",[]))
         used={part.split(":",1)[1] for part in hero.split(";") if ":" in part}
         # Two intentionally DIFFERENT screenshot classes:
         # Gameplay is the first image; a Game Title screenshot is preferred
@@ -185,7 +220,7 @@ def parse(xml,installed,diagnostics=None):
         # The Fanart Background remains an independent HERO slot.
         shots=[]
         def add_first(kind):
-            for group in (images,ps4,pc):
+            for group in (images,other,pc):
                 for area in ORDER:
                     for where,filename in group.get(kind,[]):
                         if where!=area or filename in used:continue
@@ -202,8 +237,8 @@ def parse(xml,installed,diagnostics=None):
             add_first(kind)
         shot1,shot2=(shots+["-","-"])[:2]
         overview=info[2] or (
-            games[next(iter(ps4_ids))][2] if len(ps4_ids)==1 else "") or (
-            games[next(iter(pc_ids))][2] if len(pc_ids)==1 else "") or "-"
+            games[other_gid][2] if other_gid else "") or (
+            games[pc_gid][2] if pc_gid else "") or "-"
         for title in sorted(set(ids)):
             rows.append((title,overview,*faces,hero,shot1,shot2,gid))
     rows.sort()
