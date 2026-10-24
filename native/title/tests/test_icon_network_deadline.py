@@ -10,7 +10,7 @@ class IconNetworkDeadlineTests(unittest.TestCase):
         self.assertIn("std::min<std::int64_t>(remaining,100000)",CODE)
         self.assertNotIn("timeval timeout{0, 350000};",CODE)
     def test_transport_failure_does_not_trigger_second_blocking_request(self):
-        self.assertIn("if(icon_endpoint.consecutive_failures>0)return 0;",CODE)
-        self.assertIn('if (download(url+"&size=thumb",png))',CODE)
+        self.assertIn("if(!complete && !icon_endpoint.consecutive_failures)",CODE)
+        self.assertIn('complete=download(url+"&size=thumb",bytes);',CODE)
 if __name__=="__main__":
     unittest.main()

@@ -26,6 +26,11 @@ extern "C" {
 #include <chrono>
 #include <cstdint>
 #include <array>
+#include <condition_variable>
+#include <deque>
+#include <mutex>
+#include <thread>
+#include <unordered_set>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -220,6 +225,71 @@ std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
     }
     return renderer.create_texture(kTarget,kTarget,scaled.data());
 }
+// One background reader for missing installed icons. The GPU renderer never
+// calls a socket API: it only consumes a completed byte vector. One completion
+// slot applies backpressure (at most one 4 MiB response waiting for upload).
+// This process-lifetime object is intentional: the detached reader must not
+// reference destroyed static mutexes or catalogue-owned Item pointers.
+#if defined(__PROSPERO__)
+struct AsyncIconDownloads {
+    std::mutex mutex;
+    std::condition_variable wake;
+    std::deque<std::string> queue;
+    std::unordered_set<std::string> seen;
+    std::string completed_title;
+    std::vector<unsigned char> completed_bytes;
+    bool completed=false;
+    bool started=false;
+};
+AsyncIconDownloads &async_icons() {
+    static auto *state=new AsyncIconDownloads;
+    return *state;
+}
+void icon_reader_worker() {
+    auto &state=async_icons();
+    for(;;) {
+        std::string id;
+        {
+            std::unique_lock<std::mutex> lock(state.mutex);
+            state.wake.wait(lock,[&] {
+                return !state.completed && !state.queue.empty();
+            });
+            id=std::move(state.queue.front());
+            state.queue.pop_front();
+        }
+        std::vector<unsigned char> bytes;
+        const std::string url="/api/v1/games/icon?title_id="+id;
+        bool complete=download(url,bytes);
+        // A socket fault must not trigger a second timeout. HTTP 404 is
+        // per-title, not a transport fault: its thumbnail may still exist.
+        if(!complete && !icon_endpoint.consecutive_failures) {
+            bytes.clear();
+            complete=download(url+"&size=thumb",bytes);
+        }
+        if(!complete)continue;
+        {
+            std::lock_guard<std::mutex> lock(state.mutex);
+            state.completed_title=std::move(id);
+            state.completed_bytes=std::move(bytes);
+            state.completed=true;
+        }
+        // The reader cannot get ahead of the renderer and accumulate raw
+        // HTTP responses. The next tick consumes this one on the GL thread.
+    }
+}
+void request_missing_icon(const char *id) {
+    auto &state=async_icons();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    // Bounded IDs/queue, never unbounded jobs or duplicate game requests.
+    if(state.seen.size()>=4096 || !state.seen.emplace(id).second)return;
+    state.queue.emplace_back(id);
+    if(!state.started) {
+        state.started=true;
+        std::thread([] {icon_reader_worker();}).detach();
+    }
+    state.wake.notify_one();
+}
+#endif
 } // namespace
 
 std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
@@ -263,18 +333,49 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
         if(read_local_png(path,png))
             if(const auto handle=decode_upload(renderer,png)) return handle;
     }
+#if defined(__PROSPERO__)
+    // No HTTP calls, waits, or decoded network buffers on the GL thread.
+    // The single worker fetches bytes; the catalogue polls their completion.
+    request_missing_icon(id);
+#else
     png.clear();
     const std::string url=std::string("/api/v1/games/icon?title_id=")+id;
-    if (download(url,png))
-    {
-        if (const auto texture=decode_upload(renderer,png)) return texture;
+    if(download(url,png)) {
+        if(const auto texture=decode_upload(renderer,png))return texture;
     }
-    // Do not double a socket timeout with an immediate thumbnail retry.
-    if(icon_endpoint.consecutive_failures>0)return 0;
-    png.clear();
-    if (download(url+"&size=thumb",png))
-        return decode_upload(renderer,png);
+    if(!icon_endpoint.consecutive_failures) {
+        png.clear();
+        if(download(url+"&size=thumb",png))
+            return decode_upload(renderer,png);
+    }
+#endif
     return 0;
+}
+
+std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
+                                             char (&title_id)[16]) {
+    title_id[0]=0;
+#if defined(__PROSPERO__)
+    auto &state=async_icons();
+    std::string id;
+    std::vector<unsigned char> bytes;
+    {
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(!state.completed)return 0;
+        id=std::move(state.completed_title);
+        bytes=std::move(state.completed_bytes);
+        state.completed=false;
+    }
+    state.wake.notify_one();
+    if(id.size()>=sizeof(title_id))return 0;
+    std::memcpy(title_id,id.data(),id.size());
+    title_id[id.size()]=0;
+    // PNG/WebP decode and renderer.create_texture remain on the GL thread.
+    return decode_upload(renderer,bytes);
+#else
+    (void)renderer;
+    return 0;
+#endif
 }
 
 std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char *id,float *aspect) {

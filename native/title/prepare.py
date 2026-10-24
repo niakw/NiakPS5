@@ -263,7 +263,8 @@ audio::SoundSet Shell::sound_set() const''')
         '                                const ui::Fonts &fonts);\n'
         '    bool stream_next_covers(gfx::Renderer &renderer, const ui::Fonts &fonts,\n'
         '                            std::size_t budget);\n'
-        '    bool refresh_selected_case_art(gfx::Renderer &renderer);')
+        '    bool refresh_selected_case_art(gfx::Renderer &renderer);\n'
+        '    bool refresh_pending_game_icons(gfx::Renderer &renderer);')
     replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
     src_niak = kit / "src/niak"
@@ -451,6 +452,27 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
     # and those GPU uploads run on the renderer thread (not the HTTP worker).
     replace_once(art_file, '\n} // namespace hui::demo',
     """
+// The single HTTP worker never holds a GPU texture or Item pointer. Consume
+// one response after navigation settles, replacing a generated tile in place.
+bool Catalog::refresh_pending_game_icons(gfx::Renderer &renderer) {
+    char id[16]{};
+    const auto handle=niak_take_downloaded_game_icon(renderer,id);
+    if(!handle)return false;
+    const auto it=std::find_if(items_.begin(),items_.end(),
+        [&](const Item &item) {
+            return item.title_id[0] && std::strcmp(item.title_id,id)==0;
+        });
+    if(it==items_.end() || it->cover_is_image) {
+        renderer.destroy_texture(handle);
+        return false;
+    }
+    if(it->cover)renderer.destroy_texture(it->cover);
+    it->cover=handle;
+    it->cover_is_image=true;
+    ++niak::case_media_stats.icons;
+    return true;
+}
+
 bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
 {
     const int index=niak::case_media_stats.preferred_index;
@@ -620,6 +642,9 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         const bool first_idle_focus=navigation_idle && focus!=prepared_focus;
         if(navigation_idle && (frames%4u==0 || first_idle_focus))
             (void)catalog.stream_next_covers(renderer,fonts,1);
+        // Consume async icon responses only on the GL-owning render thread.
+        if(navigation_idle)
+            (void)catalog.refresh_pending_game_icons(renderer);
         if(frames>0 && frames%600u==0 && input.nav==Direction::none &&
             input.pressed==0 && input.held==0 && !input.focus_lost)
             niak_profile_refresh_avatar(renderer);

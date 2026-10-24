@@ -3,6 +3,10 @@
 #include <cstdint>
 namespace hui::gfx { class Renderer; }
 std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer,const char *title_id);
+// Renderer-thread poll: completes one queued icon, without network waits.
+// Returns texture and writes its title ID; caller owns and must release GPU handle.
+std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
+                                             char (&title_id)[16]);
 
 // Optional locally installed wide pic1.png for the outer 3D case.
 // Never crop/replace the application's existing 2D library icon.
