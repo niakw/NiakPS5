@@ -62,6 +62,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("std::thread(work).detach()",auto)
         self.assertIn("niak_fetch_launchbox_asset_ex(",auto)
         self.assertIn("requested>=512u",auto)
+        self.assertIn("16u*1024u*1024u",(ROOT/"title"/"daily_runtime.cpp").read_text())
+        self.assertIn("3840u*2160u",auto)
         self.assertIn("s.tasks.push_front({title_id,side})",auto)
         self.assertIn("cdn.last_network_error",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("for(const std::string &source:candidates)",auto)

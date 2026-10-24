@@ -25,3 +25,7 @@ Merge the **single** extracted `data/` directory into the PS5 FTP root; never er
 ## Security and privacy
 
 Never commit logs containing console identities, FTP credentials, private screenshots, profile images, system keys, private addresses or installation databases. The privacy scanner is run in CI. For responsible disclosure, consult [SECURITY.md](../../SECURITY.md). Third-party dependencies retain their copyright and license notices.
+
+### Selection-only artwork (Eden Encore parity)
+
+Unlike earlier NiakPS5 builds, scrolling through the full game list **does not start CDN downloads**. Focusing a single game queues only its own LaunchBox image IDs, giving genuine front/back scans priority. Switching selection cancels any still-pending work for the previous game. Existing offline files may still appear for other titles; those do not trigger network requests. A successfully downloaded, atomically cached PNG is uploaded to the selected game's 3D case by the renderer within the same session. The worker accepts bounded original JPEG/PNG bodies up to 16 MiB (the same cap used by Eden Encore), then validates dimensions and reduces resolution for the smaller native cache. Runtime PS5 HTTPS permission remains a separate, on-console condition.

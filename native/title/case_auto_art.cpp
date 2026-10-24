@@ -156,7 +156,8 @@ std::unordered_map<std::string,ArtSlots> read_index(){
 bool convert_png(const std::vector<std::uint8_t>& bytes,
                  const std::string& source,const std::string& side,
                  std::vector<unsigned char>& output){
- if(bytes.size()<33 || bytes.size()>5u*1024u*1024u)return false;
+ // Eden accepts full retail scans before resizing them for its cache.
+ if(bytes.size()<33 || bytes.size()>16u*1024u*1024u)return false;
  unsigned w=0,h=0;
  std::vector<unsigned char> pixels;
  const bool jpeg=source.size()>4 &&
@@ -166,7 +167,7 @@ bool convert_png(const std::vector<std::uint8_t>& bytes,
    int jw=0,jh=0,ch=0;
    if(!stbi_info_from_memory(bytes.data(),int(bytes.size()),&jw,&jh,&ch) ||
       jw<16 || jh<20 || jw>4096 || jh>4096 ||
-      std::uint64_t(jw)*std::uint64_t(jh)>4500000u)return false;
+      std::uint64_t(jw)*std::uint64_t(jh)>3840u*2160u)return false;
    stbi_uc *raw=stbi_load_from_memory(bytes.data(),int(bytes.size()),
                                       &jw,&jh,&ch,4);
    if(!raw)return false;
@@ -181,7 +182,7 @@ bool convert_png(const std::vector<std::uint8_t>& bytes,
    const unsigned ih=(unsigned(bytes[20])<<24)|(unsigned(bytes[21])<<16)|
                       (unsigned(bytes[22])<<8)|bytes[23];
    if(iw<16||ih<20||iw>4096||ih>4096||
-      std::uint64_t(iw)*ih>4500000u)return false;
+      std::uint64_t(iw)*ih>3840u*2160u)return false;
    if(lodepng::decode(pixels,w,h,bytes)!=0||w!=iw||h!=ih)
      return false;
  }

@@ -103,7 +103,9 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
     std::vector<std::uint8_t> chunk(32768);
     int n=0;
     while((n=sceHttpReadData(req,chunk.data(),chunk.size()))>0) {
-      if(bytes.size()+std::size_t(n)>limit){ok=false;break;}
+      if(bytes.size()+std::size_t(n)>limit){
+        ok=false;if(failure)*failure=-103;break;
+      }
       bytes.insert(bytes.end(),chunk.begin(),chunk.begin()+n);
     }
     if(n<0||bytes.empty()) {
@@ -189,7 +191,8 @@ bool niak_fetch_launchbox_asset_ex(const char *filename,
   }
   // Public CDN name only. Never include a profile, console title ID, token
   // or user-supplied URL in the outbound request.
-  return get(std::string(LAUNCHBOX)+filename,5u*1024u*1024u,bytes,failure);
+  // Eden Encore likewise allows full originals before decoding/downscaling.
+  return get(std::string(LAUNCHBOX)+filename,16u*1024u*1024u,bytes,failure);
 #else
   (void)filename;(void)bytes;
   if(failure)*failure=-200;
