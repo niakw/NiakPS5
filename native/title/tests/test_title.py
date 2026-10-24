@@ -195,7 +195,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("body.oversized?-103",net)
         builder=(ROOT/"title"/"build.sh").read_text()
         prep=(ROOT/"title"/"prepare.py").read_text()
-        self.assertIn("PACBREW_PACKAGES=libcurl",builder)
+        self.assertIn('PACBREW_PACKAGES="libcurl libwebp"',builder)
         self.assertIn("wrap_options=(--wrap=fcntl)",builder)
         self.assertIn('"console_curl.c", "console_curl.h"',prep)
         self.assertTrue((ROOT/"title"/"vendor"/"console_curl.c").is_file())
