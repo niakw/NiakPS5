@@ -19,6 +19,8 @@ git -C "$stage" reset --hard "$kit_revision"
 test "$(git -C "$stage" rev-parse HEAD)" = "$kit_revision"
 # This checkout is ephemeral and only prepared for our own GPU UI.
 python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root" --revision "$(git -C "$root" rev-parse --short=12 HEAD)"
+# Replace upstream recorded music with original, source-generated NiakPS5 cues.
+python3 "$root/native/title/compose_music.py" "$stage/assets/audio/music"
 # Best-effort recent games from Steam; offline/error => original animated smoke.
 python3 "$root/native/title/fetch_daily_games.py" --output "$stage/assets/niak-daily"
 # Exact LaunchBox PlayStation 4/5 regional metadata; no retail scans

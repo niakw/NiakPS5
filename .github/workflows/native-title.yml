@@ -28,11 +28,12 @@ jobs:
       - name: Toolchain dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends             clang-18 lld-18 llvm-18 ninja-build cmake make git curl             python3 python3-pip python3-pil python3-mako python3-yaml libegl1-mesa-dev libgl1-mesa-dev libsqlite3-dev             pkg-config zip unzip zlib1g-dev xxd ca-certificates
+          sudo apt-get install -y --no-install-recommends             clang-18 lld-18 llvm-18 ninja-build cmake make git curl             python3 python3-pip python3-pil python3-mako python3-yaml libegl1-mesa-dev libgl1-mesa-dev libsqlite3-dev             pkg-config zip unzip zlib1g-dev xxd ca-certificates ffmpeg
       - name: Source-level validation
         run: |
           python3 -m unittest discover -s native/title/tests -p 'test_*.py' -v
           python3 -m py_compile native/title/prepare.py
+          python3 -m py_compile native/title/compose_music.py
           bash -n native/title/build.sh
       - name: Build native title using pinned GPU renderer
         run: bash native/title/build.sh

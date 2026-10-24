@@ -5,6 +5,17 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class NativeTitleTests(unittest.TestCase):
+    def test_own_generated_music_replaces_template_music(self):
+        builder=(ROOT/"title"/"build.sh").read_text()
+        script=(ROOT/"title"/"compose_music.py").read_text()
+        workflow=(ROOT.parent/".github/workflows/native-title.yml").read_text()
+        self.assertIn('compose_music.py" "$stage/assets/audio/music"',builder)
+        self.assertIn('for original in output.glob("*.ogg"):original.unlink()',script)
+        for name in ("niak-dawn","niak-orbit","niak-twilight"):
+            self.assertIn(name,script)
+        self.assertIn("ffmpeg",workflow)
+        self.assertIn("math.sin(phase[k])",script)
+
     def test_superseded_ci_builds_are_cancelled_without_extra_branches(self):
         base=ROOT.parent/".github/workflows"
         for name in ("native-title.yml","validate.yml"):
