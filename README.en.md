@@ -1,76 +1,43 @@
 # NiakPS5
 
-**Your library. Your controller. Your PS5.**  
-A native home screen for homebrew-enabled PS5 consoles, with an integrated game library, local launching and animated PS4/PS5 3D cases.
+**Your library. Your controller. Your PS5.**
 
-[Français](README.md) · [Installation & troubleshooting](native/title/README.md) · [Builds & tests](https://github.com/niakw/NiakPS5/actions)
+A **native, full-screen home interface** for homebrew-enabled PS5 consoles, with DualSense navigation, games and apps, local launching, and animated PS4/PS5 3D cases.
 
-![NiakPS5 home screen: actual OpenGL renderer preview with test titles](docs/images/niakps5-home.png)
+[Français](README.md) · [Technical notes](native/title/README.md) · [Builds and previews](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml)
 
-*Actual OpenGL UI renderer captured under Mesa with sample data. Not a concept illustration and not a direct console screenshot.*
+![Actual NiakPS5 OpenGL home interface under Mesa with sample data](docs/images/niakps5-home.png)
 
-## Made for the console
+*Real OpenGL renderer preview under Mesa with sample data. Not a design mockup or a screenshot captured directly from a PS5.*
 
-NiakPS5 gathers title IDs from the local PLDmgr broker, ShadowMountPlus and read-only metadata sources. Navigate with a **DualSense**, switch between **Games** and **Applications**, open game details and select **Play**, without relying on a browser UI.
+## Built for the controller
 
-The animated cases prefer genuine **LaunchBox front/back/spine** scans. Missing faces are reconstructed using distinct compatible assets, with the fixed PS4/PS5 design elements appearing **only** where needed. Other features include daily wallpapers, enriched game artwork, app settings and an experimental system-settings shortcut.
+Use your DualSense to browse **Games**, **Applications**, and **Settings**. Explore installed titles, available game information, daily wallpapers, and animated 3D cases without a web browser.
 
-### Verified hardware progress
+### Artwork refreshes automatically
 
-On the target PS5 13.60 development console, **48 installed title IDs were discovered**, the library became visible and **Play successfully launched a game**. Game/app classification, enriched art, summaries and return-after-game are being refined. A green CI build is **not** evidence that every feature works on PS5 hardware.
+NiakPS5 prioritizes genuine LaunchBox front, back, and spine scans. When artwork is missing, the title **tries to fetch known public-index images itself** on a background thread, convert JPEG/PNG to its private cache, and use them on the **next app launch**. A separate Mac script is not needed for this automatic attempt.
 
-## Visual previews
+HTTPS access depends on the console sandbox, firmware, and LaunchBox availability. If media cannot be fetched, NiakPS5 keeps a consistent reconstructed case with the correct PS4/PS5 elements. Third-party commercial scans are not distributed in the GitHub package.
 
-CI publishes [six real OpenGL case angles for PS4 and PS5](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml). These use QA sample media; no third-party retail scans are redistributed in the public source or release packages.
+Game descriptions use **up to three short sentences** from available sources, rather than fabricated or full-length essays. LaunchBox summaries are often in English; if no French version is available, the original text remains. NiakPS5 does not automatically translate the entire catalog.
 
-## Installation / updating
+## Project status
 
-1. Open [GitHub Actions](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml), select a **successful run on `main`**, and download **`NiakPS5-PPSA99386`**.
-2. Extract the archive **once**. Merge its top-level **`data/`** folder at the PS5 FTP root **`/`**. Never delete existing console directories.
-3. Open the registered homebrew title **`PPSA99386`**. The archive also includes the companion `niakps5.elf` payload. It does **not** overwrite your PLDmgr configuration, `autoload.txt`, or Sony system files.
+On the PS5 13.60 test console, the local service discovered **48 titles**, the library appeared, and **Play** successfully launched a game. Recent fixes for app classification, native artwork downloads, system-settings access, and return-after-game still require hardware verification. CI checks compilation and genuine Mesa/OpenGL previews separately.
 
-A folder copy alone cannot enable a missing autoload entry or fetch private LaunchBox art.
+## Install or update
 
-### Refresh covers, screenshots and summaries
+1. Download **`NiakPS5-PPSA99386`** from a [successful `main` workflow run](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml).
+2. Extract it once and **merge** the top-level **`data/`** folder into the PS5 FTP root **`/`**. **Do not delete** existing folders.
+3. Open the registered title **`PPSA99386`**. The companion PLDmgr payload is already included in the same tree.
 
-From your Mac, use the **bundled** FTP script, with no additional app installed on the PS5:
+The package does **not** edit `autoload.txt`, PLDmgr settings, or Sony system files. Keep an existing working autoload configuration; a basic FTP folder copy cannot activate a missing one.
 
-```bash
-python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --port 2121 --refresh-art
-```
+Artwork refresh is built into the title. Separate FTP scripts are documented **only as troubleshooting tools** in the [technical notes](native/title/README.md), not as a normal setup requirement.
 
-It matches current installed-title names to LaunchBox, downloads missing images, validates and tracks cached source images. **Close and reopen NiakPS5** for GPU textures to reload.
+## Privacy and limitations
 
-```bash
-python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --status
-```
+NiakPS5 does not intercept the PS button, replace `SceShellUI`, or bypass disc or license checks. The launch broker is bound to `127.0.0.1`. Automatic cover requests send only public CDN filenames, not personal PS5 profiles or console title IDs. Third-party artwork remains the property of its respective owners.
 
-Use `--refresh-art --force-art` only to repair artwork that is still wrong. Copyrighted scans stay in the **owner's private console cache**, not in the public repository.
-
-**French descriptions:** LaunchBox text may only be available in English. NiakPS5 retains the original source rather than fabricating a French translation. Optional DeepL integration translates public overview text only:
-
-```bash
-export NIAK_DEEPL_API_KEY="YOUR_DEEPL_API_KEY"
-python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --refresh-art --translate-fr
-```
-
-The optional translation may consume your DeepL API quota. No private title inventory, profile data or API key is uploaded to this GitHub repository.
-
-## Design commitments
-
-- **Verified library:** live installations are kept distinct from previous FTP snapshots.
-- **Authentic covers:** no fake commercial scans and no repeated front image posing as a back screenshot.
-- **Responsive UI:** streamed texture work, capped GPU resources and media diagnostics.
-- **Console safety:** no `SceShellUI` replacement, PS button hook, disc requirement or licensing bypass.
-- **Privacy:** local launching over `127.0.0.1`, no bundled secrets or personal capture collection.
-
-## Building from source
-
-```bash
-python3 -m unittest discover -s native/title/tests -p 'test_*.py'
-bash native/title/build.sh
-```
-
-NiakPS5 is based on a pinned revision of [PS5_VKHomebrewUI](https://github.com/mihawk-99/PS5_VKHomebrewUI), with native OpenGL rendering and reproducible host (Mesa) previews.
-
-**Experimental homebrew software; not affiliated with Sony or LaunchBox.** Trademarks and artwork belong to their respective owners. Source code is **GPL-3.0-or-later**, subject to third-party notices.
+**GPL-3.0-or-later**, with third-party licenses preserved. Independent homebrew project; not affiliated with Sony or LaunchBox.

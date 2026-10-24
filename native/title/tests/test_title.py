@@ -207,7 +207,7 @@ class NativeTitleTests(unittest.TestCase):
         source=(ROOT/"title"/"title_meta.cpp").read_text()
         script=(ROOT/"title"/"ftp_install.py").read_text()
         self.assertIn("niak-overviews-fr.tsv",source)
-        self.assertIn("return localized->second",source)
+        self.assertIn("return niak_short_overview(localized->second)",source)
         self.assertIn("--translate-fr",script)
         self.assertIn("NIAK_DEEPL_API_KEY",(ROOT/"title"/"translate_overviews.py").read_text())
 

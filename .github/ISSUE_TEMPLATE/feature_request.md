@@ -1,20 +1,23 @@
 ---
-name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
-assignees: ''
-
+name: "Improvement / Amélioration"
+about: "Suggest a focused NiakPS5 improvement (FR/EN)"
+title: "[Feature] "
+labels: []
+assignees: []
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+### Besoin / User problem
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+Quel comportement de l'accueil PS5 souhaitez-vous améliorer ? / Which console workflow needs improvement?
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+### Résultat attendu / Expected result
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+Décrivez l'interaction DualSense et le comportement de repli hors ligne. / Describe the DualSense interaction and offline fallback.
+
+### Contraintes / Constraints
+
+Précisez les dépendances, droits nécessaires, performances et risques de confidentialité. / Note permissions, dependencies, performance and privacy considerations.
+
+### Références / References
+
+Liens ou captures **sans données personnelles**. / Links or redacted screenshots.

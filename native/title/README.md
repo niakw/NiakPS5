@@ -11,10 +11,10 @@ Le workflow publie **deux familles d'aperçus réels OpenGL** : l'écran d'accue
 ## Chaîne LaunchBox et cache
 
 1. `launchbox_index.py` extrait les données publiques et distingue les plateformes et régions. Front PS5 prioritaire, back PS4 compatible, captures/fanarts PC complémentaires si le jeu correspond sans ambiguïté.
-2. `ftp_install.py --refresh-art` croise les titres réellement visibles via FTP avec leurs noms `param.json`; il télécharge uniquement des médias issus des CDN autorisés vers `/data/homebrew/PPSA99386/assets/niak-cases/`.
+2. **Dans l'application**, `case_auto_art.cpp` demande en arrière-plan les images publiques qui manquent (HTTPS LaunchBox), les décode en JPEG/PNG et les enregistre sous `/download0/niak-case-*`. Le cache est relu au lancement suivant. Si la sandbox bloque HTTPS, le rendu recomposé reste utilisable. L'outil FTP facultatif peut, en dépannage, transférer des scans vers `/data/homebrew/PPSA99386/assets/niak-cases/`.
 3. Un cache privé `source-cache-v2.tsv` mémorise **titre + face + fichier source**. Une image n'est réutilisée que si sa provenance correspond et que son PNG est valide. Un élément manquant, corrompu ou obsolète est traité **indépendamment**, sans supprimer les autres faces.
 4. Au démarrage, `case_art.cpp` lit les scans réels avant toute recomposition. Les faces officielles ne reçoivent pas les gabarits. `cover_stream_state.hpp` espace les créations de textures GPU. **Le chargement n'est pas hot-reload** : quitter et rouvrir le titre après un transfert.
-5. Le transfert FTP ne se produit pas automatiquement par une copie du paquet. Les fichiers commerciaux ne sont jamais redistribués via GitHub.
+5. Le téléchargement natif est automatiquement tenté sans outil externe, **mais non encore validé sur PS5 13.60**. Une simple copie FTP du paquet n'effectue aucun téléchargement. Les fichiers commerciaux ne sont jamais redistribués via GitHub.
 
 ```bash
 python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP --status
@@ -23,9 +23,11 @@ python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP --refresh-art
 python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP --refresh-art --force-art
 ```
 
+Ces commandes sont réservées au **dépannage** (cache incorrect ou diagnostic), et ne constituent pas une installation obligatoire des jaquettes. Les visuels doivent être tentés automatiquement par l'application. Un défaut réseau PS5 ne doit jamais bloquer la bibliothèque.
+
 ## Traduction / Localization
 
-Les commandes, réglages et diagnostics de l'interface utilisateur sont en français. L'index LaunchBox contient des **résumés fournis par les contributeurs**, souvent en anglais : il n'existe aucune traduction française garantie pour tout le catalogue.
+Les commandes, réglages et diagnostics de l'interface utilisateur sont en français. La description d'un jeu se limite à **trois phrases issues de la source, 360 caractères au maximum** ; le catalogue n'est ni réécrit ni traduit en masse. Les résumés LaunchBox sont souvent en anglais : il n'existe aucune traduction française garantie.
 
 Le fichier privé `assets/niak-overviews-fr.tsv` est prioritaire lorsqu'une traduction française existe. Il peut être produit volontairement par `--refresh-art --translate-fr` avec une clé API DeepL dans la variable `NIAK_DEEPL_API_KEY` du Mac. La PS5 ne fait aucun appel de traduction et ne stocke pas la clé. En cas d'échec, le résumé original reste affiché.
 
