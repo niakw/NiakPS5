@@ -383,7 +383,32 @@ def _case_png_usable(raw,side):
             image.verify()
         with Image.open(BytesIO(raw)) as image:
             width,height=image.size
-    except (ImportError,ValueError,OSError,SyntaxError):
+    except ImportError:
+        # Pillow is optional on macOS. Verify complete PNG chunks and CRCs,
+        # rather than trusting a filename or the eight magic bytes.
+        import struct,zlib
+        if len(raw)<45:return False
+        width,height=struct.unpack(">II",raw[16:24])
+        at=8; seen_ihdr=False; seen_idat=False; seen_iend=False
+        while at+12<=len(raw):
+            chunk_size=int.from_bytes(raw[at:at+4],"big")
+            if chunk_size>len(raw)-at-12:return False
+            kind=raw[at+4:at+8]
+            end=at+8+chunk_size
+            data=raw[at+4:end]
+            if zlib.crc32(data)!=int.from_bytes(raw[end:end+4],"big"):
+                return False
+            if kind==b"IHDR":
+                if seen_ihdr or chunk_size!=13:return False
+                seen_ihdr=True
+            elif kind==b"IDAT":seen_idat=True
+            elif kind==b"IEND":
+                if chunk_size!=0 or end+4!=len(raw):return False
+                seen_iend=True
+            at=end+4
+        if not(seen_ihdr and seen_idat and seen_iend):
+            return False
+    except (ValueError,OSError,SyntaxError,OverflowError):
         return False
     if not 16<=width<=4096 or not 20<=height<=4096:return False
     aspect=width/height
