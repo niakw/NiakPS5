@@ -78,16 +78,21 @@ def layered_media(*groups):
     Windows choices. Only scenic art uses this; retail box scans never fall
     through to a PC edition or a different platform's front.
     """
+    best=[]
+    extras=[]
+    for group in groups:
+        options=[part for part in face_options(group).split(";") if part!="-"]
+        if options:
+            best.append(options[0])  # one candidate per platform first
+            extras.extend(options[1:])
     result=[]
     used=set()
-    for group in groups:
-        for item in face_options(group).split(";"):
-            if item=="-":continue
-            filename=item.split(":",1)[1]
-            if filename not in used:
-                used.add(filename)
-                result.append(item)
-            if len(result)>=12:return ";".join(result)
+    for item in (*best,*extras):
+        filename=item.split(":",1)[1]
+        if filename not in used:
+            used.add(filename)
+            result.append(item)
+        if len(result)>=12:break
     return ";".join(result) or "-"
 
 def parse(xml,installed,diagnostics=None):
