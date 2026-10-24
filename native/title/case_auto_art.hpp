@@ -14,5 +14,6 @@ struct NiakArtDownloadStatus {
  unsigned indexed,queued,completed,network_failed,decode_failed,write_failed,unmatched;
  int last_network_error;
  unsigned requests,exhausted;
+ int last_network_stage;
 };
 NiakArtDownloadStatus niak_case_art_download_status();

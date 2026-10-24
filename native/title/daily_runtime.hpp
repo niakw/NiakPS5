@@ -13,4 +13,5 @@ bool niak_fetch_latest_ps5_wallpaper(const char *today_yyyy_mm_dd,
 bool niak_fetch_launchbox_asset(const char *filename,
                                std::vector<std::uint8_t> &bytes);
 bool niak_fetch_launchbox_asset_ex(const char *filename,
-                               std::vector<std::uint8_t> &bytes,int *failure);
+                               std::vector<std::uint8_t> &bytes,int *failure,
+                               int *failure_stage=nullptr);

@@ -34,17 +34,26 @@ namespace {
 constexpr const char *ROOT="/download0/niak-case-";
 constexpr std::size_t kMaxQueued=512;
 using ArtSlots=std::array<std::vector<std::string>,7>;
-struct Task { std::string id,side; };
+struct Task {
+ std::string id,side;
+ unsigned attempt=0;
+ std::chrono::steady_clock::time_point retry_at{};
+};
+bool transient_network_failure(int error){
+ return (error<0 && error!=-100 && error!=-103 && error!=-200) ||
+        error==408 || error==429 || (error>=500 && error<=599);
+}
 struct State {
  std::mutex mutex;
  std::condition_variable cv;
  std::deque<Task> tasks;
+ std::deque<Task> retries;
  std::set<std::string> seen;
  bool started=false;
  std::string selected;
  std::atomic<unsigned> indexed{0},queued{0},completed{0},
      network_failed{0},decode_failed{0},write_failed{0},unmatched{0};
- std::atomic<int> last_network_error{0};
+ std::atomic<int> last_network_error{0},last_network_stage{0};
  std::atomic<unsigned> requests{0}, exhausted{0};
 };
 State& state(){static State *instance=new State;return *instance;}
@@ -248,13 +257,26 @@ void work(){
  const auto index=read_index();
  State &s=state();
  s.indexed.store(static_cast<unsigned>(index.size()));
- unsigned requested=0;
  for(;;){
    Task task;
    {
      std::unique_lock<std::mutex> lock(s.mutex);
-     s.cv.wait(lock,[&]{return !s.tasks.empty();});
-     task=std::move(s.tasks.front());s.tasks.pop_front();
+     // Selected-game downloads have priority over due retries.
+     for(;;){
+       if(!s.tasks.empty()){
+         task=std::move(s.tasks.front());s.tasks.pop_front();
+         break;
+       }
+       if(s.retries.empty()){s.cv.wait(lock);continue;}
+       const auto next=std::min_element(s.retries.begin(),s.retries.end(),
+           [](const Task &a,const Task &b){return a.retry_at<b.retry_at;});
+       const auto due=next->retry_at;
+       if(std::chrono::steady_clock::now()>=due){
+         task=std::move(*next);s.retries.erase(next);
+         break;
+       }
+       s.cv.wait_until(lock,due);
+     }
    }
    {
      std::lock_guard<std::mutex> guard(s.mutex);
@@ -276,20 +298,25 @@ void work(){
    const unsigned candidate_limit=
        (task.side=="front"||task.side=="back")?3u:1u;
    unsigned examined=0;
+   bool transient_failure=false,downloaded=false;
    for(const std::string &source:candidates) {
      {
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.id!=s.selected)break;
      }
      if(examined++>=candidate_limit)break;
-     if(requested>=512u) { ++s.exhausted;break; }
-     ++requested;++s.requests;
+     // No lifetime cap: seven sides with at most three passes each.
+     ++s.requests;
      std::vector<std::uint8_t> bytes;
-     int error=0;
-     if(!niak_fetch_launchbox_asset_ex(source.c_str(),bytes,&error)){
+     int error=0,stage=0;
+     if(!niak_fetch_launchbox_asset_ex(source.c_str(),bytes,&error,&stage)){
        s.last_network_error.store(error);
+       s.last_network_stage.store(stage);
+       transient_failure|=transient_network_failure(error);
        ++s.network_failed;continue;
      }
+     s.last_network_error.store(0);
+     s.last_network_stage.store(0);
      std::vector<unsigned char> png;
      if(!convert_png(bytes,source,task.side,png)){
        ++s.decode_failed;continue;
@@ -298,9 +325,22 @@ void work(){
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.id!=s.selected)break;
      }
-     if(save(task,source,png)){++s.completed;break;}
+     if(save(task,source,png)){++s.completed;downloaded=true;break;}
      ++s.write_failed;
      std::this_thread::sleep_for(std::chrono::milliseconds(150));
+   }
+   // Retry temporary HTTP failures without changing selection. Navigation
+   // cancels both pending and delayed work for the previous title.
+   if(!downloaded && transient_failure){
+     if(task.attempt<2){
+       ++task.attempt;
+       task.retry_at=std::chrono::steady_clock::now()+
+           std::chrono::seconds(task.attempt==1?20:60);
+       std::lock_guard<std::mutex> guard(s.mutex);
+       if(task.id==s.selected)s.retries.push_back(std::move(task));
+     }else{
+       ++s.exhausted;
+     }
    }
  }
 }
@@ -344,8 +384,10 @@ void niak_select_case_art(const char *title_id) {
    // Only ONE game's CDN requests belong in the queue. A request already
    // in flight can finish; no next title ever waits behind the whole shelf.
    s.tasks.clear();
+   s.retries.clear();
    s.seen.clear();
  }
+ s.cv.notify_one();
  if(!valid)return;
  // Eden Encore: originals first; scenery only for reconstruction. push_front
  // for front/back means both actual faces precede the optional resources.
@@ -362,7 +404,8 @@ NiakArtDownloadStatus niak_case_art_download_status(){
  return {s.indexed.load(),s.queued.load(),s.completed.load(),
          s.network_failed.load(),s.decode_failed.load(),
          s.write_failed.load(),s.unmatched.load(),
-         s.last_network_error.load(),s.requests.load(),s.exhausted.load()};
+         s.last_network_error.load(),s.requests.load(),s.exhausted.load(),
+          s.last_network_stage.load()};
 #else
  return {};
 #endif

@@ -79,8 +79,9 @@ bool launchbox_filename(const std::string &name) {
   return ext==".png" || ext==".jpg" || ext==".jpeg";
 }
 bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &result,
-         int *failure=nullptr) {
+         int *failure=nullptr,int *stage=nullptr) {
   if(failure)*failure=0;
+  if(stage)*stage=0;
   // Host list is exact, not a substring. Refuse custom ports, parameters,
   // path traversal and redirects. No arbitrary user-supplied URLs.
   const bool feed=url==FEED;
@@ -90,11 +91,11 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
       url.rfind(".png")==url.size()-4;
   const bool cases=url.rfind(LAUNCHBOX,0)==0 &&
       launchbox_filename(url.substr(std::strlen(LAUNCHBOX)));
-  if(!feed&&!art&&!cases){if(failure)*failure=-100;return false;}
+  if(!feed&&!art&&!cases){if(failure)*failure=-100;if(stage)*stage=9;return false;}
   const int ctx=context();
-  if(ctx<0){if(failure)*failure=ctx;return false;}
+  if(ctx<0){if(failure)*failure=ctx;if(stage)*stage=1;return false;}
   int tmpl=sceHttpCreateTemplate(ctx,"NiakPS5-public-media/1.0",2,1);
-  if(tmpl<0){if(failure)*failure=tmpl;return false;}
+  if(tmpl<0){if(failure)*failure=tmpl;if(stage)*stage=2;return false;}
   (void)sceHttpSetAutoRedirect(tmpl,0);
   // Some PS5 HTTP versions honor deadlines only at the actual connection
   // or request handle. Apply bounded DNS/connect/send/read timeouts at all
@@ -107,21 +108,21 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
   };
   bounded_timeout(tmpl);
   int conn=sceHttpCreateConnectionWithURL(tmpl,url.c_str(),0);
-  if(conn<0){if(failure)*failure=conn;
+  if(conn<0){if(failure)*failure=conn;if(stage)*stage=3;
     sceHttpDeleteTemplate(tmpl);return false;}
   bounded_timeout(conn);
   int req=sceHttpCreateRequestWithURL(conn,0,url.c_str(),0);
   if(req>=0)bounded_timeout(req);
   bool ok=req>=0;
-  if(!ok && failure)*failure=req;
+  if(!ok){if(failure)*failure=req;if(stage)*stage=4;}
   int status=0;
   if(ok) {
     const int sent=sceHttpSendRequest(req,nullptr,0);
-    if(sent<0){ok=false;if(failure)*failure=sent;}
+    if(sent<0){ok=false;if(failure)*failure=sent;if(stage)*stage=5;}
     else {
       const int rc=sceHttpGetStatusCode(req,&status);
-      if(rc<0){ok=false;if(failure)*failure=rc;}
-      else if(status!=200){ok=false;if(failure)*failure=status;}
+      if(rc<0){ok=false;if(failure)*failure=rc;if(stage)*stage=6;}
+      else if(status!=200){ok=false;if(failure)*failure=status;if(stage)*stage=6;}
     }
   }
   std::vector<std::uint8_t> bytes;bytes.reserve(std::min(limit,std::size_t(1u<<20)));
@@ -130,13 +131,14 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
     int n=0;
     while((n=sceHttpReadData(req,chunk.data(),chunk.size()))>0) {
       if(bytes.size()+std::size_t(n)>limit){
-        ok=false;if(failure)*failure=-103;break;
+        ok=false;if(failure)*failure=-103;if(stage)*stage=8;break;
       }
       bytes.insert(bytes.end(),chunk.begin(),chunk.begin()+n);
     }
     if(n<0||bytes.empty()) {
       ok=false;
       if(failure)*failure=n<0?n:-101;
+      if(stage)*stage=7;
     }
   }
   if(req>=0)(void)sceHttpDeleteRequest(req);
@@ -209,19 +211,21 @@ bool niak_fetch_latest_ps5_wallpaper(const char *today_yyyy_mm_dd,
 }
 
 bool niak_fetch_launchbox_asset_ex(const char *filename,
-                               std::vector<std::uint8_t>& bytes,int *failure) {
+                               std::vector<std::uint8_t>& bytes,int *failure,int *failure_stage) {
 #if defined(__PROSPERO__)
   if(!filename || !launchbox_filename(filename)){
       if(failure)*failure=-100;
+      if(failure_stage)*failure_stage=9;
       return false;
   }
   // Public CDN name only. Never include a profile, console title ID, token
   // or user-supplied URL in the outbound request.
   // Eden Encore likewise allows full originals before decoding/downscaling.
-  return get(std::string(LAUNCHBOX)+filename,16u*1024u*1024u,bytes,failure);
+  return get(std::string(LAUNCHBOX)+filename,16u*1024u*1024u,bytes,failure,failure_stage);
 #else
   (void)filename;(void)bytes;
   if(failure)*failure=-200;
+  if(failure_stage)*failure_stage=9;
   return false;
 #endif
 }
