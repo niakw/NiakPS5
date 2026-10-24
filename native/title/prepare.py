@@ -887,6 +887,11 @@ void Catalog::reload()
             else {
                 if(found.application_category)
                     games[i].application_category=found.application_category;
+                // Use localized installed manifest titles across the entire
+                // shelf, rather than retaining English app.db names.
+                if(found.title[0] && std::strcmp(found.title,found.id)!=0)
+                    std::snprintf(games[i].title,sizeof(games[i].title),
+                                  "%s",found.title);
                 if(!games[i].installed_at[0])
                     std::snprintf(games[i].installed_at,sizeof(games[i].installed_at),
                                   "%s",found.installed_at);
@@ -912,6 +917,10 @@ void Catalog::reload()
                     if (std::strcmp(games[i].id,candidate.id)==0) {
                         games[i].is_homebrew=1;
                         games[i].discovered_from_homebrew=1;
+                        if(candidate.title[0] &&
+                           std::strcmp(candidate.title,candidate.id)!=0)
+                            std::snprintf(games[i].title,sizeof(games[i].title),
+                                          "%s",candidate.title);
                         break;
                     }
             }

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #define _POSIX_C_SOURCE 200809L
 #include "catalog.h"
+#include "title/localized_name.h"
 #include <sqlite3.h>
 #include <dirent.h>
 #include <stdlib.h>
@@ -200,9 +201,18 @@ int niak_scan_homebrews(const char *filesystem_root,NiakGame *games,size_t capac
     NiakGame *game=&games[count++];
     memset(game,0,sizeof(*game));
     copy_text(game->id,sizeof(game->id),id);
-    /* Filesystem metadata only; the titleName was not checked against app.db.
-     * Do not claim the title is registered or invent a commercial name. */
+    // Installed manifest names are facts, not evidence of registration.
     copy_text(game->title,sizeof(game->title),id);
+    FILE *name_file=fopen(param,"rb");
+    if(name_file) {
+      char json[32769]={0};
+      const size_t size=fread(json,1,sizeof(json)-1,name_file);
+      const int complete=feof(name_file);fclose(name_file);
+      if(complete && size>10 && size<sizeof(json)) {
+        read_json_value(json,"titleName",game->title,sizeof(game->title));
+        (void)niak_manifest_localized_title(json,game->title,sizeof(game->title));
+      }
+    }
     game->discovered_from_homebrew=1;
     game->is_homebrew=1;
     game->application_category=(unsigned char)category_from_param(filesystem_root,id);
@@ -260,8 +270,10 @@ int niak_scan_installed_folders(const char *root,NiakGame *games,size_t capacity
     char content[32769]={0};
     size_t len=fread(content,1,sizeof(content)-1,f);
     fclose(f);
-    if(len>10 && len<sizeof(content)-1)
-     read_json_value(content,"titleName",game->title,sizeof(game->title));
+    if(len>10 && len<sizeof(content)-1) {
+      read_json_value(content,"titleName",game->title,sizeof(game->title));
+      (void)niak_manifest_localized_title(content,game->title,sizeof(game->title));
+    }
    }
    artwork(root,id,"icon0.png",game->icon,sizeof(game->icon));
    artwork(root,id,"pic1.png",game->background,sizeof(game->background));

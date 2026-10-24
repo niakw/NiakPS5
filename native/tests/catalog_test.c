@@ -52,7 +52,9 @@ int main(void){
   snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys",root);make_dir(path);
   snprintf(path,sizeof(path),"%s/user/app/NPXS50001/sce_sys/param.json",root);
   FILE *media=fopen(path,"wb");assert(media);
-  fputs("{\"applicationCategoryType\":65536,\"titleName\":\"Media App\"}",media);
+  fputs("{\"applicationCategoryType\":65536,\"titleName\":\"Media App\","
+        "\"localizedParameters\":{\"fr-FR\":{\"titleName\":\"Mes applications\"},"
+        "\"en-US\":{\"titleName\":\"Media App\"}}}",media);
   fclose(media);
   assert(sqlite3_open(database,&db)==SQLITE_OK);
   assert(sqlite3_exec(db,
@@ -68,6 +70,7 @@ int main(void){
   sqlite3_close(db);
   assert(niak_scan_installed_folders(root,from_folders,5)==1);
   assert(from_folders[0].application_category==2);
+   assert(strcmp(from_folders[0].title,"Mes applications")==0);
   NiakGame mixed[5]={0};
   assert(niak_scan_games(database,root,mixed,5)==2);
   int seen_game=0,seen_media=0;
@@ -93,7 +96,9 @@ int main(void){
   snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/eboot.bin",root);
   FILE *eboot=fopen(path,"wb");assert(eboot);fputs("fixture eboot",eboot);fclose(eboot);
   snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/param.json",root);
-  FILE *param=fopen(path,"wb");assert(param);fputs("{\"titleName\":\"Exemple\"}",param);fclose(param);
+  FILE *param=fopen(path,"wb");assert(param);fputs("{\"titleName\":\"English name\",\"localizedParameters\":"
+        "{\"en-US\":{\"titleName\":\"English name\"},"
+        "\"fr-FR\":{\"titleName\":\"Jeu fran\\u00e7ais\"}}}",param);fclose(param);
   snprintf(path,sizeof(path),"%s/data/homebrew/PPSA45678/sce_sys/icon0.png",root);
   FILE *homeicon=fopen(path,"wb");assert(homeicon);fputs("png",homeicon);fclose(homeicon);
   snprintf(path,sizeof(path),"%s/data/homebrew/CUSA99999",root);make_dir(path);
@@ -105,7 +110,7 @@ int main(void){
   int home_count=niak_scan_homebrews(root,homebrews,5);
   assert(home_count==1);
   assert(strcmp(homebrews[0].id,"PPSA45678")==0);
-  assert(strcmp(homebrews[0].title,"PPSA45678")==0);
+  assert(strcmp(homebrews[0].title,"Jeu français")==0);
   assert(homebrews[0].discovered_from_homebrew==1);
   assert(strstr(homebrews[0].icon,"/sce_sys/icon0.png")!=NULL);
   assert(niak_scan_homebrews("/nonexistent/root",homebrews,5)==-1);
