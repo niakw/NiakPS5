@@ -16,6 +16,15 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("CUSA00263",source)
         self.assertIn("jeuxvideo.com",source)
 
+    def test_known_locally_installed_utilities_are_not_placed_as_games(self):
+        classification=(ROOT/"title"/"app_classification.hpp").read_text()
+        broker=(ROOT/"title"/"broker_inventory.h").read_text()
+        for name in ("niaktv","cleanmyps5","ps5 game updater","ps5 xplorer"):
+            self.assertIn(name,classification)
+        for label in ("NiakTV","CleanMyPS5","PS5 Game Updater","PS5-Xplorer"):
+            self.assertIn(label,broker)
+        self.assertIn('strncmp(id,"NPXS",4)!=0',broker)
+
     def test_own_generated_music_replaces_template_music(self):
         builder=(ROOT/"title"/"build.sh").read_text()
         script=(ROOT/"title"/"compose_music.py").read_text()

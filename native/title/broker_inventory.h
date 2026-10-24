@@ -124,7 +124,9 @@ static inline int niak_broker_apps_from_inventory(const char *ids,
    if(strncmp(id,"NPXS",4)!=0 &&
       (strstr(json,"ShadowMount")||strstr(json,"shadowmount")||
        strstr(json,"Eden Encore")||strstr(json,"Eden-Encore")||
-       strstr(json,"Mes vid")||strstr(json,"My Videos"))) {
+       strstr(json,"Mes vid")||strstr(json,"My Videos")||
+       strstr(json,"NiakTV")||strstr(json,"CleanMyPS5")||
+       strstr(json,"PS5 Game Updater")||strstr(json,"PS5-Xplorer"))) {
        is_app=1;break;
    }
   }

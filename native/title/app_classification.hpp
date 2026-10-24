@@ -14,7 +14,9 @@ inline bool niak_known_application(const char *name) {
  }
  auto prefix=[&](const char *s){return value.rfind(s,0)==0;};
  return prefix("shadowmount")||prefix("eden encore")||
-        prefix("niakps5")||prefix("mes vid")||prefix("my videos")||
+        prefix("niakps5")||prefix("niaktv")||prefix("cleanmyps5")||
+        prefix("ps5 game updater")||prefix("ps5 xplorer")||
+        prefix("mes vid")||prefix("my videos")||
         prefix("media gallery");
 }
 inline bool niak_application_category(const char *id,const char *name,
