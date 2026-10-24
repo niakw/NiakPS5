@@ -42,6 +42,14 @@ if len(rows)>1000:
     if actual<50:
         raise SystemExit(f"LaunchBox overviews missing: {actual} of {len(rows)-1} matches")
     print(f"LaunchBox indexed descriptions: {actual}/{len(rows)-1}")
+    # The real public metadata feed must populate independent back sources.
+    # Catch upstream type/field drift BEFORE producing a "green" package
+    # with empty backs. Nothing is downloaded to a private console here.
+    counts=[sum(1 for row in rows[1:] if len(row.split("\t"))>=10
+                and row.split("\t")[field]!="-") for field in (6,7,8)]
+    print("LaunchBox back slots [fanart, screenshot1, screenshot2]:",counts)
+    if min(counts)<100:
+        raise SystemExit(f"LaunchBox back artwork index empty: {counts}")
 PY
 python3 "$root/native/title/patch_home.py" --kit "$stage"
 python3 "$root/native/title/polish.py" --kit "$stage"

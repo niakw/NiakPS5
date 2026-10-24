@@ -108,6 +108,29 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(rows[0][4],"-")
   self.assertEqual(rows[0][-1],"51")
 
+ def test_back_uses_fanart_plus_gameplay_and_game_title_separately(self):
+  installed={("ps5","sample game"):["PPSA12345"]}
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>100</DatabaseID><Platform>Sony Playstation 5</Platform>
+   <Name>Sample Game</Name></Game>
+   <GameImage><DatabaseID>100</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000001.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>100</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000002.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>100</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000003.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>100</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000004.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>100</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000005.jpg</FileName></GameImage>
+   </LaunchBox>"""
+  row=mod.parse(io.BytesIO(xml),installed)[0]
+  self.assertIn("000000000002",row[6])  # Fanart is not discarded
+  self.assertIn("000000000003",row[7])  # Gameplay
+  self.assertIn("000000000005",row[8])  # Title screen, not second gameplay
+  self.assertNotIn("000000000004",row[8])
+  self.assertEqual(len({row[6],row[7],row[8]}),3)
+
  def test_fanart_and_two_distinct_gameplay_screenshots(self):
   identifiers={("ps5","the forest"):["PPSA55667"]}
   xml=b'''<LaunchBox>

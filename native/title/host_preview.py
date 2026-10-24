@@ -175,6 +175,24 @@ def make_case_art_fixtures(kit):
     proof.save(templates/"00-fixed-elements-PS4-PS5.png",optimize=True)
     print("NIAK_CASE_ORIGINAL_BLOCKS: six real user-supplied fixed elements loaded")
 
+    # These test images MUST live in the same case-source directory searched
+    # by niak_load_case_art(), otherwise a falsely blank preview could pass
+    # earlier unit tests while failing the six-image GL integration gate.
+    for title_id,tag,color in (
+        ("CUSA00053","PS4",(54,112,145)),
+        ("PPSA06186","PS5",(97,122,178)),
+    ):
+        for kind in ("hero","shot1","shot2"):
+            scene=gradient(960,540,(16,30,53),color)
+            draw=ImageDraw.Draw(scene)
+            offset={"hero":0,"shot1":100,"shot2":230}[kind]
+            draw.polygon([(offset,515),(190+offset,185),(430+offset,335),
+                          (650+offset,95),(960,350),(960,540),(0,540)],
+                         fill=(20+offset//15,60,93))
+            draw.text((35,40),f"{tag} {kind.upper()} / QA",
+                      font=font(38),fill=(248,250,252))
+            scene.save(output/f"{title_id}-{kind}.png",optimize=True)
+
     # Exercise true full-bleed composition with distinct LANDSCAPE screenshots
     # and genuine alpha logos. Real PS5 loads owner-installed icon0/pic1.
     media=kit/"assets"/"niak-preview-media"

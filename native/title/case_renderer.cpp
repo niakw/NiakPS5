@@ -52,7 +52,7 @@ template<class Project>
 void printed(DrawList &list,std::uint32_t texture,Project project,
              int columns,int rows,bool flip_v=false,
              float uv_min=0.0f,float uv_max=1.0f,
-             NiakCaseUvRegion crop={}) {
+             NiakCaseUvRegion crop={},float opacity=1.0f) {
     if(!texture)return;
     // DrawList only supports rectangular texture instances. Tessellate BOTH
     // directions to approximate a projected plane, never stretch a full image
@@ -80,7 +80,7 @@ void printed(DrawList &list,std::uint32_t texture,Project project,
                    {reverse?cu1:cu0,flip_v?1.0f-sample0:sample0,
                     reverse?cu0-cu1:cu1-cu0,
                     flip_v?sample0-sample1:sample1-sample0},
-                   Color::rgb(0xffffff));
+                   Color::rgb(0xffffff,std::clamp(opacity,0.f,1.f)));
     }
 }
 template<class Project>
@@ -137,7 +137,8 @@ void outer_face(DrawList &list,const Camera &camera,
         // Real normalized sleeve width:height is ~0.76:1.
         constexpr float case_aspect=0.76f;
         const auto panel=[&](std::uint32_t image,float aspect,
-                             float x0,float y0,float x1,float y1) {
+                             float x0,float y0,float x1,float y1,
+                             float opacity=1.f) {
             if(!image)return;
             const auto region=niak_case_cover_crop(
                 aspect,case_aspect*(x1-x0)/(y1-y0));
@@ -145,7 +146,7 @@ void outer_face(DrawList &list,const Camera &camera,
                 return paper(x0+(x1-x0)*u,y0+(y1-y0)*v);
             };
             printed(list,image,coords,near_frontal?12:24,
-                    near_frontal?8:15,false,0.f,1.f,region);
+                    near_frontal?8:15,false,0.f,1.f,region,opacity);
         };
         // ONE uninterrupted opaque printable sheet lives between plastic
         // and ALL front/back elements. The design never gives screenshots,
@@ -209,9 +210,14 @@ void outer_face(DrawList &list,const Camera &camera,
                         near_frontal?12:18,near_frontal?3:5);
             }
         } else {
-            // The base print was already painted ONCE above, from top to
-            // bottom. Even if every screenshot and fixed footer is absent,
-            // no section may expose bare blue plastic.
+            // Fanart - Background is the soft full-page illustration IN THE
+            // paper, not a separate card behind screenshots or text.
+            // The uninterrupted PS4/PS5 base colour remains visible below
+            // this semi-transparent cover image. Actual gameplay and title
+            // screenshots are then placed over it as distinct assets.
+            if(item.case_hero)
+                panel(item.case_hero,item.case_hero_aspect,
+                      0.f,0.f,1.f,1.f,ps4?0.16f:0.11f);
             const float gutter=0.018f;
             // Only two genuinely different gameplay screenshots can form
             // two columns. With zero/one screenshot, select ONE existing

@@ -14,8 +14,8 @@ KINDS={"Box - Front":"front","Box - Back":"back","Box - Spine":"spine",
        "Fanart - Box - Front":"front_fanart",
        "Fanart - Box - Back":"back_fanart",
        "Clear Logo":"logo", "Fanart - Background":"hero",
-       "Screenshot - Gameplay":"screenshot",
-       "Screenshot - Game Title":"screenshot"}
+       "Screenshot - Gameplay":"gameplay",
+       "Screenshot - Game Title":"game_title"}
 PLATFORMS={"Sony Playstation 4":"ps4","Sony Playstation 5":"ps5",
            "Sony PlayStation 4":"ps4","Sony PlayStation 5":"ps5",
            "Windows":"windows","Windows PC":"windows"}
@@ -178,18 +178,28 @@ def parse(xml,installed):
         hero_entries=images.get("hero",[]) or ps4.get("hero",[]) or pc.get("hero",[])
         hero=face_options(hero_entries)
         used={part.split(":",1)[1] for part in hero.split(";") if ":" in part}
+        # Two intentionally DIFFERENT screenshot classes:
+        # Gameplay is the first image; a Game Title screenshot is preferred
+        # for the second. This guarantees both kinds can appear on a
+        # reconstructed back even if gameplay has many regional images.
+        # The Fanart Background remains an independent HERO slot.
         shots=[]
-        # Prefer platform gameplay, then PS4, then the corresponding PC
-        # version. Image filenames are globally deduplicated.
-        for group in (images,ps4,pc):
-            for area in ORDER:
-                for where,filename in group.get("screenshot",[]):
-                    if where!=area or filename in used:continue
-                    used.add(filename)
-                    shots.append(area+":"+filename)
-                    if len(shots)==2:break
-                if len(shots)==2:break
-            if len(shots)==2:break
+        def add_first(kind):
+            for group in (images,ps4,pc):
+                for area in ORDER:
+                    for where,filename in group.get(kind,[]):
+                        if where!=area or filename in used:continue
+                        used.add(filename)
+                        shots.append(area+":"+filename)
+                        return True
+            return False
+        add_first("gameplay")
+        add_first("game_title")
+        # Missing a separate title image? Use a SECOND distinct gameplay
+        # image, then other title screens, never a duplicate of the hero.
+        for kind in ("gameplay","game_title"):
+            if len(shots)>=2:break
+            add_first(kind)
         shot1,shot2=(shots+["-","-"])[:2]
         overview=info[2] or (
             games[next(iter(ps4_ids))][2] if len(ps4_ids)==1 else "") or (
