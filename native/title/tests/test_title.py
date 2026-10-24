@@ -97,7 +97,10 @@ class NativeTitleTests(unittest.TestCase):
         self.assertLess(stale_decode,decode_count)
         self.assertIn("official_front_ready=false",auto)
         self.assertIn("official_back_ready=false",auto)
-        self.assertIn('task.side=="shot2") && official_back_ready)',auto)
+        self.assertIn('task.side=="shot2") &&',auto)
+        self.assertIn('official_back_ready) ||',auto)
+        self.assertIn('task.side=="hero" && official_front_ready &&',auto)
+        self.assertIn('official_back_ready) ||',auto)
         self.assertIn('task.side=="logo" && official_front_ready',auto)
         self.assertIn("if(task.side==\"back\")official_back_ready=true;",auto)
         self.assertIn("cdn.last_network_stage",(ROOT/"title"/"patch_home.py").read_text())
@@ -427,6 +430,21 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_poster);",stage)
         self.assertIn("if(selected.case_back) {",stage)
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_hero);",stage)
+        self.assertIn("if(!item.case_front || !item.case_back)",stage)
+        self.assertIn("if(!selected.case_front || !selected.case_back)",stage)
+        self.assertIn("if(selected.case_front)\\n            niak_destroy_case_texture(renderer,selected.case_hero);",stage)
+        self.assertIn("item.case_hero?item.case_hero:",source)
+        self.assertIn("item.case_hero?item.case_hero_aspect:1.0f;",source)
+        # The cached hero must never be destroyed while the front relies on it.
+        hero_release=stage.index("niak_destroy_case_texture(renderer,selected.case_hero);")
+        hero_guard=stage.rfind("if(selected.case_front)",0,hero_release)
+        self.assertGreater(hero_guard,stage.index("if(selected.case_back) {"))
+        # Prefer real box/front, local pic1 and fanart before square icon.
+        front=source.index("const auto art=item.case_poster")
+        self.assertLess(source.index("item.case_scene?item.case_scene:",front),
+                        source.index("item.case_hero?item.case_hero:",front))
+        self.assertLess(source.index("item.case_hero?item.case_hero:",front),
+                        source.index("(item.cover_is_image?item.cover:0)",front))
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_shot1);",stage)
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_shot2);",stage)
         self.assertIn("if(selected.case_front)",stage)
