@@ -358,7 +358,7 @@ def patch(kit):
                       settings_link_tried_ ?
                         (settings_link_rc_==0 ?
                          "Raccourci PS5 demandé ; ouverture à vérifier sur console." :
-                         "Raccourci refusé par le système. Accès manuel via accueil Sony.") :
+                         "Accès ShellUI refusé. Réglages PS5 accessibles via accueil Sony.") :
                         "Réglages PS5 : raccourci système expérimental. "
                         "Rond : revenir aux onglets.",
                       104, 990, 20, 1450, 30, kWhite.with_alpha(0.55f), 2);

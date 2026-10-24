@@ -29,8 +29,10 @@ class NativeTitleTests(unittest.TestCase):
         impl=(ROOT/"title"/"launch_bridge.cpp").read_text()
         ui=(ROOT/"title"/"patch_home.py").read_text()
         self.assertIn("pssettings:play?mode=settings",impl)
+        self.assertIn("sceShellUIUtilLaunchByUri",impl)
+        self.assertNotIn("sceSystemServiceLaunchWebBrowser",impl)
         self.assertIn("settings_link_rc_=niak_open_system_settings()",ui)
-        self.assertIn("Raccourci refusé par le système",ui)
+        self.assertIn("Accès ShellUI refusé",ui)
 
     def test_cover_network_errors_visible_in_settings(self):
         worker=(ROOT/"title"/"case_auto_art.cpp").read_text()

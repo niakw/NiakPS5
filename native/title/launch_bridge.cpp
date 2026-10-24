@@ -224,14 +224,43 @@ unsigned niak_launch_broker_pid() {
 }
 
 #if defined(__PROSPERO__)
-extern "C" int sceSystemServiceLaunchWebBrowser(const char *uri,void *params);
+extern "C" int sceKernelLoadStartModule(const char *path,std::size_t argc,
+    const void *argv,std::uint32_t flags,std::uint32_t options,int *result);
+extern "C" int sceKernelDlsym(int handle,const char *name,void **address);
+extern "C" int sceUserServiceGetForegroundUser(int *user);
+struct NiakShellUriArgs { std::uint32_t size,user; };
 #endif
 int niak_open_system_settings() {
 #if defined(__PROSPERO__)
-    // Fixed Sony-owned pssettings scheme (no arbitrary URL or custom input).
-    // This is an experimental root target; some firmware/sandboxes may deny it.
-    return sceSystemServiceLaunchWebBrowser(
-        "pssettings:play?mode=settings",nullptr);
+    // A PlayStation URI is NOT an Internet URL. The WebBrowser service
+    // rejects pssettings:, as confirmed on hardware. Itemzflow/etaHEN use
+    // ShellUIUtilLaunchByUri instead; resolve dynamically to avoid assuming
+    // the sandbox grants this private service.
+    int module_result=0;
+    const int module=sceKernelLoadStartModule(
+        "/system/common/lib/libSceShellUIUtil.sprx",
+        0,nullptr,0,0,&module_result);
+    if(module<0)return module;
+    using Initialize=int(*)();
+    using Launch=int(*)(const char*,NiakShellUriArgs*);
+    Initialize init=nullptr;
+    Launch launch=nullptr;
+    void *resolved=nullptr;
+    if(sceKernelDlsym(module,"sceShellUIUtilInitialize",&resolved)<0 ||
+       !resolved)return -10;
+    init=reinterpret_cast<Initialize>(resolved);
+    resolved=nullptr;
+    if(sceKernelDlsym(module,"sceShellUIUtilLaunchByUri",&resolved)<0 ||
+       !resolved)return -11;
+    launch=reinterpret_cast<Launch>(resolved);
+    int user=-1;
+    if(sceUserServiceGetForegroundUser(&user)<0 || user<0)return -12;
+    const int initialized=init();
+    if(initialized<0)return initialized;
+    NiakShellUriArgs args{sizeof(NiakShellUriArgs),
+                           static_cast<std::uint32_t>(user)};
+    // Fixed root settings URI, not debug settings or an editable URL.
+    return launch("pssettings:play?mode=settings",&args);
 #else
     return -2;
 #endif
