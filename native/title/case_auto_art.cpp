@@ -385,30 +385,45 @@ void work(){
      ++s.requests;
      std::vector<std::uint8_t> bytes;
      int error=0,stage=0;
-     if(!niak_fetch_launchbox_asset_ex(source.c_str(),bytes,&error,&stage)){
-       s.last_network_error.store(error);
-       s.last_network_stage.store(stage);
-       transient_failure|=transient_network_failure(error);
-       ++s.network_failed;continue;
-     }
-     // Keep the latest CDN failure visible until another game is selected.
-     // A successful front must not hide an HTTPS failure on the back.
-     std::vector<unsigned char> png;
-     if(!convert_png(bytes,source,task.side,png)){
-       ++s.decode_failed;continue;
-     }
+     const bool fetched=niak_fetch_launchbox_asset_ex(
+         source.c_str(),bytes,&error,&stage);
+     // A request may finish after the player has moved to another game.
+     // Never attribute its HTTP failure or decode result to the new focus.
      {
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.generation!=s.generation || task.id!=s.selected)break;
+       if(!fetched){
+         s.last_network_error.store(error);
+         s.last_network_stage.store(stage);
+         transient_failure|=transient_network_failure(error);
+         ++s.network_failed;
+       }
      }
-     if(save(task,source,png)){
-       ++s.completed;
-       downloaded=true;
-       if(task.side=="front")official_front_ready=true;
-       if(task.side=="back")official_back_ready=true;
-       break;
+     if(!fetched)continue;
+     // Keep the latest CDN failure visible until another game is selected.
+     // A successful front must not hide an HTTPS failure on the back.
+     std::vector<unsigned char> png;
+     const bool converted=convert_png(bytes,source,task.side,png);
+     {
+       std::lock_guard<std::mutex> guard(s.mutex);
+       if(task.generation!=s.generation || task.id!=s.selected)break;
+       if(!converted)++s.decode_failed;
      }
-     ++s.write_failed;
+     if(!converted)continue;
+     const bool saved=save(task,source,png);
+     {
+       std::lock_guard<std::mutex> guard(s.mutex);
+       if(task.generation!=s.generation || task.id!=s.selected)break;
+       if(saved){
+         ++s.completed;
+         downloaded=true;
+         if(task.side=="front")official_front_ready=true;
+         if(task.side=="back")official_back_ready=true;
+       }else{
+         ++s.write_failed;
+       }
+     }
+     if(saved)break;
      std::this_thread::sleep_for(std::chrono::milliseconds(150));
    }
    // Retry temporary HTTP failures without changing selection. Navigation
