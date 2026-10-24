@@ -299,7 +299,8 @@ audio::SoundSet Shell::sound_set() const''')
                      "one_shot_install.cpp", "one_shot_install.hpp"):
         shutil.copy2(project / "native" / "title" / "elevation" / filename,
                      src_niak / filename)
-    for filename in ("lodepng.cpp", "lodepng.h", "stb_image.h"):
+    for filename in ("lodepng.cpp", "lodepng.h", "stb_image.h",
+                     "console_curl.c", "console_curl.h"):
         shutil.copy2(project / "native" / "title" / "vendor" / filename, src_niak / filename)
     art_file = kit / "src/demo/catalog_art.cpp"
     replace_once(art_file, 'void Catalog::release_covers(gfx::Renderer &renderer)\n{\n    for (Item &item : items_)',
