@@ -420,7 +420,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_hero);",stage)
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_shot1);",stage)
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_shot2);",stage)
-        self.assertIn("if(selected.case_front && selected.case_back)",stage)
+        self.assertIn("if(selected.case_front)",stage)
+        self.assertIn("if(!item.case_front)\\n                item.case_scene",stage)
+        refresh=stage[stage.index("bool Catalog::refresh_selected_case_art("):]
+        self.assertLess(refresh.index("if(!selected.case_front)"),
+                        refresh.index("selected.case_scene=niak_load_game_background("))
+        self.assertLess(refresh.index("selected.case_scene=niak_load_game_background("),
+                        refresh.index("if(!selected.case_back)"))
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_scene);",stage)
         self.assertIn("unsigned total_titles=0",(ROOT/"title"/"asset_stats.hpp").read_text())
         self.assertIn("preferred_index=focused_item()",(ROOT/"title"/"polish.py").read_text())

@@ -349,7 +349,7 @@ audio::SoundSet Shell::sound_set() const''')
             item.case_back = niak_load_case_art(renderer,item.title_id,"back");
             item.case_spine = niak_load_case_art(renderer,item.title_id,"spine");
             // Only used to reconstruct missing 3D sleeves, never library tiles.
-            if(!item.case_front || !item.case_back)
+            if(!item.case_front)
                 item.case_scene = niak_load_game_background(
                     renderer,item.title_id,&item.case_scene_aspect);
             const char *platform=item.title_id[0]=='C'?"ps4":"ps5";
@@ -500,6 +500,9 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         if(!selected.case_template_front)
             selected.case_template_front=niak_load_case_template(
                 renderer,platform,"front");
+        if(!selected.case_scene)
+            selected.case_scene=niak_load_game_background(
+                renderer,selected.title_id,&selected.case_scene_aspect);
         missing(selected.logo_art,"logo",&selected.logo_art_aspect);
         missing(selected.case_poster,"poster",&selected.poster_aspect);
     }
@@ -507,9 +510,6 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         if(!selected.case_template_back)
             selected.case_template_back=niak_load_case_template(
                 renderer,platform,"back");
-        if(!selected.case_scene)
-            selected.case_scene=niak_load_game_background(
-                renderer,selected.title_id,&selected.case_scene_aspect);
         missing(selected.case_hero,"hero",&selected.case_hero_aspect);
         missing(selected.case_shot1,"shot1",&selected.case_shot1_aspect);
         missing(selected.case_shot2,"shot2",&selected.case_shot2_aspect);
@@ -533,7 +533,7 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     }
     if(selected.case_spine)
         selected.case_template_spine=0;
-    if(selected.case_front && selected.case_back)
+    if(selected.case_front)
         niak_destroy_case_texture(renderer,selected.case_scene);
     recount_case_faces();
     return changed;
