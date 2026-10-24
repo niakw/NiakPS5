@@ -4,6 +4,7 @@
 #include "niak/lodepng.h"
 #include "niak/case_texture_scale.hpp"
 #include "niak/case_auto_art.hpp"
+#include "niak/case_footer_alpha.hpp"
 #include "niak/asset_stats.hpp"
 extern "C" {
 #include "niak/catalog.h"
@@ -199,16 +200,11 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
 #endif
     return fail("PNG decoding failed");
  }
- // An invariant footer must be a TRANSPARENT overlay above the single
- // continuous paper. The bundled opaque example-game footers carry another
- // game's details and must never look like a separate pasted rectangle.
- if(side==1) {
-     std::size_t clear=0;
-     for(std::size_t i=3;i<pixels.size();i+=4)
-         clear+=pixels[i]<=16;
-     if(clear*20 < std::size_t(w)*h)
-         return fail("opaque sample footer rejected; background remains seamless");
- }
+ // Restore the supplied PS4/PS5 lower block above our continuous sheet.
+ // Legacy opaque blocks contain their own white/anthracite paper: key it
+ // out, preserving the actual logos, pictograms, labels and image details.
+ if(side==1 && !niak_footer_paper_to_alpha(pixels,w,h,generation==0))
+     return fail("footer paper cannot be safely separated from source art");
  // Shared mastheads/footers also avoid needless original-size GPU textures.
  if(!niak_scale_case_rgba(pixels,w,h,side==2?96u:1024u,
                           side==2?768u:512u))return fail("resampling failed");
