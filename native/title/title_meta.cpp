@@ -159,6 +159,34 @@ static std::string niak_short_overview(std::string description) {
 }
 std::string niak_title_overview(const char *id) {
  if(!id || std::strlen(id)!=9)return {};
+ // Sourced French descriptions ship offline, with a traceable URL for
+ // editorial checking. No scraping or runtime browser access from the PS5.
+ // This list is intentionally small: never invent descriptions for unknown IDs.
+ static const auto sourced=[](){
+   std::unordered_map<std::string,std::string> data;
+   for(const char *path : {"/app0/assets/niak-overviews-fr-sourced.tsv",
+       "/data/homebrew/PPSA99386/assets/niak-overviews-fr-sourced.tsv"}) {
+     FILE *f=std::fopen(path,"rb");if(!f)continue;
+     char line[1800];
+     while(std::fgets(line,sizeof(line),f)) {
+       char *first=std::strchr(line,'\\t');if(!first||first-line!=9)continue;
+       char *second=std::strchr(first+1,'\\t');if(!second)continue;
+       *first=0;*second=0;
+       // Allow only explicitly sourced French publisher/editorial pages.
+       if(std::strncmp(first+1,"https://www.jeuxvideo.com/",25)!=0 &&
+          std::strncmp(first+1,"https://www.playstation.com/fr-fr/",34)!=0)
+         continue;
+       char *description=second+1;
+       description[std::strcspn(description,"\\r\\n")]=0;
+       if(*description)data.emplace(line,description);
+     }
+     std::fclose(f);
+   }
+   return data;
+ }();
+ const auto fr_sourced=sourced.find(id);
+ if(fr_sourced!=sourced.end())
+   return niak_short_overview(fr_sourced->second);
  // Explicit local French translation has priority over LaunchBox original.
  // A missing/private file never triggers network requests on the PS5.
  static const auto french=[]() {

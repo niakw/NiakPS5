@@ -5,6 +5,17 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class NativeTitleTests(unittest.TestCase):
+    def test_sourced_french_overview_for_installed_game(self):
+        text=(ROOT/"title"/"title_meta.cpp").read_text()
+        source=(ROOT/"title"/"fr_overviews.tsv").read_text()
+        builder=(ROOT/"title"/"build.sh").read_text()
+        self.assertIn("niak-overviews-fr-sourced.tsv",text)
+        self.assertIn("fr_overviews.tsv",builder)
+        self.assertIn("CUSA00004",source)
+        self.assertIn("CUSA00223",source)
+        self.assertIn("CUSA00263",source)
+        self.assertIn("jeuxvideo.com",source)
+
     def test_own_generated_music_replaces_template_music(self):
         builder=(ROOT/"title"/"build.sh").read_text()
         script=(ROOT/"title"/"compose_music.py").read_text()

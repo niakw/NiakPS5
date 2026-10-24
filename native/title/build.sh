@@ -53,6 +53,8 @@ if len(rows)>1000:
     if min(counts)<100:
         raise SystemExit(f"LaunchBox back artwork index empty: {counts}")
 PY
+# Sourced, human-checked FR text is available offline at first UI paint.
+cp "$root/native/title/fr_overviews.tsv" "$stage/assets/niak-overviews-fr-sourced.tsv"
 python3 "$root/native/title/patch_home.py" --kit "$stage"
 python3 "$root/native/title/polish.py" --kit "$stage"
 # Upstream ps5-opengl release URL was withdrawn; use a mirrored archive
