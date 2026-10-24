@@ -65,10 +65,23 @@ new='https://github.com/MyLuxy/overdrive-deps/releases/download/ps5-opengl-v$ver
 if src.count(old)!=1: raise SystemExit("Pinned OpenGL fetch URL changed; review required")
 p.write_text(src.replace(old,new))
 PY
+# The pinned OpenGL kit does not yet expose APP_WRAP_SYMBOLS.
+# Its linker can wrap fcntl using the proven PS5-native libcurl socket shim.
+# Patch only the disposable, SHA-pinned staging checkout (never upstream).
+python3 - "$stage/tools/build.sh" <<'PY'
+from pathlib import Path
+import sys
+f=Path(sys.argv[1])
+s=f.read_text()
+old="wrap_options=()"
+if s.count(old)!=1:
+    raise SystemExit("Pinned native linker wrap anchor changed")
+f.write_text(s.replace(old,"wrap_options=(--wrap=fcntl)",1))
+PY
 # Keep the reference kit's asset / runtime inputs and attribution.
 make -C "$stage" init TITLE_ID="$title" APP_NAME=NiakPS5 APP_CATEGORY=game
 # See PacBrew docs: SQLite is a read-only static link, no .db modification.
-make -C "$stage" USE_CCACHE=0 PACBREW_INCLUDE_PATHS=include PACBREW_STATIC_ARCHIVES=lib/libsqlite3.a
+make -C "$stage" USE_CCACHE=0 PACBREW_PACKAGES=libcurl PACBREW_INCLUDE_PATHS=include PACBREW_STATIC_ARCHIVES=lib/libsqlite3.a
 test -f "$stage/dist/$title/eboot.bin"
 test -f "$stage/dist/$title/sce_module/libc.prx"
 test -f "$stage/dist/$title/sce_sys/param.json"
