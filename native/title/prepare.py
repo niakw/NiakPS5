@@ -253,7 +253,7 @@ audio::SoundSet Shell::sound_set() const''')
                  '    float case_shot2_aspect = 16.0f/9.0f;\n'
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    unsigned case_hydration_step_ = 0;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
                  '#include "gfx/draw_list.hpp"\n#include "niak/cover_stream_state.hpp"')
     replace_once(catalog_h,
@@ -352,10 +352,10 @@ audio::SoundSet Shell::sound_set() const''')
                 ++niak::case_media_stats.titles;
                 niak::case_media_stats.icons+=item.cover!=0;
             } else {
-            // GPU-heavy retail case art belongs to the SELECTED game.
-            // Streaming the remaining library decodes only its local icons.
-            // Offline Mesa demo fixtures still exercise all physical faces.
-#if defined(__PROSPERO__)
+            // Stream icons only on PS5. The selected game gets its case
+            // textures through bounded idle-time hydration below. Host QA
+            // keeps eager fixture loading to check the complete 3D sleeve.
+#if !defined(__PROSPERO__)
             if(index==niak::case_media_stats.preferred_index) {
 #endif
             item.case_front = niak_load_case_art(renderer,item.title_id,"front");
@@ -390,7 +390,7 @@ audio::SoundSet Shell::sound_set() const''')
                 item.case_template_spine=niak_load_case_template(
                     renderer,platform,"spine");
 #if defined(__PROSPERO__)
-            } // selected case only, never preload the full shelf.
+            } // Host preview uses complete fixtures; PS5 hydrates while idle.
 #endif
             item.cover = niak_load_game_icon(renderer, item.title_id);
             auto &stats=niak::case_media_stats;
@@ -420,6 +420,7 @@ audio::SoundSet Shell::sound_set() const''')
         '''    release_covers(renderer);
     niak::case_media_stats={};
     cover_stream_.reset(items_.size());
+    case_hydration_step_=0;
     last_case_focus_=-1;
     retained_case_focus_=-1;
     const auto case_status=niak_case_art_download_status();
@@ -459,8 +460,13 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     const unsigned completed=case_status.completed;
     if(index<0 || static_cast<std::size_t>(index)>=items_.size())return false;
     const bool same_focus=index==last_case_focus_;
-    if(same_focus && completed==last_case_completed_)
+    // A focus change must not decode an entire sleeve in one idle frame.
+    // Eleven stages also permit individually refreshing newly cached sides.
+    if(same_focus && completed==last_case_completed_ &&
+       case_hydration_step_>=11u)
         return false;
+    if(!same_focus || completed!=last_case_completed_)
+        case_hydration_step_=0;
     if(index!=last_case_focus_) {
         // Keep only the current and immediate previous 3D case resident.
         // Previous focus survives one transition to avoid visual popping.
@@ -504,6 +510,7 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     };
     Item &selected=items_[static_cast<std::size_t>(index)];
     if(selected.application || !selected.title_id[0]) {
+        case_hydration_step_=11u; // No retail box for app/system placeholders.
         recount_case_faces();
         return false;
     }
@@ -528,33 +535,52 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         texture=niak_load_case_art(renderer,selected.title_id,side,aspect);
         changed |= texture!=0;
     };
-    missing(selected.case_front,"front");
-    missing(selected.case_back,"back");
-    missing(selected.case_spine,"spine");
     const char *platform=selected.title_id[0]=='C'?"ps4":"ps5";
-    if(!selected.case_front) {
-        if(!selected.case_template_front)
+    // At most ONE expensive image decode/upload for each idle tick.
+    // Front/back/spine are prioritized ahead of the recomposed paper faces.
+    switch(case_hydration_step_++) {
+    case 0: missing(selected.case_front,"front"); break;
+    case 1: missing(selected.case_back,"back"); break;
+    case 2: missing(selected.case_spine,"spine"); break;
+    case 3:
+        if(!selected.case_front && !selected.case_template_front)
             selected.case_template_front=niak_load_case_template(
                 renderer,platform,"front");
-        if(!selected.case_scene)
+        break;
+    case 4:
+        if(!selected.case_front && !selected.case_scene)
             selected.case_scene=niak_load_game_background(
                 renderer,selected.title_id,&selected.case_scene_aspect);
-        missing(selected.case_poster,"poster",&selected.poster_aspect);
-    }
-    // Fanart can fill a missing FRONT when no local pic1 is available.
-    // Keep one GPU upload even when both faces must be reconstructed.
-    if(!selected.case_front || !selected.case_back)
-        missing(selected.case_hero,"hero",&selected.case_hero_aspect);
-    if(!selected.case_back) {
-        if(!selected.case_template_back)
+        break;
+    case 5:
+        if(!selected.case_front)
+            missing(selected.case_poster,"poster",&selected.poster_aspect);
+        break;
+    case 6:
+        // One fanart allocation can serve either missing face.
+        if(!selected.case_front || !selected.case_back)
+            missing(selected.case_hero,"hero",&selected.case_hero_aspect);
+        break;
+    case 7:
+        if(!selected.case_back && !selected.case_template_back)
             selected.case_template_back=niak_load_case_template(
                 renderer,platform,"back");
-        missing(selected.case_shot1,"shot1",&selected.case_shot1_aspect);
-        missing(selected.case_shot2,"shot2",&selected.case_shot2_aspect);
+        break;
+    case 8:
+        if(!selected.case_back)
+            missing(selected.case_shot1,"shot1",&selected.case_shot1_aspect);
+        break;
+    case 9:
+        if(!selected.case_back)
+            missing(selected.case_shot2,"shot2",&selected.case_shot2_aspect);
+        break;
+    case 10:
+        if(!selected.case_spine && !selected.case_template_spine)
+            selected.case_template_spine=niak_load_case_template(
+                renderer,platform,"spine");
+        break;
+    default: break;
     }
-    if(!selected.case_spine && !selected.case_template_spine)
-        selected.case_template_spine=niak_load_case_template(
-            renderer,platform,"spine");
     // A newly arrived official retail scan replaces ONLY its face.
     // Free fallback media no longer drawn for that face, but keep the
     // installed background while a missing FRONT still needs it.

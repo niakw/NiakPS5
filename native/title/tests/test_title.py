@@ -580,7 +580,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("if(selected.case_front)",stage)
         self.assertIn("if(!item.case_front)\n                item.case_scene",stage)
         refresh=stage[stage.index("bool Catalog::refresh_selected_case_art("):]
-        self.assertLess(refresh.index("if(!selected.case_front)"),
+        self.assertLess(refresh.index("if(!selected.case_front && !selected.case_scene)"),
                         refresh.index("selected.case_scene=niak_load_game_background("))
         self.assertLess(refresh.index("selected.case_scene=niak_load_game_background("),
                         refresh.index("if(!selected.case_back)"))
