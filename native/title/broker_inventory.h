@@ -128,6 +128,14 @@ static inline int niak_broker_apps_from_inventory(const char *ids,
        is_app=1;break;
    }
   }
+  if(!is_app && strncmp(id,"NPXS",4)==0) {
+    char verified[800];
+    const int n=snprintf(verified,sizeof(verified),
+                         "%s/user/appmeta/%s/param.json",root,id);
+    if(n>0 && (size_t)n<sizeof(verified) &&
+       niak_broker_is_file(verified))
+       is_app=niak_broker_media(verified,id);
+  }
   if(is_app) {
    if(used+11>cap)return -1;
    memcpy(apps+used,id,9);apps[used+9]='\n';
