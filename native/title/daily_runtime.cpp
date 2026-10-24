@@ -18,6 +18,7 @@
 
 #if defined(__PROSPERO__)
 #include <mutex>
+#include <chrono>
 extern "C" {
 int sceNetInit();
 int sceNetPoolCreate(const char*,int,int);
@@ -33,7 +34,9 @@ int sceHttpSendRequest(int,const void*,std::size_t);
 int sceHttpGetStatusCode(int,int*);
 int sceHttpReadData(int,void*,std::size_t);
 int sceHttpSetAutoRedirect(int,int);
+int sceHttpSetResolveTimeOut(int,unsigned);
 int sceHttpSetConnectTimeOut(int,unsigned);
+int sceHttpSetSendTimeOut(int,unsigned);
 int sceHttpSetRecvTimeOut(int,unsigned);
 }
 namespace {
@@ -42,13 +45,26 @@ constexpr const char *MEDIA="https://image.api.playstation.com/";
 constexpr const char *LAUNCHBOX="https://images.launchbox-app.com/";
 constexpr std::size_t MAX_FEED=5u*1024u*1024u, MAX_PNG=7u*1024u*1024u;
 int context() {
-  static int result=-1;static std::once_flag once;
-  std::call_once(once,[] {
+  // Never permanently poison the only public-media transport if an early
+  // boot, offline network or temporary PS5 sandbox error breaks sceHttpInit.
+  // Retry the FAILED stage after a bounded delay on the HTTP worker only.
+  // Successful pool/SSL objects are reused; no extra pools are created.
+  static std::mutex init_mutex;
+  static int pool=-1,ssl=-1,result=-1;
+  static std::chrono::steady_clock::time_point next_attempt{};
+  std::lock_guard<std::mutex> guard(init_mutex);
+  if(result>=0)return result;
+  const auto now=std::chrono::steady_clock::now();
+  if(now<next_attempt)return result;
+  next_attempt=now+std::chrono::seconds(30);
+  if(pool<0) {
     (void)sceNetInit();
-    const int pool=sceNetPoolCreate("NiakPS5 public art",4<<20,0);
-    const int ssl=pool>=0?sceSslInit(2<<20):-1;
-    result=ssl>=0?sceHttpInit(pool,ssl,4<<20):-1;
-  });
+    pool=sceNetPoolCreate("NiakPS5 public art",4<<20,0);
+  }
+  if(pool<0)return result=pool;
+  if(ssl<0)ssl=sceSslInit(2<<20);
+  if(ssl<0)return result=ssl;
+  result=sceHttpInit(pool,ssl,4<<20);
   return result;
 }
 bool launchbox_filename(const std::string &name) {
@@ -80,12 +96,22 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
   int tmpl=sceHttpCreateTemplate(ctx,"NiakPS5-public-media/1.0",2,1);
   if(tmpl<0){if(failure)*failure=tmpl;return false;}
   (void)sceHttpSetAutoRedirect(tmpl,0);
-  (void)sceHttpSetConnectTimeOut(tmpl,5000000);
-  (void)sceHttpSetRecvTimeOut(tmpl,8000000);
+  // Some PS5 HTTP versions honor deadlines only at the actual connection
+  // or request handle. Apply bounded DNS/connect/send/read timeouts at all
+  // levels; no CDN call may stall the title's background queue indefinitely.
+  const auto bounded_timeout=[](int id){
+    (void)sceHttpSetResolveTimeOut(id,5000000);
+    (void)sceHttpSetConnectTimeOut(id,5000000);
+    (void)sceHttpSetSendTimeOut(id,5000000);
+    (void)sceHttpSetRecvTimeOut(id,8000000);
+  };
+  bounded_timeout(tmpl);
   int conn=sceHttpCreateConnectionWithURL(tmpl,url.c_str(),0);
   if(conn<0){if(failure)*failure=conn;
     sceHttpDeleteTemplate(tmpl);return false;}
+  bounded_timeout(conn);
   int req=sceHttpCreateRequestWithURL(conn,0,url.c_str(),0);
+  if(req>=0)bounded_timeout(req);
   bool ok=req>=0;
   if(!ok && failure)*failure=req;
   int status=0;
