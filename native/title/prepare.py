@@ -356,7 +356,8 @@ audio::SoundSet Shell::sound_set() const''')
             // textures through bounded idle-time hydration below. Host QA
             // keeps eager fixture loading to check the complete 3D sleeve.
 #if !defined(__PROSPERO__)
-            if(index==niak::case_media_stats.preferred_index) {
+            // On the host, render BOTH fixture games and all six real pieces.
+            // Do not depend on the console's selected-index streaming hint.
             item.case_front = niak_load_case_art(renderer,item.title_id,"front");
             item.case_back = niak_load_case_art(renderer,item.title_id,"back");
             item.case_spine = niak_load_case_art(renderer,item.title_id,"spine");
@@ -388,8 +389,7 @@ audio::SoundSet Shell::sound_set() const''')
             if(!item.case_spine)
                 item.case_template_spine=niak_load_case_template(
                     renderer,platform,"spine");
-            } // Host preview uses complete fixtures; PS5 hydrates while idle.
-#endif
+#endif // Host fixtures are eager; PS5 case textures hydrate while idle.
             item.cover = niak_load_game_icon(renderer, item.title_id);
             auto &stats=niak::case_media_stats;
             ++stats.titles;
