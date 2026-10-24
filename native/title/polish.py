@@ -69,13 +69,13 @@ def patch(kit):
     s=exactly(s,'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',
         'ui::paragraph(list, fonts.display, it.title, x - 4, 282, '
         '54, 1040, 61, kWhite, 2);')
-    s=exactly(s, 'text, x, 358, 26, kWhite.with_alpha(0.78f)',
-                 'text, x, 411, 24, kWhite.with_alpha(0.78f)')
-    s=exactly(s, 'list.star(cursor + 42, 349, 12,', 'list.star(cursor + 42, 401, 12,')
-    s=exactly(s, 'text, cursor + 62, 358, 26, kWhite',
-                 'text, cursor + 62, 411, 24, kWhite')
-    s=exactly(s, 'it.blurb, x, 414, 28, 820, 40,', 
-                 'it.blurb, x, 463, 24, 820, 32,')
+    # prepare.py has already replaced upstream fictional ratings with
+    # factual genre/title ID at y366 and a sourced overview at y426.
+    # Keep both BELOW the two-line 54px title, without touching play buttons.
+    s=exactly(s, 'text, x, 366, 25, kWhite.with_alpha(0.8f)',
+                 'text, x, 408, 23, kWhite.with_alpha(0.8f)')
+    s=exactly(s, 'it.blurb, x, 426, 25, 1020, 36,',
+                 'it.blurb, x, 461, 23, 1000, 30,')
     # The glyph sits on the left of the 220px-wide button; center the label
     # in the remaining area, not at the old left-aligned English text position.
     s=exactly(s,'''ui::text(list, fonts.semibold, it.title_id[0] ? "Jouer" : "Indisponible", play.x + 72,
