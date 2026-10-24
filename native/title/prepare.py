@@ -465,9 +465,26 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     }
     last_case_focus_=index;
     last_case_completed_=completed;
+    // Show CURRENT resident media, not historical texture creations.
+    // Reconcile only on focus changes and completed CDN downloads.
+    const auto recount_case_faces=[&] {
+        auto &stats=niak::case_media_stats;
+        stats.fronts=stats.backs=stats.spines=stats.scenes=stats.templates=0;
+        for(const Item &entry:items_) {
+            stats.fronts+=entry.case_front!=0;
+            stats.backs+=entry.case_back!=0;
+            stats.spines+=entry.case_spine!=0;
+            stats.scenes+=entry.case_scene!=0;
+            stats.templates+=entry.case_template_front!=0 &&
+                entry.case_template_back!=0 &&
+                entry.case_template_spine!=0;
+        }
+    };
     Item &selected=items_[static_cast<std::size_t>(index)];
-    if(selected.application || !selected.title_id[0])
+    if(selected.application || !selected.title_id[0]) {
+        recount_case_faces();
         return false;
+    }
     bool changed=false;
     const auto missing=[&](std::uint32_t &texture,const char *side,
                            float *aspect=nullptr) {
@@ -500,6 +517,7 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     if(!selected.case_spine && !selected.case_template_spine)
         selected.case_template_spine=niak_load_case_template(
             renderer,platform,"spine");
+    recount_case_faces();
     return changed;
 }
 } // namespace hui::demo""")
