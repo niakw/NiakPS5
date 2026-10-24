@@ -208,9 +208,11 @@ bool convert_png(const std::vector<std::uint8_t>& bytes,
  if(bytes.size()<33 || bytes.size()>16u*1024u*1024u)return false;
  unsigned w=0,h=0;
  std::vector<unsigned char> pixels;
- const bool jpeg=source.size()>4 &&
-   (source.compare(source.size()-4,4,".jpg")==0 ||
-    source.compare(source.size()-5,5,".jpeg")==0);
+ // Trust the verified image signature, not only LaunchBox's filename
+ // extension. Regional entries can point to a differently encoded CDN blob.
+ const bool jpeg=bytes[0]==0xff && bytes[1]==0xd8 && bytes[2]==0xff;
+ const bool png=std::memcmp(bytes.data(),"\x89PNG\r\n\x1a\n",8)==0;
+ if(!jpeg && !png)return false;
  if(jpeg){
    int jw=0,jh=0,ch=0;
    if(!stbi_info_from_memory(bytes.data(),int(bytes.size()),&jw,&jh,&ch) ||
@@ -223,8 +225,6 @@ bool convert_png(const std::vector<std::uint8_t>& bytes,
    pixels.assign(raw,raw+std::size_t(w)*h*4u);
    stbi_image_free(raw);
  } else {
-   if(bytes[0]!=137 || bytes[1]!=80 || bytes[2]!=78 || bytes[3]!=71)
-     return false;
    const unsigned iw=(unsigned(bytes[16])<<24)|(unsigned(bytes[17])<<16)|
                       (unsigned(bytes[18])<<8)|bytes[19];
    const unsigned ih=(unsigned(bytes[20])<<24)|(unsigned(bytes[21])<<16)|
