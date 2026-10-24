@@ -26,13 +26,38 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_map>
 #include <vector>
 
 namespace {
 constexpr const char *ROOT="/download0/niak-case-";
+constexpr const char *INDEX_SOURCES[]={
+    "/app0/assets/niak-launchbox-cases.tsv",
+    "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
 constexpr std::size_t kMaxQueued=512;
+struct SourceStamp {
+ std::uint64_t size=0,mtime=0,ctime=0,inode=0;
+ bool present=false;
+ bool operator==(const SourceStamp &x)const{
+   return size==x.size && mtime==x.mtime && ctime==x.ctime &&
+          inode==x.inode && present==x.present;
+ }
+};
+std::array<SourceStamp,2> index_stamps(){
+ std::array<SourceStamp,2> result{};
+ for(std::size_t i=0;i<result.size();++i){
+   struct stat st{};
+   if(::stat(INDEX_SOURCES[i],&st)!=0 || !S_ISREG(st.st_mode))
+     continue;
+   result[i]={static_cast<std::uint64_t>(st.st_size),
+      static_cast<std::uint64_t>(st.st_mtime),
+      static_cast<std::uint64_t>(st.st_ctime),
+      static_cast<std::uint64_t>(st.st_ino),true};
+ }
+ return result;
+}
 using ArtSlots=std::array<std::vector<std::string>,7>;
 struct Task {
  std::string id,side;
@@ -119,10 +144,7 @@ std::unordered_map<std::string,ArtSlots> read_index(){
  // The packaged LaunchBox index must remain authoritative after a PS5
  // update. An old private FTP overlay may add/replace valid media per side,
  // but missing fields must NEVER hide a newer packaged entry.
- const char *const sources[]={
-    "/app0/assets/niak-launchbox-cases.tsv",
-    "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
- for(const char *source:sources) {
+ for(const char *source:INDEX_SOURCES) {
  FILE *f=std::fopen(source,"rb");
  if(!f)continue;
  char line[8192];
@@ -267,7 +289,9 @@ void queue_retry(State &s,Task task){
 }
 void work(){
  std::unordered_map<std::string,ArtSlots> index;
- unsigned indexed_generation=~0u,indexed_attempt=0;
+ std::array<SourceStamp,2> loaded_stamps{};
+ bool index_loaded=false;
+ unsigned indexed_attempt=0;
  State &s=state();
  for(;;){
    Task task;
@@ -297,13 +321,15 @@ void work(){
      if(task.generation!=s.generation || task.id!=s.selected)
        continue; // navigation cancelled old work
    }
-   // The index may become available after the native title has started.
-   // Reload for each new selection; empty-index retries are deferred.
-   // No indexing takes place on the graphics thread.
-   if(task.generation!=indexed_generation ||
+   // Compare two cheap local file stamps. Avoid parsing thousands of
+   // LaunchBox rows during rapid navigation. Reparse when FTP replaces the
+   // metadata, when a sandbox mount appears, or on empty-index retries.
+   const auto current_stamps=index_stamps();
+   if(!index_loaded || current_stamps!=loaded_stamps ||
       (index.empty() && task.attempt>indexed_attempt)){
      index=read_index();
-     indexed_generation=task.generation;
+     loaded_stamps=current_stamps;
+     index_loaded=true;
      indexed_attempt=task.attempt;
      s.indexed.store(static_cast<unsigned>(index.size()));
    }
