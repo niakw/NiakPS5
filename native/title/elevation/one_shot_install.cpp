@@ -141,6 +141,10 @@ int niak::bootstrap_own_payload() noexcept {
     const gid_t gid_before=getgid(),egid_before=getegid();
     const elevation::Status granted=
         elevation::request(elevation::Capability::filesystem);
+    // The helper grants its capability to this graphical process; it does
+    // not automatically restore the original PS5 sandbox credentials.
+    // Expose the fact to the CDN diagnostic without logging user identity.
+    niak::payload_process_elevated=(granted==elevation::Status::ok);
     const bool changed_on_failure=granted!=elevation::Status::ok &&
         (getuid()!=uid_before || geteuid()!=euid_before ||
          getgid()!=gid_before || getegid()!=egid_before);

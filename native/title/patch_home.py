@@ -202,8 +202,9 @@ def patch(kit):
         ui::text(list,fonts.regular,media_label,1430,477,18,kWhite);
         const NiakArtDownloadStatus cdn=niak_case_art_download_status();
         std::snprintf(media_label,sizeof(media_label),
-                      "LaunchBox : %u référencés · %u reçus",
-                      cdn.indexed,cdn.completed);
+                      "LaunchBox : %u indexés · %u reçus · élév. %s",
+                      cdn.indexed,cdn.completed,
+                      niak::payload_process_elevated?"oui":"non");
         ui::text(list,fonts.regular,media_label,1430,524,17,kWhite);
         std::snprintf(media_label,sizeof(media_label),
                       "En file : %u · Échecs : %u · Essais : %u",
@@ -219,11 +220,30 @@ def patch(kit):
             "envoi","statut HTTP","lecture","taille","nom invalide"};
         const int cdn_stage=cdn.last_network_stage>=0 &&
             cdn.last_network_stage<10?cdn.last_network_stage:0;
+        // Keep the precise hexadecimal PS5 result AND identify known
+        // certificate, HTTPS authorization, DNS and remote HTTP errors.
+        // No bypass of TLS verification or additional network request.
+        const unsigned cdn_code=static_cast<unsigned>(cdn.last_network_error);
+        const char *cdn_hint="inconnu";
+        switch(cdn_code) {
+          case 0: cdn_hint="aucune erreur"; break;
+          case 403: cdn_hint="CDN interdit"; break;
+          case 404: cdn_hint="image absente"; break;
+          case 408: cdn_hint="délai HTTP"; break;
+          case 429: cdn_hint="limite CDN"; break;
+          case 0x80435060u: cdn_hint="certificat TLS"; break;
+          case 0x80435061u: cdn_hint="négociation TLS"; break;
+          case 0x8043506Bu: cdn_hint="HTTPS interdit"; break;
+          case 0x80436002u: cdn_hint="DNS indisponible"; break;
+          case 0x80436003u: cdn_hint="délai DNS"; break;
+          default:
+            if(cdn_code>=500u && cdn_code<=599u)
+                cdn_hint="serveur CDN"; 
+            break;
+        }
         std::snprintf(media_label,sizeof(media_label),
-                      "HTTP %d / 0x%08X (%s) · épuisés : %u",
-                      cdn.last_network_error,
-                      static_cast<unsigned>(cdn.last_network_error),
-                      cdn_stages[cdn_stage],cdn.exhausted);
+                      "HTTP 0x%08X (%s; %s) · expirés %u",
+                      cdn_code,cdn_hint,cdn_stages[cdn_stage],cdn.exhausted);
         ui::text(list,fonts.regular,media_label,1430,598,14,
                  kWhite.with_alpha(0.85f));
         ui::text(list,fonts.semibold,"Installation du payload ELF",
