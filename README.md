@@ -1,134 +1,76 @@
 # NiakPS5
 
-Accueil graphique **expérimental** pour PS5 jailbreakée (titre `PPSA99386`), développé sur la **seule branche `main`**. Ce dépôt fournit un titre natif plein écran basé sur OpenGL, et non un ancien lanceur SDL Payload Manager.
+**Votre bibliothèque. Votre manette. Votre PS5.**  
+Un accueil natif pour PS5 homebrew, avec bibliothèque unifiée, lancement local et boîtiers PS4/PS5 en 3D.
 
-## État des fonctionnalités
+[English](README.en.md) · [Installation et dépannage](native/title/README.md) · [Versions et tests](https://github.com/niakw/NiakPS5/actions)
 
-| Fonction | État |
-| --- | --- |
-| Interface native OpenGL et navigation DualSense | Testées sur la console de développement ; L1/R1 changent les onglets |
-| Catalogue via ShadowMountPlus 1.7 sur `127.0.0.1:10101` | Découverte des identifiants confirmée sur la console |
-| Véritables icônes de jeux | Intégrées avec `GET /api/v1/games/icon`, **validation console en attente** |
-| Noms des jeux | API ShadowMountPlus + `app.db` en lecture seule quand accessible, certains titres peuvent encore afficher l'ID |
-| Nom du profil local PS5 | Requête UserService, **validation console en attente** |
-| Avatar PS5 | Copie locale PNG/DDS liée au profil actif ; masqué si le profil change sans relance ; **validation sur console en attente** |
-| Réglages NiakPS5 | Fonctionnels, configurent seulement l'application |
-| Réglages système Sony | **Non intégrés** : accessibles via le Control Center/accueil d'origine |
-| Médias personnels/captures | **Non activés**, confidentialité par défaut |
-| Bouton PS | Toujours géré par `SceShellUI` ; aucune interception ni remplacement du shell |
-| Service « Jouer » | Courtier local PLDmgr sur `127.0.0.1:19187`, protocole et autorisations testés sur hôte ; **lancement sur console non validé** |
-| Démarrage automatique | Installation du payload compagnon et de PLDmgr via le script FTP ; **validation matérielle 13.60 en attente** |
-| Retour optionnel après jeu | Déclenché seulement après une demande « Jouer » acceptée ; attente monotone de 10 s, même si NiakPS5 a été ouvert manuellement ; **validation console en attente** |
-| Boîtiers PS4/PS5 3D | Recto/tranche/verso et reconstitution lorsque les scans privés sont absents ; rendu contrôlé par captures OpenGL, **validation console en attente** |
-| Fonds jeux récents | Sélection quotidienne dans un lot Steam préparé à la compilation ; pas de téléchargement live PS5 |
+![Accueil NiakPS5 : capture du moteur OpenGL natif sur Mesa avec données de démonstration](docs/images/niakps5-home.png)
 
-Les validations GitHub prouvent les tests hôte, la compilation native et les captures OpenGL sur Mesa, **pas** le lancement des jeux ni la compatibilité matérielle sur une console PS5 13.60. Une demande de lancement acceptée n'est pas une preuve que le jeu a réellement démarré.
+*Capture du véritable moteur d'interface OpenGL en mode prévisualisation (Mesa, données de test). Ce n'est ni une maquette, ni une capture directement prise sur la PS5.*
 
-## Navigation et fond d'écran
+## Une interface pensée pour la console
 
-**L1/R1** naviguent entre NIAK, Jeux, Multimédia et Réglages. Ils ne changent jamais le fond.
-Le fond d'écran est sélectionné automatiquement selon la date locale (une sélection
-par jour). **Réglages → Changer le fond du jour** permet de forcer une autre image
-pour la journée, y compris après fermeture et réouverture de NiakPS5.
-Le choix manuel est réinitialisé lors du prochain jour local ; aucune autre
-commande ne déclenche cette action.
+NiakPS5 rassemble les titres détectés par le service local PLDmgr, ShadowMountPlus et les sources de métadonnées accessibles en lecture seule. Naviguez à la **DualSense**, passez de **Jeux** à **Applications**, affichez les détails d'un titre et utilisez **Jouer** sans navigateur.
 
-## Installation par FTP : **glisser-déposer uniquement**
+Les boîtiers animés privilégient, dans l'ordre, un véritable **recto/verso/tranche LaunchBox** puis une recomposition élégante à partir de ressources distinctes. Les éléments fixes PS4/PS5 servent uniquement aux faces manquantes. L'application propose un fond d'écran quotidien, une galerie de visuels enrichis, des réglages intégrés et un raccourci expérimental vers les réglages PS5.
 
-Dans les artifacts du dernier run vert, télécharger **NiakPS5-PPSA99386**.
-GitHub fournit **une seule archive ZIP à extraire une seule fois**.
-Elle contient directement le dossier **`data/`**, sans autre ZIP :
+### Ce qui fonctionne déjà sur console
 
-```text
-data/
-├── homebrew/
-│   └── PPSA99386/
-│       ├── eboot.bin
-│       ├── sce_sys/
-│       ├── sce_module/
-│       ├── assets/niak-templates/  (6 gabarits PS4/PS5 inclus)
-│       └── tools/niakps5/         (payload compagnon interne)
-└── pldmgr/
-    └── payloads/
-        └── niakps5/
-            ├── niakps5.elf
-            └── niakps5.elf.json
+Sur la console de test PS5 13.60, **48 titres ont été recensés**, la bibliothèque s'affiche et **« Jouer » peut lancer un jeu**. Le classement Jeux/Applications, les images enrichies, les descriptions et le retour après fermeture d'un jeu font encore l'objet de corrections. Une compilation verte ne prouve **pas** que ces fonctions sont validées sur le matériel.
+
+## Aperçu des boîtiers
+
+Les [captures OpenGL réelles des six faces PS4/PS5](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml) sont produites automatiquement en CI. Elles utilisent des images de contrôle et ne redistribuent pas les scans LaunchBox.
+
+## Installer / mettre à jour
+
+1. Dans [GitHub Actions](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml), choisir un run **vert sur `main`** et télécharger **`NiakPS5-PPSA99386`**.
+2. Extraire l'archive une seule fois : elle contient **`data/`**. Dans le FTP PS5, fusionner ce dossier avec **`/`**, sans supprimer vos répertoires existants.
+3. Lancer le titre **`PPSA99386`**, déjà enregistré via la chaîne homebrew de la console. Le paquet contient aussi le payload compagnon `niakps5.elf` ; il **ne remplace pas** la configuration PLDmgr, `autoload.txt` ou les fichiers du système Sony.
+
+Une copie FTP seule **n'active pas** un nouvel autoload et **ne télécharge pas** les images LaunchBox. Lorsque l'autoload existant fonctionne, conservez-le.
+
+### Récupérer les jaquettes et les descriptions
+
+Depuis le Mac, après extraction de l'artefact, utilisez **l'outil inclus** dans NiakPS5 (aucune nouvelle app à installer sur la console) :
+
+```bash
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --port 2121 --refresh-art
 ```
 
-**Sur le FTP de la console, à la racine `/`, glisser le dossier `data/`
-en choisissant FUSIONNER les dossiers existants**. Ne pas choisir une option
-supprimant le dossier `data` actuel ! Aucun terminal, Python ou script
-d'installation n'est nécessaire. Ne pas recopier `data/` dans `/data/`,
-ce qui créerait par erreur `/data/data/`.
+Cette commande relève les titres installés, reconstruit un index LaunchBox local, récupère les faces/captures manquantes et conserve un cache par source. **Fermez et rouvrez NiakPS5** pour recharger les textures GPU. Pour contrôler la couverture sans modification :
 
-Les artefacts GitHub ne garantissent pas de préserver les permissions Unix :
-en cas de refus de lancement, vérifier les droits de `eboot.bin` et
-`niakps5.elf` avec l'interface du client FTP (pas de commande nécessaire).
+```bash
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --status
+```
 
-Le paquet **ne contient pas** `autoload.txt`, `pldmgr_config.txt` ni
-de fichier système Sony : ta configuration PLDmgr existante reste intacte.
-Si `niakps5.elf` est déjà inscrit dans ton autoload, son binaire est mis
-à jour lors de la copie. **S'il n'est pas inscrit, le simple FTP ne peut
-pas l'activer automatiquement**, et NiakPS5 ne modifiera pas ce fichier.
+Si une ancienne image reste invalide, `--refresh-art --force-art` peut la retélécharger ; n'utilisez cette option qu'en cas de besoin. Les scans téléchargés restent sur **votre propre PS5**, et non dans le dépôt public.
 
-La présence du dossier ne garantit pas son référencement par le service de
-titres PS5 : ShadowMountPlus ou le mécanisme d'enregistrement déjà en place
-doit reconnaître `PPSA99386`. Les droits de lecture catalogue, l'exécution
-du broker et le lancement de jeux sur firmware 13.60 restent à qualifier
-sur console ; une CI verte ne peut pas les prouver.
+**Descriptions FR :** LaunchBox fournit souvent un texte anglais. NiakPS5 l'affiche tel quel lorsqu'aucune traduction française n'existe. Pour utiliser, de manière **facultative**, l'API DeepL sur les seuls résumés publics :
 
-Les 6 gabarits par défaut sont issus des éléments existants compressés pour
-l'aperçu. Si tu préfères les originaux pleine résolution, **copie simplement**
-les 6 PNG du ZIP privé sous
-`/data/homebrew/PPSA99386/assets/niak-templates/`, puis relance l'app.
-Aucune commande FTP n'est nécessaire.
+```bash
+export NIAK_DEEPL_API_KEY="VOTRE_CLE_API_DEEPL"
+python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --refresh-art --translate-fr
+```
 
-L'autoload ne remplace pas `SceShellUI` ; le bouton PS reste géré par Sony.
+L'enrichissement traduit les textes disponibles, sans envoyer les identifiants de titres ou les profils PS5. Il peut consommer votre quota DeepL. Les traductions sont conservées dans le stockage privé de NiakPS5 et l'anglais reste le repli en cas d'échec.
 
-## Construire et tester
+## Choix de conception
+
+- **Bibliothèque vérifiable :** les installations en cours sont distinguées des derniers inventaires FTP.
+- **Artworks authentiques :** pas de jaquette commerciale inventée, pas de doublon forcé entre recto et verso.
+- **Interface GPU fluide :** décodage progressif des textures, budget mémoire limité et diagnostics de chargement.
+- **Compatibilité PS5 :** aucun remplacement de `SceShellUI`, aucune interception du bouton PS, aucun contournement de disque ou de licence.
+- **Confidentialité :** appels de lancement limités à `127.0.0.1`, clés API jamais embarquées, ni sauvegardes ni captures personnelles publiées.
+
+## Développement
 
 ```bash
 python3 -m unittest discover -s native/title/tests -p 'test_*.py'
 bash native/title/build.sh
 ```
 
-L'assemblage récupère une révision figée de [PS5_VKHomebrewUI](https://github.com/mihawk-99/PS5_VKHomebrewUI), prépare la version NiakPS5, compile et crée `dist/PPSA99386.zip`.
+Le projet utilise un moteur OpenGL natif, le SDK de compilation PS5 et une révision épinglée du kit [PS5_VKHomebrewUI](https://github.com/mihawk-99/PS5_VKHomebrewUI). Une prévisualisation Mesa et une compilation PS5 sont contrôlées par CI avant tout essai physique.
 
-Les polices Manrope et Instrument Serif sont utilisées avec leurs licences OFL. Le décodeur PNG tiers (LodePNG) conserve sa licence dans ses sources. La base graphique amont reste GPL-3.0-or-later.
-
-## Installation complète sans toucher à PLDmgr
-
-Si PLDmgr est déjà configuré, remplacer **ensemble** `eboot.bin` et
-`niakps5.elf` avec la commande :
-`python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --preserve-autoload`.
-Ce mode n'écrit pas sur `autoload.txt` ni sur la configuration PLDmgr
-et ne redémarre pas les services de la console.
-
-## Correctif du lancement automatique
-
-Le payload qui démarre avec PLDmgr initialise UserService, lance les applications
-avec le contexte du profil connecté, et utilise un fallback \`sceLncUtilLaunchApp\`
-**uniquement** si l'appel \`sceSystemServiceLaunchApp\` retourne
-\`0x80940005\`. Le succès du fallback est consigné avec l'identifiant
-d'application. Une pulsation légère toutes les deux minutes et le PID
-réel du courtier sont inscrits dans le journal :
-\`/data/niakps5-autostart.log\`. Un processus autonome \`niakps5.elf\`
-n'est pas garanti quand le payload est hébergé par le chargeur.
-
-## Diagnostics du catalogue
-
-Le payload initialise UserService avant de demander le profil actif (erreur
-`0x80960002` corrigée à la source), identifie son thread `NiakPS5`
-sur les chargeurs compatibles et reconnaît un courtier déjà en service.
-Les requêtes `GAMES` journalisent le nombre d'identifiants accessibles.
-
-Si toutes les sources en direct restent inaccessibles, l'interface utilise en
-dernier recours le relevé local `assets/niak-local-titles.tsv` de la dernière
-installation FTP, sans prétendre que ses titres sont encore installés.
-Ce fallback reste à vérifier sur PS5 13.60.
-
-## Confidentialité et sécurité
-
-Le dépôt ne doit contenir **aucune** adresse personnelle ou IP privée, identifiant de compte, mot de passe FTP, clé API, capture privée ou base de données de la console. Les accès catalogue et icônes passent par une API **loopback** qui doit rester liée à `127.0.0.1` ; aucune donnée de profil n'est envoyée sur Internet. Les captures personnelles ne sont ni collectées ni transférées.
-
-Les outils de packaging n'écrivent pas dans `/system` ni `/system_ex` et ne remplacent pas le processus `SceShellUI`. Ne pas ajouter de hook expérimental du bouton PS au démarrage. Un nettoyage du contenu courant du dépôt ne purge pas automatiquement son historique Git : toute information sensible détectée dans l'historique nécessiterait un traitement distinct.
+**Projet homebrew expérimental, non affilié à Sony ou LaunchBox.** Les marques et visuels restent la propriété de leurs détenteurs. Code sous **GPL-3.0-or-later** ; composants tiers sous leurs licences respectives.
