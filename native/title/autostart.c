@@ -46,6 +46,39 @@ extern int sceLncUtilLaunchApp(const char *title_id,
                               const char **arguments,
                               NiakLaunchContext *params);
 extern int sceSystemServiceGetAppIdOfRunningBigApp(void);
+extern int sceKernelLoadStartModule(const char *path,size_t argc,
+                                   const void *args,uint32_t flags,
+                                   uint32_t options,int *result);
+extern int sceKernelDlsym(int handle,const char *name,void **target);
+
+typedef struct {
+    uint32_t size;
+    uint32_t user;
+} NiakShellSettingsArgs;
+/* Fixed, owner-initiated settings request via the ALREADY resident broker.
+ * The sandbox cannot load this private ShellUIUtil module. No custom URI,
+ * arbitrary path or general command execution is accepted over loopback.
+ */
+static int niak_open_settings_from_broker(void) {
+    int result=0;
+    const int module=sceKernelLoadStartModule(
+        "/system_ex/common_ex/lib/libSceShellUIUtil.sprx",
+        0,NULL,0,0,&result);
+    if(module<0)return module;
+    void *initialize=NULL,*launch=NULL;
+    if(sceKernelDlsym(module,"sceShellUIUtilInitialize",&initialize)<0 ||
+       !initialize)return -10;
+    if(sceKernelDlsym(module,"sceShellUIUtilLaunchByUri",&launch)<0 ||
+       !launch)return -11;
+    int user=-1;
+    const int got=sceUserServiceGetForegroundUser(&user);
+    if(got<0||user<0)return got<0?got:-12;
+    const int started=((int(*)(void))initialize)();
+    if(started<0)return started;
+    NiakShellSettingsArgs args={sizeof(args),(uint32_t)user};
+    return ((int(*)(const char*,NiakShellSettingsArgs*))launch)(
+        "pssettings:play?mode=settings",&args);
+}
 
 /* One checked entry point for both autostart and the local Jouer action.
  * Logs the raw status of both APIs; a positive LncUtil app id is accepted
@@ -368,6 +401,18 @@ static void serve_launch_requests(void) {
                     }
                     close(client);
                     continue;
+                }
+                // Fixed settings deep link from the already privileged
+                // broker; no arbitrary URI or client-controlled parameters.
+                if(count==9 && memcmp(request,"SETTINGS\n",9)==0) {
+                    const int settings_rc=niak_open_settings_from_broker();
+                    report("NiakPS5 broker system settings",settings_rc);
+                    char response[24];
+                    const int length=snprintf(response,sizeof(response),
+                        "RC %08X\n",(unsigned)settings_rc);
+                    if(length==12)
+                        (void)niak_socket_send(client,response,12);
+                    close(client);continue;
                 }
                 // Exact local status: broker PID, not arbitrary process enumeration.
                 if(count==7 && memcmp(request,"STATUS\n",7)==0) {

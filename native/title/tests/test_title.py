@@ -30,6 +30,8 @@ class NativeTitleTests(unittest.TestCase):
         ui=(ROOT/"title"/"patch_home.py").read_text()
         self.assertIn("pssettings:play?mode=settings",impl)
         self.assertIn("sceShellUIUtilLaunchByUri",impl)
+        self.assertIn('niak_socket_send(fd,"SETTINGS\\n",9)',impl)
+        self.assertIn('memcmp(request,"SETTINGS\\n",9)',(ROOT/"title"/"autostart.c").read_text())
         self.assertIn("/system_ex/common_ex/lib/libSceShellUIUtil.sprx",impl)
         self.assertNotIn("sceSystemServiceLaunchWebBrowser",impl)
         self.assertIn("settings_link_rc_=niak_open_system_settings()",ui)

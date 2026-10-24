@@ -223,6 +223,41 @@ unsigned niak_launch_broker_pid() {
     return pid;
 }
 
+static int niak_open_system_settings_broker() {
+    int fd=::socket(AF_INET,SOCK_STREAM,0);
+    if(fd<0)return -2;
+    niak_socket_guard(fd);
+    sockaddr_in address{};
+    address.sin_family=AF_INET;
+    address.sin_port=htons(kPort);
+    address.sin_addr.s_addr=htonl(0x7f000001u);
+    if(niak_connect_bounded(fd,reinterpret_cast<sockaddr*>(&address),
+                            sizeof(address),100)<0) {
+        ::close(fd);return -2;
+    }
+    timeval timeout{0,350000};
+    (void)::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
+    (void)::setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
+    if(niak_socket_send(fd,"SETTINGS\n",9)!=9){::close(fd);return -2;}
+    char reply[12]{};
+    std::size_t have=0;
+    while(have<sizeof(reply)) {
+        const auto n=::recv(fd,reply+have,sizeof(reply)-have,0);
+        if(n<=0)break;
+        have+=static_cast<std::size_t>(n);
+    }
+    ::close(fd);
+    if(have!=sizeof(reply)||std::memcmp(reply,"RC ",3)!=0||
+       reply[11]!='\n')return -2;
+    for(int i=3;i<11;++i) {
+        const char ch=reply[i];
+        if(!((ch>='0'&&ch<='9')||(ch>='a'&&ch<='f')||
+             (ch>='A'&&ch<='F')))return -2;
+    }
+    unsigned status=0;
+    if(std::sscanf(reply+3,"%8x",&status)!=1)return -2;
+    return static_cast<int>(status);
+}
 #if defined(__PROSPERO__)
 extern "C" int sceKernelLoadStartModule(const char *path,std::size_t argc,
     const void *argv,std::uint32_t flags,std::uint32_t options,int *result);
@@ -231,6 +266,10 @@ extern "C" int sceUserServiceGetForegroundUser(int *user);
 struct NiakShellUriArgs { std::uint32_t size,user; };
 #endif
 int niak_open_system_settings() {
+    // First ask the existing, opt-in PLDmgr broker. Its system context
+    // may launch ShellUI even where this application's sandbox is denied.
+    const int broker_rc=niak_open_system_settings_broker();
+    if(broker_rc!=-2)return broker_rc;
 #if defined(__PROSPERO__)
     // A PlayStation URI is NOT an Internet URL. The WebBrowser service
     // rejects pssettings:, as confirmed on hardware. Itemzflow/etaHEN use
