@@ -206,8 +206,8 @@ def patch(kit):
                       cdn.indexed,cdn.completed);
         ui::text(list,fonts.regular,media_label,1430,524,17,kWhite);
         std::snprintf(media_label,sizeof(media_label),
-                      "En file : %u · Échecs réseau : %u",
-                      cdn.queued,cdn.network_failed);
+                      "En file : %u · Échecs : %u · Essais : %u",
+                      cdn.queued,cdn.network_failed,cdn.requests);
         ui::text(list,fonts.regular,media_label,1430,550,17,kWhite);
         std::snprintf(media_label,sizeof(media_label),
                       "Sans médias : %u · Corrompus : %u · Stockage : %u",
@@ -220,9 +220,10 @@ def patch(kit):
         const int cdn_stage=cdn.last_network_stage>=0 &&
             cdn.last_network_stage<10?cdn.last_network_stage:0;
         std::snprintf(media_label,sizeof(media_label),
-                      "CDN : %d (%s) · Essais : %u · Reprises épuisées : %u",
-                      cdn.last_network_error,cdn_stages[cdn_stage],
-                      cdn.requests,cdn.exhausted);
+                      "HTTP %d / 0x%08X (%s) · épuisés : %u",
+                      cdn.last_network_error,
+                      static_cast<unsigned>(cdn.last_network_error),
+                      cdn_stages[cdn_stage],cdn.exhausted);
         ui::text(list,fonts.regular,media_label,1430,598,14,
                  kWhite.with_alpha(0.85f));
         ui::text(list,fonts.semibold,"Installation du payload ELF",
