@@ -553,7 +553,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_launch_broker_ready",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("niak_launch_broker_pid",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn('STATUS\\n',(ROOT/"title"/"autostart.c").read_text())
-        self.assertIn('std::strcmp(game.title,"Mes vidéos")==0',source)
+        self.assertIn('prefix("mes vid")',(ROOT/"title"/"app_classification.hpp").read_text())
         navigation=(ROOT/"title"/"patch_home.py").read_text()
         self.assertIn("Action::page_prev",navigation)
         self.assertIn("Action::page_next",navigation)
