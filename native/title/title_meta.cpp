@@ -169,15 +169,15 @@ std::string niak_title_overview(const char *id) {
      FILE *f=std::fopen(path,"rb");if(!f)continue;
      char line[1800];
      while(std::fgets(line,sizeof(line),f)) {
-       char *first=std::strchr(line,'\\t');if(!first||first-line!=9)continue;
-       char *second=std::strchr(first+1,'\\t');if(!second)continue;
+       char *first=std::strchr(line,'\t');if(!first||first-line!=9)continue;
+       char *second=std::strchr(first+1,'\t');if(!second)continue;
        *first=0;*second=0;
        // Allow only explicitly sourced French publisher/editorial pages.
        if(std::strncmp(first+1,"https://www.jeuxvideo.com/",25)!=0 &&
           std::strncmp(first+1,"https://www.playstation.com/fr-fr/",34)!=0)
          continue;
        char *description=second+1;
-       description[std::strcspn(description,"\\r\\n")]=0;
+       description[std::strcspn(description,"\r\n")]=0;
        if(*description)data.emplace(line,description);
      }
      std::fclose(f);
