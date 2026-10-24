@@ -36,7 +36,7 @@ constexpr std::size_t kMaxQueued=512;
 using ArtSlots=std::array<std::vector<std::string>,7>;
 struct Task {
  std::string id,side;
- unsigned attempt=0;
+ unsigned generation=0,attempt=0;
  std::chrono::steady_clock::time_point retry_at{};
 };
 bool transient_network_failure(int error){
@@ -50,6 +50,7 @@ struct State {
  std::deque<Task> retries;
  std::set<std::string> seen;
  bool started=false;
+ unsigned generation=0;
  std::string selected;
  std::atomic<unsigned> indexed{0},queued{0},completed{0},
      network_failed{0},decode_failed{0},write_failed{0},unmatched{0};
@@ -253,10 +254,21 @@ bool save(const Task& task,const std::string& name,
              reinterpret_cast<const unsigned char*>(name.data()),name.size());
  return true;
 }
+void queue_retry(State &s,Task task){
+ // Bound retries even when the index is temporarily unavailable at boot.
+ if(task.attempt>=2){++s.exhausted;return;}
+ ++task.attempt;
+ task.retry_at=std::chrono::steady_clock::now()+
+     std::chrono::seconds(task.attempt==1?20:60);
+ std::lock_guard<std::mutex> guard(s.mutex);
+ if(task.generation!=s.generation)return;
+ s.retries.push_back(std::move(task));
+ s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
+}
 void work(){
- const auto index=read_index();
+ std::unordered_map<std::string,ArtSlots> index;
+ unsigned indexed_generation=~0u,indexed_attempt=0;
  State &s=state();
- s.indexed.store(static_cast<unsigned>(index.size()));
  for(;;){
    Task task;
    {
@@ -282,8 +294,20 @@ void work(){
    }
    {
      std::lock_guard<std::mutex> guard(s.mutex);
-     if(task.id!=s.selected)continue; // navigation cancelled old work
+     if(task.generation!=s.generation || task.id!=s.selected)
+       continue; // navigation cancelled old work
    }
+   // The index may become available after the native title has started.
+   // Reload for each new selection; empty-index retries are deferred.
+   // No indexing takes place on the graphics thread.
+   if(task.generation!=indexed_generation ||
+      (index.empty() && task.attempt>indexed_attempt)){
+     index=read_index();
+     indexed_generation=task.generation;
+     indexed_attempt=task.attempt;
+     s.indexed.store(static_cast<unsigned>(index.size()));
+   }
+   if(index.empty()){queue_retry(s,std::move(task));continue;}
    const auto found=index.find(task.id);
    if(found==index.end()){++s.unmatched;continue;}
    const int field=side_index(task.side);
@@ -304,7 +328,7 @@ void work(){
    for(const std::string &source:candidates) {
      {
        std::lock_guard<std::mutex> guard(s.mutex);
-       if(task.id!=s.selected)break;
+       if(task.generation!=s.generation || task.id!=s.selected)break;
      }
      if(examined++>=candidate_limit)break;
      // No lifetime cap: seven sides with at most three passes each.
@@ -317,15 +341,15 @@ void work(){
        transient_failure|=transient_network_failure(error);
        ++s.network_failed;continue;
      }
-     s.last_network_error.store(0);
-     s.last_network_stage.store(0);
+     // Keep the latest CDN failure visible until another game is selected.
+     // A successful front must not hide an HTTPS failure on the back.
      std::vector<unsigned char> png;
      if(!convert_png(bytes,source,task.side,png)){
        ++s.decode_failed;continue;
      }
      {
        std::lock_guard<std::mutex> guard(s.mutex);
-       if(task.id!=s.selected)break;
+       if(task.generation!=s.generation || task.id!=s.selected)break;
      }
      if(save(task,source,png)){++s.completed;downloaded=true;break;}
      ++s.write_failed;
@@ -333,20 +357,8 @@ void work(){
    }
    // Retry temporary HTTP failures without changing selection. Navigation
    // cancels both pending and delayed work for the previous title.
-   if(!downloaded && transient_failure){
-     if(task.attempt<2){
-       ++task.attempt;
-       task.retry_at=std::chrono::steady_clock::now()+
-           std::chrono::seconds(task.attempt==1?20:60);
-       std::lock_guard<std::mutex> guard(s.mutex);
-       if(task.id==s.selected){
-         s.retries.push_back(std::move(task));
-         s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
-       }
-     }else{
-       ++s.exhausted;
-     }
-   }
+   if(!downloaded && transient_failure)
+     queue_retry(s,std::move(task));
  }
 }
 } // namespace
@@ -364,8 +376,8 @@ void niak_queue_auto_case_art(const char *title_id,const char *side){
    // missing official front/back scans outrank extra logo/screenshots. New
    // titles also get a chance when the user navigates a long game shelf.
    if(std::strcmp(side,"front")==0||std::strcmp(side,"back")==0)
-     s.tasks.push_front({title_id,side});
-   else s.tasks.push_back({title_id,side});
+     s.tasks.push_front({title_id,side,s.generation});
+   else s.tasks.push_back({title_id,side,s.generation});
    s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
    if(!s.started){
      s.started=true;
@@ -386,6 +398,9 @@ void niak_select_case_art(const char *title_id) {
    std::lock_guard<std::mutex> lock(s.mutex);
    if(s.selected==(valid?std::string(title_id):std::string{}))return;
    s.selected=valid?title_id:"";
+   ++s.generation;
+   s.last_network_error.store(0);
+   s.last_network_stage.store(0);
    // Only ONE game's CDN requests belong in the queue. A request already
    // in flight can finish; no next title ever waits behind the whole shelf.
    s.tasks.clear();
