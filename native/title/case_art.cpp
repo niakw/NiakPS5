@@ -15,7 +15,16 @@ extern "C" {
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <unordered_map>
 namespace {
+// Texture creation and release always run on the graphics thread.
+std::unordered_map<std::uint32_t,std::uint64_t> tracked_case_textures;
+void track_case_texture(std::uint32_t texture,unsigned w,unsigned h){
+ if(!texture)return;
+ const auto bytes=std::uint64_t(w)*h*4u;
+ tracked_case_textures[texture]=bytes;
+ niak::case_media_stats.case_texture_bytes+=bytes;
+}
 // Private CDN PNGs are valid only after their .source marker is committed.
 // Earlier interrupted writes must never displace the fallback box art.
 bool valid_download_source(const std::string &image_path) {
@@ -113,7 +122,7 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
      const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
      if(!handle)continue;
      if(aspect)*aspect=float(w)/float(h);
-     niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
+     track_case_texture(handle,w,h);
      return handle;
  }
  // Missing artwork is NOT a download request. Only selecting a game can
@@ -121,14 +130,26 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
  return 0;
 }
 
+void niak_destroy_case_texture(hui::gfx::Renderer &renderer,
+                               std::uint32_t &texture){
+ if(!texture)return;
+ const auto it=tracked_case_textures.find(texture);
+ if(it!=tracked_case_textures.end()){
+     const auto bytes=it->second;
+     auto &total=niak::case_media_stats.case_texture_bytes;
+     total=total>=bytes?total-bytes:0;
+     tracked_case_textures.erase(it);
+ }
+ renderer.destroy_texture(texture);
+ texture=0;
+}
 namespace {
 bool template_attempted[6]={};
 std::uint32_t template_textures[6]={};
 }
 void niak_release_case_templates(hui::gfx::Renderer &renderer) {
  for(int i=0;i<6;++i) {
-  if(template_textures[i])renderer.destroy_texture(template_textures[i]);
-  template_textures[i]=0;
+  niak_destroy_case_texture(renderer,template_textures[i]);
   template_attempted[i]=false;
  }
 }
@@ -236,7 +257,7 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
                           side==2?768u:512u))return fail("resampling failed");
  template_textures[index]=renderer.create_texture(int(w),int(h),pixels.data());
  if(template_textures[index])
-     niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
+     track_case_texture(template_textures[index],w,h);
  else
      return fail("GPU texture allocation failed");
  return template_textures[index];

@@ -253,7 +253,7 @@ audio::SoundSet Shell::sound_set() const''')
                  '    float case_shot2_aspect = 16.0f/9.0f;\n'
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    int last_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
                  '#include "gfx/draw_list.hpp"\n#include "niak/cover_stream_state.hpp"')
     replace_once(catalog_h,
@@ -315,8 +315,7 @@ audio::SoundSet Shell::sound_set() const''')
                                       &item.logo_art,&item.case_poster,
                                       &item.case_hero,&item.case_shot1,
                                       &item.case_shot2}) {
-            if(*texture)renderer.destroy_texture(*texture);
-            *texture=0;
+            niak_destroy_case_texture(renderer,*texture);
         }
         if(item.cover)renderer.destroy_texture(item.cover);
         item.cover = 0;
@@ -409,6 +408,7 @@ audio::SoundSet Shell::sound_set() const''')
     niak::case_media_stats={};
     cover_stream_.reset(items_.size());
     last_case_focus_=-1;
+    retained_case_focus_=-1;
     last_case_completed_=niak_case_art_download_status().completed;
     niak::case_media_stats.total_titles=static_cast<unsigned>(
         std::count_if(items_.begin(),items_.end(),
@@ -444,6 +444,25 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     if(index<0 || static_cast<std::size_t>(index)>=items_.size())return false;
     if(index==last_case_focus_ && completed==last_case_completed_)
         return false;
+    if(index!=last_case_focus_) {
+        // Keep only the current and immediate previous 3D case resident.
+        // Previous focus survives one transition to avoid visual popping.
+        const int retire=retained_case_focus_;
+        if(retire>=0 && retire!=index && retire!=last_case_focus_ &&
+           static_cast<std::size_t>(retire)<items_.size()) {
+            Item &old=items_[static_cast<std::size_t>(retire)];
+            for(std::uint32_t *texture : {&old.case_front,&old.case_back,
+                 &old.case_spine,&old.case_scene,&old.logo_art,
+                 &old.case_poster,&old.case_hero,&old.case_shot1,
+                 &old.case_shot2})
+                niak_destroy_case_texture(renderer,*texture);
+            // Shared templates have their own lifecycle.
+            old.case_template_front=0;
+            old.case_template_back=0;
+            old.case_template_spine=0;
+        }
+        retained_case_focus_=last_case_focus_;
+    }
     last_case_focus_=index;
     last_case_completed_=completed;
     Item &selected=items_[static_cast<std::size_t>(index)];

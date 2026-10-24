@@ -8,3 +8,5 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
 // Loaded once per renderer session, not packaged in public GitHub sources.
 std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,const char *platform,const char *part);
 void niak_release_case_templates(hui::gfx::Renderer &renderer);
+// Renderer-thread only: free the case texture and update resident VRAM estimate.
+void niak_destroy_case_texture(hui::gfx::Renderer &renderer,std::uint32_t &texture);
