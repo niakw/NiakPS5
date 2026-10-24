@@ -298,7 +298,8 @@ void work(){
  std::unordered_map<std::string,ArtSlots> index;
  std::array<SourceStamp,2> loaded_stamps{};
  bool index_loaded=false;
- unsigned indexed_attempt=0;
+ unsigned indexed_attempt=0,media_generation=~0u;
+ bool official_front_ready=false,official_back_ready=false;
  State &s=state();
  for(;;){
    Task task;
@@ -328,6 +329,18 @@ void work(){
      if(task.generation!=s.generation || task.id!=s.selected)
        continue; // navigation cancelled old work
    }
+   if(media_generation!=task.generation){
+     media_generation=task.generation;
+     official_front_ready=false;
+     official_back_ready=false;
+   }
+   // Once the genuine BACK was validated, its reconstruction screenshots
+   // are unused; likewise, a real FRONT makes an extra fallback logo
+   // unnecessary. Avoid these CDN requests and their decode/write cost.
+   if(((task.side=="hero"||task.side=="shot1"||
+        task.side=="shot2") && official_back_ready) ||
+      (task.side=="logo" && official_front_ready))
+     continue;
    // Compare two cheap local file stamps. Avoid parsing thousands of
    // LaunchBox rows during rapid navigation. Reparse when FTP replaces the
    // metadata, when a sandbox mount appears, or on empty-index retries.
@@ -351,7 +364,11 @@ void work(){
    bool reusable=false;
    for(const std::string &source:candidates)
      if(existing(target,source)){reusable=true;break;}
-   if(reusable)continue;
+   if(reusable){
+     if(task.side=="front")official_front_ready=true;
+     if(task.side=="back")official_back_ready=true;
+     continue;
+   }
    // Region/server variation: a missing FR image can fall back to EU or
    // another validated image, without ever trusting an arbitrary URL.
    const unsigned candidate_limit=
@@ -384,7 +401,13 @@ void work(){
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.generation!=s.generation || task.id!=s.selected)break;
      }
-     if(save(task,source,png)){++s.completed;downloaded=true;break;}
+     if(save(task,source,png)){
+       ++s.completed;
+       downloaded=true;
+       if(task.side=="front")official_front_ready=true;
+       if(task.side=="back")official_back_ready=true;
+       break;
+     }
      ++s.write_failed;
      std::this_thread::sleep_for(std::chrono::milliseconds(150));
    }
