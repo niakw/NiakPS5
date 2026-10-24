@@ -547,7 +547,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("static const bool live_broker",settings_ui)
         self.assertIn("niak_release_case_templates",(ROOT/"title"/"case_art.cpp").read_text())
         self.assertIn("niak_release_case_templates(renderer)",stage)
-        self.assertIn("renderer.destroy_texture(*texture)",stage)
+        self.assertIn("niak_destroy_case_texture(renderer,*texture);",stage)
         self.assertIn("case_template_back",source)
         self.assertIn("case_template_front",source)
         self.assertIn("case_template_spine",source)
