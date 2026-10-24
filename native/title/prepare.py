@@ -363,11 +363,13 @@ audio::SoundSet Shell::sound_set() const''')
                 item.case_poster=niak_load_case_art(
                     renderer,item.title_id,"poster",&item.poster_aspect);
             }
+            // Share one LaunchBox hero texture across both missing paper faces.
+            if(!item.case_front || !item.case_back)
+                item.case_hero=niak_load_case_art(
+                    renderer,item.title_id,"hero",&item.case_hero_aspect);
             if(!item.case_back) {
                 item.case_template_back=niak_load_case_template(
                     renderer,platform,"back");
-                item.case_hero=niak_load_case_art(
-                    renderer,item.title_id,"hero",&item.case_hero_aspect);
                 item.case_shot1=niak_load_case_art(
                     renderer,item.title_id,"shot1",&item.case_shot1_aspect);
                 item.case_shot2=niak_load_case_art(
@@ -506,11 +508,14 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         missing(selected.logo_art,"logo",&selected.logo_art_aspect);
         missing(selected.case_poster,"poster",&selected.poster_aspect);
     }
+    // Fanart can fill a missing FRONT when no local pic1 is available.
+    // Keep one GPU upload even when both faces must be reconstructed.
+    if(!selected.case_front || !selected.case_back)
+        missing(selected.case_hero,"hero",&selected.case_hero_aspect);
     if(!selected.case_back) {
         if(!selected.case_template_back)
             selected.case_template_back=niak_load_case_template(
                 renderer,platform,"back");
-        missing(selected.case_hero,"hero",&selected.case_hero_aspect);
         missing(selected.case_shot1,"shot1",&selected.case_shot1_aspect);
         missing(selected.case_shot2,"shot2",&selected.case_shot2_aspect);
     }
@@ -526,7 +531,9 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         selected.case_template_front=0; // shared template stays resident
     }
     if(selected.case_back) {
-        niak_destroy_case_texture(renderer,selected.case_hero);
+        // A missing FRONT may still display this shared fanart background.
+        if(selected.case_front)
+            niak_destroy_case_texture(renderer,selected.case_hero);
         niak_destroy_case_texture(renderer,selected.case_shot1);
         niak_destroy_case_texture(renderer,selected.case_shot2);
         selected.case_template_back=0;
