@@ -6,12 +6,12 @@ SOURCE=(Path(__file__).resolve().parents[1]/"prepare.py").read_text()
 
 class HydrationBudgetTest(unittest.TestCase):
     def test_ps5_icon_stream_does_not_eagerly_decode_case(self):
-        host_scope=SOURCE[SOURCE.index("#if !defined(__PROSPERO__)\\n            if(index==niak::case_media_stats.preferred_index)"):]
+        host_scope=SOURCE[SOURCE.index("#if !defined(__PROSPERO__)\n            if(index==niak::case_media_stats.preferred_index)"):]
         self.assertLess(host_scope.index("if(index==niak::case_media_stats.preferred_index)"),
                         host_scope.index("item.case_front = niak_load_case_art("))
         self.assertLess(host_scope.index("item.case_front = niak_load_case_art("),
-                        host_scope.index("} // Host preview uses complete fixtures; PS5 hydrates while idle.\\n#endif"))
-        self.assertNotIn("if(index==niak::case_media_stats.preferred_index) {\\n#endif",SOURCE)
+                        host_scope.index("} // Host preview uses complete fixtures; PS5 hydrates while idle.\n#endif"))
+        self.assertNotIn("if(index==niak::case_media_stats.preferred_index) {\n#endif",SOURCE)
         self.assertIn("case_hydration_step_=0;",SOURCE)
 
     def test_one_media_source_per_idle_tick(self):
