@@ -41,7 +41,18 @@ int main(void) {
  fputs("{\"titleId\":\"PPSA12346\",\"applicationCategoryType\":0,"
        "\"localizedParameters\":{\"en-US\":{\"titleName\":\"Eden Encore\"}}}",p);
  fclose(p);
- assert(niak_broker_inventory(buffer,sizeof(buffer),root)==4);
+ // A media app can have its verified param in appmeta, but it must still
+ // have an actual installation in /user/app.
+ snprintf(command,sizeof(command),
+    "mkdir -p '%s/user/app/NPXS11111' '%s/user/appmeta/NPXS11111'",root,root);
+ assert(system(command)==0);
+ snprintf(path,sizeof(path),"%s/user/app/NPXS11111/eboot.bin",root);
+ p=fopen(path,"wb");assert(p);fputs("elf",p);fclose(p);
+ snprintf(path,sizeof(path),"%s/user/appmeta/NPXS11111/param.json",root);
+ p=fopen(path,"wb");assert(p);
+ fputs("{\"titleId\":\"NPXS11111\",\"applicationCategoryType\":65792}",p);
+ fclose(p);
+ assert(niak_broker_inventory(buffer,sizeof(buffer),root)==5);
  assert(niak_broker_apps_from_inventory(buffer,app_ids,sizeof(app_ids),root)==2);
  assert(strstr(app_ids,"PPSA12346\n")!=NULL);
  char small[12];

@@ -42,10 +42,13 @@ static int category_of(const char *text) {
 }
 static int category_from_param(const char *root,const char *id) {
  static const char *paths[]={"/user/app/","/system_ex/app/",
-      "/data/homebrew/","/mnt/ext0/user/app/","/mnt/ext1/user/app/"};
+      "/data/homebrew/","/mnt/ext0/user/app/","/mnt/ext1/user/app/",
+      "/user/appmeta/"};
  char file[768],content[32769];
  for(size_t i=0;i<sizeof(paths)/sizeof(paths[0]);++i) {
-  int n=snprintf(file,sizeof(file),"%s%s%s/sce_sys/param.json",root,paths[i],id);
+  int n= i==5 ?
+      snprintf(file,sizeof(file),"%s%s%s/param.json",root,paths[i],id) :
+      snprintf(file,sizeof(file),"%s%s%s/sce_sys/param.json",root,paths[i],id);
   if(n<=0||n>=(int)sizeof(file))continue;
   FILE *fp=fopen(file,"rb");if(!fp)continue;
   size_t size=fread(content,1,sizeof(content)-1,fp);

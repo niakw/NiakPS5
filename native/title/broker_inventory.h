@@ -59,8 +59,22 @@ static inline int niak_broker_inventory(char *out,size_t cap,const char *root) {
    snprintf(pkg,sizeof(pkg),"%s/app.pkg",base);
    if(!niak_broker_is_file(meta)&&!niak_broker_is_file(eboot)&&
       !niak_broker_is_file(pkg))continue;
-   if(strncmp(id,"NPXS",4)==0 &&
-      (!niak_broker_is_file(meta)||!niak_broker_media(meta,id)))continue;
+   if(strncmp(id,"NPXS",4)==0) {
+     // ShadowMount and native media installers may stage the verified
+     // param.json under /user/appmeta. This is NOT proof of installation:
+     // the independently checked live /user/app or /system_ex/app folder
+     // above is still mandatory.
+     int verified=niak_broker_is_file(meta)&&niak_broker_media(meta,id);
+     if(!verified) {
+       char appmeta[640];
+       const int m=snprintf(appmeta,sizeof(appmeta),
+                          "%s/user/appmeta/%s/param.json",root,id);
+       if(m>0 && (size_t)m<sizeof(appmeta) &&
+          niak_broker_is_file(appmeta))
+         verified=niak_broker_media(appmeta,id);
+     }
+     if(!verified)continue;
+   }
    int duplicate=0;
    for(size_t pos=0;pos+10<=used;pos+=10)
     if(memcmp(out+pos,id,9)==0){duplicate=1;break;}
