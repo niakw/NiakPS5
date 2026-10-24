@@ -432,7 +432,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_destroy_case_texture(renderer,selected.case_hero);",stage)
         self.assertIn("if(!item.case_front || !item.case_back)",stage)
         self.assertIn("if(!selected.case_front || !selected.case_back)",stage)
-        self.assertIn("if(selected.case_front)\\n            niak_destroy_case_texture(renderer,selected.case_hero);",stage)
+        self.assertIn("if(selected.case_front)\n            niak_destroy_case_texture(renderer,selected.case_hero);",stage)
         self.assertIn("item.case_hero?item.case_hero:",source)
         self.assertIn("item.case_hero?item.case_hero_aspect:1.0f;",source)
         # The cached hero must never be destroyed while the front relies on it.
