@@ -94,6 +94,7 @@ jobs:
           python3 - <<'PY'
           import hashlib,json
           from pathlib import Path
+          from PIL import Image
           base=Path('dist/ftp-dropin')
           assert sorted(p.name for p in base.iterdir())==['data']
           root=base/'data'
@@ -107,9 +108,15 @@ jobs:
           elf=(payload/'niakps5.elf').read_bytes()
           assert elf==(title/'tools/niakps5/niakps5.elf').read_bytes()
           assert json.loads((payload/'niakps5.elf.json').read_text())['checksum']==hashlib.sha256(elf).hexdigest()
-          for console in ('ps4','ps5'):
-              for side in ('front','back','spine'):
-                  assert (title/f'assets/niak-templates/{console}-{side}.png').is_file()
+          expected={
+              'ps4-front':(949,136),'ps4-back':(647,362),'ps4-spine':(72,800),
+              'ps5-front':(1487,209),'ps5-back':(1000,411),'ps5-spine':(85,1000),
+          }
+          for piece,dimensions in expected.items():
+              art=title/f'assets/niak-templates/{piece}.webp'
+              assert art.is_file() and art.stat().st_size>0,art
+              with Image.open(art) as image:
+                  assert image.format=='WEBP' and image.size==dimensions,art
           assert not any(p.suffix.lower()=='.zip' for p in base.rglob('*'))
           assert not any('autoload.txt' in p.name or 'pldmgr_config.txt' in p.name for p in base.rglob('*'))
           print('FTP delivery validated: exactly one data/ directory, zero nested ZIPs')
