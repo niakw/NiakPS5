@@ -1,13 +1,15 @@
-# GitHub About — Repository profile
+# GitHub About / Profil du dépôt
 
-Description (EN, ready to paste):
-> Native PS5 homebrew launcher with DualSense navigation, a live games & apps library, animated PS4/PS5 3D cases and private LaunchBox artwork caching.
+**English — description to paste into GitHub About**
 
-Description (FR):
-> Accueil natif PS5 homebrew : navigation DualSense, bibliothèque jeux et applications, boîtiers 3D PS4/PS5 et cache privé LaunchBox.
+> Native PS5 homebrew launcher with a DualSense game library and animated PS4/PS5 3D cases.
+
+**Français — description courte**
+
+> Accueil natif PS5 homebrew : bibliothèque DualSense et boîtiers 3D PS4/PS5.
 
 Suggested topics: `ps5`, `homebrew`, `playstation-5`, `dualsense`, `opengl`, `launcher`, `launchbox`, `ps5-jailbreak`.
 
-Website (optional): leave blank unless an official project site exists. Do not invent one.
+Website: leave empty unless an official project site exists.
 
-The GitHub **About** description and topics must be set in the repository's GitHub UI by an authorized maintainer when repository-metadata write permission is not exposed by the connector.
+**Publishing:** This file only documents the intended description and topics. The connected GitHub integration can update source files but cannot edit repository About/topics. An authorized maintainer must set them in the GitHub repository sidebar; this document is not a claim that profile metadata has been updated.
