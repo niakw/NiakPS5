@@ -9,7 +9,7 @@ class NativeTitleTests(unittest.TestCase):
         stage=(ROOT/"title"/"prepare.py").read_text()
         source=(ROOT.parent/"native/catalog.c").read_text()
         self.assertIn('"localized_name.h","title_category.h"',stage)
-        self.assertIn('#include "localized_name.h"',source)
+        self.assertIn('#include "title/localized_name.h"',source)
 
     def test_all_game_french_source_index_is_canonical_and_safe(self):
         import importlib.util
