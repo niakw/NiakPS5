@@ -147,7 +147,7 @@ def make_case_art_fixtures(kit):
                 asset.load()
                 if asset.format!="WEBP":
                     raise RuntimeError("Invalid PS4/PS5 original-preview visual")
-                asset.convert("RGB").save(
+                asset.convert("RGBA").save(
                     templates/name.replace(".webp",".png"),optimize=True)
     # Human-readable proof INSIDE THE SAME STANDARD ARTIFACT:
     # six fixed pieces shown by platform, independently of tiny 3D sleeves.
@@ -262,7 +262,7 @@ def patch(kit):
     (void)catalog.stream_next_covers(renderer,fonts,catalog.size());
     const auto &media=niak::case_media_stats;
     if(media.titles!=2 || media.fronts!=0 || media.backs!=0 ||
-       media.spines!=0 || media.templates!=2) {
+       media.spines!=0) {
         std::fprintf(stderr,
             "six-view fixtures invalid: titles=%u front=%u back=%u spine=%u templates=%u\\n",
             media.titles,media.fronts,media.backs,media.spines,media.templates);

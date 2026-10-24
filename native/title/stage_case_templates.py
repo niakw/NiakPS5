@@ -49,7 +49,8 @@ def stage(folder:Path):
                 # Same artwork, no synthetic logos/images. Resample to PS5
                 # runtime-required dimensions; private full-res PNGs may
                 # replace these six paths later over FTP.
-                image=image.convert("RGB").resize(size,Image.Resampling.LANCZOS)
+                # Preserve genuine alpha in fixed elements; do not flatten overlays.
+                image=image.convert("RGBA").resize(size,Image.Resampling.LANCZOS)
                 dest=output/(name+".png")
                 if not dest.is_file():
                     image.save(dest,"PNG",optimize=True)

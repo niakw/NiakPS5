@@ -199,6 +199,16 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
 #endif
     return fail("PNG decoding failed");
  }
+ // An invariant footer must be a TRANSPARENT overlay above the single
+ // continuous paper. The bundled opaque example-game footers carry another
+ // game's details and must never look like a separate pasted rectangle.
+ if(side==1) {
+     std::size_t clear=0;
+     for(std::size_t i=3;i<pixels.size();i+=4)
+         clear+=pixels[i]<=16;
+     if(clear*20 < std::size_t(w)*h)
+         return fail("opaque sample footer rejected; background remains seamless");
+ }
  // Shared mastheads/footers also avoid needless original-size GPU textures.
  if(!niak_scale_case_rgba(pixels,w,h,side==2?96u:1024u,
                           side==2?768u:512u))return fail("resampling failed");

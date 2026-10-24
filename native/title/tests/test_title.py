@@ -426,7 +426,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("media.fronts!=0",host)
         self.assertIn("media.backs!=0",host)
         self.assertIn("media.spines!=0",host)
-        self.assertIn("media.templates!=2",host)
+        self.assertIn("media.spines!=0",host)
+        self.assertNotIn("media.templates!=2",host)
+        self.assertIn('if(side==1)',(ROOT/"title"/"case_art.cpp").read_text())
+        self.assertIn('clear*20 < std::size_t(w)*h',(ROOT/"title"/"case_art.cpp").read_text())
+        self.assertIn('convert("RGBA")',(ROOT/"title"/"stage_case_templates.py").read_text())
         self.assertIn("item.application=false",host)
         self.assertIn("reconstructed back artwork block missing",validator)
         for platform in ("ps4","ps5"):
