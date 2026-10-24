@@ -284,6 +284,18 @@ static void serve_launch_requests(void) {
                                        count,stamp)==0)
                     report("NiakPS5 legacy snapshot installed titles",count);
                 else report("NiakPS5 legacy snapshot write refused",errno);
+                // Preserve media/app category from the privileged, live
+                // installed manifests. The old GAMES socket only sends IDs.
+                char app_ids[8192]={0};
+                const int apps=niak_broker_apps_from_inventory(
+                    inventory,app_ids,sizeof(app_ids),"");
+                if(apps>=0) {
+                    (void)niak_snapshot_write(NIAK_APPS_SNAPSHOT_APP_SOURCE,
+                                              app_ids,apps,stamp);
+                    (void)niak_snapshot_write(NIAK_APPS_SNAPSHOT_FILE,
+                                              app_ids,apps,stamp);
+                    report("NiakPS5 verified installed applications",apps);
+                }
             } else report("NiakPS5 broker inventory roots inaccessible",count);
             report("NiakPS5 broker heartbeat PID",(int)getpid());
             // Timestamp each heartbeat so offline FTP diagnostics can tell

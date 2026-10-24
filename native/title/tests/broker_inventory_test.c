@@ -28,6 +28,22 @@ int main(void) {
  assert(strstr(buffer,"LAPY12345\n")!=NULL);
  assert(strstr(buffer,"NPXS54321\n")!=NULL);
  assert(strstr(buffer,"NPXS99999")==NULL);
+ char app_ids[8192];
+ assert(niak_broker_apps_from_inventory(buffer,app_ids,sizeof(app_ids),root)==1);
+ assert(strcmp(app_ids,"NPXS54321\n")==0);
+ // A native-game-category homebrew with a known application identity is
+ // still an application, independent of PPSA/CUSA and install origin.
+ snprintf(command,sizeof(command),
+    "mkdir -p '%s/data/homebrew/PPSA12346/sce_sys'",root);
+ assert(system(command)==0);
+ snprintf(path,sizeof(path),"%s/data/homebrew/PPSA12346/sce_sys/param.json",root);
+ p=fopen(path,"wb");assert(p);
+ fputs("{\"titleId\":\"PPSA12346\",\"applicationCategoryType\":0,"
+       "\"localizedParameters\":{\"en-US\":{\"titleName\":\"Eden Encore\"}}}",p);
+ fclose(p);
+ assert(niak_broker_inventory(buffer,sizeof(buffer),root)==4);
+ assert(niak_broker_apps_from_inventory(buffer,app_ids,sizeof(app_ids),root)==2);
+ assert(strstr(app_ids,"PPSA12346\n")!=NULL);
  char small[12];
  assert(niak_broker_inventory(small,sizeof(small),root)==1);
  snprintf(command,sizeof(command),"rm -rf -- '%s'",root);

@@ -72,4 +72,54 @@ static inline int niak_broker_inventory(char *out,size_t cap,const char *root) {
  }
  return accessible?total:-1;
 }
+/* A second, bounded inventory records only application IDs from the
+ * already-validated live GAMES list. Homebrew param.json often uses native
+ * game category 0 even for utility launchers. A verified media category or
+ * recognized launcher title in its OWN installed manifest makes it an app.
+ * Unknown NPXS shell services remain excluded by niak_broker_inventory.
+ */
+static inline int niak_broker_apps_from_inventory(const char *ids,
+                                                  char *apps,size_t cap,
+                                                  const char *root) {
+ if(!ids||!apps||cap<2||!root)return -1;
+ static const char *const roots[]={"/user/app","/system_ex/app",
+   "/mnt/ext0/user/app","/mnt/ext1/user/app","/data/homebrew"};
+ apps[0]=0;size_t used=0;int count=0;
+ const char *cursor=ids;
+ while(*cursor) {
+  if(strlen(cursor)<10 || cursor[9]!='\n')return -1;
+  char id[10];memcpy(id,cursor,9);id[9]=0;cursor+=10;
+  if(!niak_broker_id(id))return -1;
+  int is_app=0;
+  for(size_t k=0;k<sizeof(roots)/sizeof(roots[0]);++k) {
+   char file[800];
+   const int n=snprintf(file,sizeof(file),
+       "%s%s/%s/sce_sys/param.json",root,roots[k],id);
+   if(n<=0||(size_t)n>=sizeof(file)||!niak_broker_is_file(file))continue;
+   FILE *f=fopen(file,"rb");if(!f)continue;
+   char json[32769]={0};
+   const size_t size=fread(json,1,sizeof(json)-1,f);
+   const int complete=feof(f);
+   fclose(f);
+   if(!complete||size<12||size>=sizeof(json))continue;
+   if(niak_is_installed_media_category_for_title(json,id)) {
+       is_app=1;break;
+   }
+   // Only apply these named launchers to non-NPXS *installed* titles.
+   // Strings here classify shelf presentation, not execution rights.
+   if(strncmp(id,"NPXS",4)!=0 &&
+      (strstr(json,"ShadowMount")||strstr(json,"shadowmount")||
+       strstr(json,"Eden Encore")||strstr(json,"Eden-Encore")||
+       strstr(json,"Mes vid")||strstr(json,"My Videos"))) {
+       is_app=1;break;
+   }
+  }
+  if(is_app) {
+   if(used+11>cap)return -1;
+   memcpy(apps+used,id,9);apps[used+9]='\n';
+   used+=10;apps[used]=0;++count;
+  }
+ }
+ return count;
+}
 #endif

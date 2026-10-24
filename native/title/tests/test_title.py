@@ -365,6 +365,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("panel(art,art_aspect",source)
         self.assertIn("if(!item.title_id[0] || item.application)",source)
         self.assertIn("niak_application_category(",stage)
+        self.assertIn("verified_count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_FILE",stage)
         self.assertNotIn("const auto title_rect=text_bounds(",source)
         self.assertNotIn("const float space=1.f-layout.front_header;",source)
         self.assertEqual(source.count("panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);"),2)

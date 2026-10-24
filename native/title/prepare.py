@@ -734,6 +734,30 @@ void Catalog::reload()
             }
         }
     }
+    // The PLDmgr broker sees param.json where the sandbox sees only IDs.
+    // Read the second, equally fresh/validated subset: category is applied
+    // ONLY to titles already in the live merged inventory, never promoted
+    // from an old standalone record.
+    std::vector<NiakGame> verified_apps(NIAKPS5_MAX_GAMES);
+    int verified_count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_FILE,
+                                          verified_apps.data(),verified_apps.size());
+    if(verified_count<0)
+        verified_count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_SOURCE,
+                                          verified_apps.data(),verified_apps.size());
+    if(verified_count<0)
+        verified_count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_FILE,
+                                          verified_apps.data(),verified_apps.size());
+    if(verified_count>0) {
+        for(int j=0;j<verified_count;++j)
+            for(std::size_t i=0;i<count;++i)
+                if(std::strcmp(games[i].id,
+                               verified_apps[static_cast<std::size_t>(j)].id)==0) {
+                    games[i].application_category=2;
+                    break;
+                }
+    }
+    sys::log("[NiakPS5] verified apps: %d; inventory=%zu",
+             verified_count,count);
     // Local FTP metadata enriches ONLY live IDs: never resurrect stale apps.
     std::vector<NiakGame> observed(games.size());
     int cached_count=niak_scan_local_inventory(

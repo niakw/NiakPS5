@@ -22,6 +22,9 @@
 #define NIAK_SNAPSHOT_FILE "/data/niakps5-games.snapshot"
 #define NIAK_SNAPSHOT_APP_SOURCE "/data/homebrew/PPSA99386/assets/niakps5-games.snapshot"
 #define NIAK_SNAPSHOT_APP_FILE "/app0/assets/niakps5-games.snapshot"
+#define NIAK_APPS_SNAPSHOT_APP_SOURCE "/data/homebrew/PPSA99386/assets/niakps5-apps.snapshot"
+#define NIAK_APPS_SNAPSHOT_APP_FILE "/app0/assets/niakps5-apps.snapshot"
+#define NIAK_APPS_SNAPSHOT_FILE "/data/niakps5-apps.snapshot"
 #define NIAK_SNAPSHOT_MAX_AGE 600LL
 #define NIAK_SNAPSHOT_MAX_GAMES 512
 #define NIAK_SNAPSHOT_VERSION "NIAKPS5-GAMES-1"
