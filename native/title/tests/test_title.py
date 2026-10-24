@@ -165,14 +165,16 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("else if(item.cover_is_image && item.cover)",renderer)
         self.assertIn("if(!chosen.first.texture && item.case_hero)",renderer)
         self.assertIn("Color::rgb(0x0c1727)",renderer)
-        self.assertIn("Color::rgb(0x12243b)",renderer)
+        self.assertIn("Color::rgb(ps4?0x161a19:0xffffff)",renderer)
 
     def test_installed_apps_are_not_forced_into_games_by_homebrew_origin(self):
         staging=(ROOT/"title"/"prepare.py").read_text()
-        self.assertIn('std::strcmp(game.title,"ShadowMountPlus")==0',staging)
-        self.assertIn('(known && meta.category=="Application")',staging)
-        self.assertIn('game.application_category==2 ||',staging)
-        self.assertIn('game.application_category==1 ||',staging)
+        self.assertIn("item.application=niak_application_category(",staging)
+        header=(ROOT/"title"/"app_classification.hpp").read_text()
+        self.assertIn('prefix("shadowmount")',header)
+        self.assertIn('prefix("eden encore")',header)
+        self.assertIn('verified==2||catalog_app',header)
+        self.assertIn('verified==1||catalog_game',header)
 
     def test_broker_catalogue_fallback_without_privileged_gui(self):
         staging=(ROOT/"title"/"prepare.py").read_text()
@@ -277,7 +279,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("clock_ - case_selected_at_",source)
         self.assertIn("shelf.column = next;",source)
         self.assertIn("row_ = next;",source)
-        self.assertIn("if(!item.title_id[0])",case)
+        self.assertIn("if(!item.title_id[0] || item.application)",case)
         self.assertNotIn("loading_percent",case)
         self.assertNotIn("progress_percent",case)
 
@@ -510,19 +512,12 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('"Dernier inventaire local"',source)
         self.assertIn('item.application ? "Application installée"',source)
         self.assertNotIn('game.is_homebrew ? "Application" : "Jeu installé"',source)
-        # Regression: the fallback homebrew flag must NOT overwrite an
-        # explicit PS5 media/game applicationCategoryType decision.
-        start=source.index("if(std::strcmp(game.id,\"PPSA99386\")==0)")
-        end=source.index("item.blurb = owned_blurbs_",start)
-        classification=source[start:end]
-        self.assertLess(classification.index('std::strcmp(game.title,"Mes vidéos")==0'),
-                        classification.index("game.application_category==1"))
-        self.assertLess(classification.index("game.application_category==2"),
-                        classification.index("game.application_category==1"))
-        self.assertLess(classification.index('meta.category=="Application"'),
-                        classification.index("item.application=game.is_homebrew!=0"))
-        self.assertEqual(classification.count("item.application=game.is_homebrew!=0"),1)
-        self.assertNotIn('else item.application=game.is_homebrew!=0;',classification)
+        # PS5 titles and homebrew origins remain independent from category.
+        self.assertIn("item.application=niak_application_category(",source)
+        header=(ROOT/"title"/"app_classification.hpp").read_text()
+        self.assertIn('verified==2||catalog_app',header)
+        self.assertIn('verified==1||catalog_game',header)
+        self.assertNotIn('else item.application=game.is_homebrew!=0;',source)
         self.assertIn("niak_launch_registered_title",source)
         self.assertIn("serve_launch_requests",(ROOT/"title"/"autostart.c").read_text())
         broker=(ROOT/"title"/"autostart.c").read_text()

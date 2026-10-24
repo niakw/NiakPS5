@@ -16,7 +16,7 @@ class BackMediaTests(unittest.TestCase):
   s=(ROOT/"case_renderer.cpp").read_text()
   self.assertIn("niak_select_back_media({",s)
   self.assertIn("if(chosen.second.texture)",s)
-  self.assertIn("block(0.f,0.f,1.f,1.f,Color::rgb(0x12243b))",s)
+  self.assertIn("Color::rgb(ps4?0x161a19:0xffffff)",s)
   self.assertNotIn("item.cover?item.cover:source",s)
   idx=(ROOT/"launchbox_index.py").read_text()
   self.assertIn("Screenshot - Gameplay",idx)
