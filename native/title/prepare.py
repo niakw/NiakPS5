@@ -617,6 +617,7 @@ extern "C" {
 #include "niak/title_meta.hpp"
 #include "niak/app_classification.hpp"
 #include "niak/broker_catalog.hpp"
+#include "niak/broker_snapshot.h"
 #include "niak/local_inventory.h"
 #include <algorithm>
 #include <cstdio>
