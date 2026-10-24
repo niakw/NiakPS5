@@ -69,10 +69,13 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
      }
  }
 #endif
+ // A verified CDN replacement takes priority over older FTP artwork.
+ // Without this ordering a downloaded PS5 back could stay invisible behind
+ // the previously installed PS4/PC fallback after a successful upgrade.
+ std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.png",id,side);
+ paths.emplace_back(file);
  std::snprintf(file,sizeof(file),
      "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",id,side);
- paths.emplace_back(file);
- std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.png",id,side);
  paths.emplace_back(file);
  std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
  paths.emplace_back(file);

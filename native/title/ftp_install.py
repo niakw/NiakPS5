@@ -556,13 +556,16 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
             destination=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
             choices=columns[field]
             if choices=="-":continue
-            candidates={choice.split(":",1)[-1] for choice in choices.split(";")}
+            # The first entry is the highest-priority valid source (for
+            # Box - Back: PS5 -> PS4 -> PC). A cached PC image must not
+            # permanently prevent promotion to the native PlayStation back.
+            first_source=choices.split(";",1)[0].split(":",1)[-1]
             if posixpath.basename(destination) in cached and not force:
                 source=sources.get((ident,side))
-                if source in candidates and _cache_hit(ftp,destination,side):
+                if source==first_source and _cache_hit(ftp,destination,side):
                     reusable+=1
                     continue
-                stale+=1   # Old, wrong region, or unreadable: repair ONLY this side.
+                stale+=1   # Lower-ranked or invalid: retry, keep image on failure.
             for candidate in choices.split(";")[:8]:
                 parts=candidate.split(":",1)
                 if len(parts)!=2:continue

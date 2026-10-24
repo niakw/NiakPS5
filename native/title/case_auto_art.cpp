@@ -81,6 +81,7 @@ struct State {
      network_failed{0},decode_failed{0},write_failed{0},unmatched{0};
  std::atomic<int> last_network_error{0},last_network_stage{0};
  std::atomic<unsigned> requests{0}, exhausted{0};
+ std::array<std::atomic<unsigned>,7> side_completed{};
 };
 State& state(){static State *instance=new State;return *instance;}
 int side_index(const std::string& side){
@@ -435,6 +436,7 @@ void work(){
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.generation!=s.generation || task.id!=s.selected)break;
        if(saved){
+         ++s.side_completed[static_cast<std::size_t>(field)];
          ++s.completed;
          downloaded=true;
          if(task.side=="front")official_front_ready=true;
@@ -520,11 +522,15 @@ void niak_select_case_art(const char *title_id) {
 NiakArtDownloadStatus niak_case_art_download_status(){
 #if defined(__PROSPERO__)
  const State &s=state();
- return {s.indexed.load(),s.queued.load(),s.completed.load(),
-         s.network_failed.load(),s.decode_failed.load(),
-         s.write_failed.load(),s.unmatched.load(),
-         s.last_network_error.load(),s.requests.load(),s.exhausted.load(),
-          s.last_network_stage.load()};
+ NiakArtDownloadStatus result{
+     s.indexed.load(),s.queued.load(),s.completed.load(),
+     s.network_failed.load(),s.decode_failed.load(),
+     s.write_failed.load(),s.unmatched.load(),
+     s.last_network_error.load(),s.requests.load(),s.exhausted.load(),
+     s.last_network_stage.load()};
+ for(std::size_t i=0;i<result.sides_completed.size();++i)
+     result.sides_completed[i]=s.side_completed[i].load();
+ return result;
 #else
  return {};
 #endif

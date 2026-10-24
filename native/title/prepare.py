@@ -253,7 +253,7 @@ audio::SoundSet Shell::sound_set() const''')
                  '    float case_shot2_aspect = 16.0f/9.0f;\n'
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
                  '#include "gfx/draw_list.hpp"\n#include "niak/cover_stream_state.hpp"')
     replace_once(catalog_h,
@@ -418,7 +418,9 @@ audio::SoundSet Shell::sound_set() const''')
     cover_stream_.reset(items_.size());
     last_case_focus_=-1;
     retained_case_focus_=-1;
-    last_case_completed_=niak_case_art_download_status().completed;
+    const auto case_status=niak_case_art_download_status();
+    last_case_completed_=case_status.completed;
+    last_case_sides_=case_status.sides_completed;
     niak::case_media_stats.total_titles=static_cast<unsigned>(
         std::count_if(items_.begin(),items_.end(),
             [](const Item &item){return item.title_id[0]!=0;}));
@@ -449,7 +451,8 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
 bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
 {
     const int index=niak::case_media_stats.preferred_index;
-    const unsigned completed=niak_case_art_download_status().completed;
+    const auto case_status=niak_case_art_download_status();
+    const unsigned completed=case_status.completed;
     if(index<0 || static_cast<std::size_t>(index)>=items_.size())return false;
     if(index==last_case_focus_ && completed==last_case_completed_)
         return false;
@@ -474,6 +477,10 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     }
     last_case_focus_=index;
     last_case_completed_=completed;
+    std::array<bool,7> updated{};
+    for(std::size_t side=0;side<updated.size();++side)
+        updated[side]=case_status.sides_completed[side]!=last_case_sides_[side];
+    last_case_sides_=case_status.sides_completed;
     // Show CURRENT resident media, not historical texture creations.
     // Reconcile only on focus changes and completed CDN downloads.
     const auto recount_case_faces=[&] {
@@ -495,6 +502,19 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         return false;
     }
     bool changed=false;
+    // A loaded fallback MUST be replaced after a higher-priority CDN
+    // candidate arrives. Release only the affected face, not every
+    // reconstructed texture on each of the seven independent downloads.
+    for(std::pair<bool,std::uint32_t*> updated_side : {
+         std::pair<bool,std::uint32_t*>{updated[0],&selected.case_front},
+         {updated[1],&selected.case_back},
+         {updated[2],&selected.case_spine},
+         {updated[3],&selected.logo_art},
+         {updated[4],&selected.case_hero},
+         {updated[5],&selected.case_shot1},
+         {updated[6],&selected.case_shot2}})
+        if(updated_side.first)
+            niak_destroy_case_texture(renderer,*updated_side.second);
     const auto missing=[&](std::uint32_t &texture,const char *side,
                            float *aspect=nullptr) {
         if(texture)return;
