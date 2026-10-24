@@ -17,7 +17,7 @@
 #include <vector>
 
 #if defined(__PROSPERO__)
-#include "niak/console_curl.h"
+#include "platform/ps5/console_curl.h"
 #include "niak/one_shot_install.hpp"
 #include <mutex>
 #include <chrono>
