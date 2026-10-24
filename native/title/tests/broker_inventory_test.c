@@ -53,7 +53,8 @@ int main(void) {
  fputs("{\"titleId\":\"NPXS11111\",\"applicationCategoryType\":65792}",p);
  fclose(p);
  assert(niak_broker_inventory(buffer,sizeof(buffer),root)==5);
- assert(niak_broker_apps_from_inventory(buffer,app_ids,sizeof(app_ids),root)==2);
+ assert(niak_broker_apps_from_inventory(buffer,app_ids,sizeof(app_ids),root)==3);
+ assert(strstr(app_ids,"NPXS11111\n")!=NULL);
  assert(strstr(app_ids,"PPSA12346\n")!=NULL);
  char small[12];
  assert(niak_broker_inventory(small,sizeof(small),root)==1);
