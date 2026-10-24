@@ -155,8 +155,15 @@ std::unordered_map<std::string,ArtSlots> read_index(){
    for(const auto &part:parts)usable|=!part.empty();
    if(!usable)continue;
    auto &current=index[columns[0]];
-   for(std::size_t i=0;i<current.size();++i)
-     if(!parts[i].empty())current[i]=std::move(parts[i]);
+   for(std::size_t i=0;i<current.size();++i) {
+     // Keep newly shipped official metadata first; a private FTP re-index
+     // contributes missing candidates instead of replacing better ones.
+     for(const auto &candidate:parts[i]) {
+       if(current[i].size()>=12)break;
+       if(std::find(current[i].begin(),current[i].end(),candidate)
+          ==current[i].end())current[i].push_back(candidate);
+     }
+   }
  }
  std::fclose(f);
  }
