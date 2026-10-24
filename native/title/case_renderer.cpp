@@ -157,7 +157,18 @@ void outer_face(DrawList &list,const Camera &camera,
                 (item.cover_is_image?item.cover:0);
             const float art_aspect=item.case_poster?item.poster_aspect:
                 item.case_scene?item.case_scene_aspect:1.0f;
-            panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
+            if(art && art==item.cover && !item.case_poster &&
+               !item.case_scene) {
+                // Square icon fallback: preserve its entire width and keep
+                // an opaque cover-colored background around it.
+                const float space=1.f-layout.front_header;
+                const float h=std::min(space*0.74f,
+                    case_aspect*0.88f/std::max(0.1f,art_aspect));
+                const float w=std::min(0.88f,h*art_aspect/case_aspect);
+                const float x=(1.f-w)*0.5f;
+                const float y=layout.front_header+(space-h)*0.5f;
+                panel(art,art_aspect,x,y,x+w,y+h);
+            } else panel(art,art_aspect,0.f,layout.front_header,1.f,1.f);
             if(item.case_template_front) {
                 // The masthead is invariant and occupies only the top ~10.8%.
                 const auto banner=[&](float u,float v){
@@ -187,7 +198,8 @@ void outer_face(DrawList &list,const Camera &camera,
         } else {
             // FULLY OPAQUE printable back under every image, text block and
             // footer. Plastic is visible only on the external 3D case edges.
-            block(0.f,0.f,1.f,1.f,Color::rgb(0x12243b));
+            block(0.f,0.f,1.f,1.f,
+                  Color::rgb(ps4?0x161a19:0xffffff));
             const float gutter=0.018f;
             // Only two genuinely different gameplay screenshots can form
             // two columns. With zero/one screenshot, select ONE existing
@@ -221,7 +233,7 @@ void outer_face(DrawList &list,const Camera &camera,
             }
             // Clear an actual print gap between the image mosaic and footer.
             block(0.f,layout.back_art_bottom,1.f,layout.back_footer,
-                  Color::rgb(0x12243b));
+                  Color::rgb(ps4?0x161a19:0xffffff));
             if(item.case_template_back) {
                 const auto footer=[&](float u,float v) {
                     return paper(u,layout.back_footer+
@@ -245,18 +257,7 @@ void outer_face(DrawList &list,const Camera &camera,
                                               std::fabs(bb.x-aa.x)};
             };
             if(!back) {
-                // A missing genuine transparent logo can still be represented
-                // by the real installed title. Never stamp text twice.
-                if(!item.logo_art) {
-                    const auto title_rect=text_bounds(0.055f,0.94f,0.824f);
-                    const auto pos=paper(0.055f,0.824f);
-                    if(title_rect.second>65.f)
-                        hui::ui::paragraph(list,fonts.semibold,item.title,
-                            title_rect.first,pos.y,
-                            std::clamp(title_rect.second*0.066f,11.f,19.f),
-                            title_rect.second,22.f,
-                            Color::rgb(0xffffff),3);
-                }
+                // No duplicate game title on front; the icon is sufficient.
                 if(!item.case_template_front) {
                     const auto top=text_bounds(0.08f,0.92f,0.047f);
                     const auto pos=paper(0.5f,0.047f);
@@ -279,7 +280,7 @@ void outer_face(DrawList &list,const Camera &camera,
                         area.first,pos.y,
                         std::clamp(area.second*0.046f,9.f,14.f),
                         area.second,ps4?14.f:16.f,
-                        Color::rgb(0xf3f7ff),ps4?6:8);
+                        Color::rgb(ps4?0xf3f7ff:0x161a19),ps4?6:8);
                 }
                 // If the owner lacks the invariant footer, show a neutral
                 // disclaimer instead of another game's classification/SKU.
@@ -360,8 +361,9 @@ void niak_draw_rotating_case(hui::gfx::DrawList &list,const hui::demo::Item &ite
                              const hui::ui::Fonts &fonts) {
     // Homebrew games can have genuine privately supplied front/back scans.
     // If none exists, use the installed app icon rather than invent box art.
-    if(!item.title_id[0]) {
-        list.image(item.cover,bounds,
+    if(!item.title_id[0] || item.application) {
+        list.rounded_rect(bounds,26,Color::rgb(0x0f2231));
+        if(item.cover)list.image(item.cover,bounds,
                    item.cover_is_image?hui::gfx::kFullUv:hui::gfx::kCanvasUv,
                    Color::rgb(0xffffff),26);
         return;

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+// A launcher or media utility must never acquire a commercial game box.
+#include <string>
+inline bool niak_known_application(const char *name) {
+ if(!name)return false;
+ std::string value;
+ for(const unsigned char *p=(const unsigned char*)name;
+     *p && value.size()<160;++p) {
+   if(*p>='A'&&*p<='Z')value.push_back(char(*p-'A'+'a'));
+   else if((*p>='a'&&*p<='z')||(*p>='0'&&*p<='9'))
+     value.push_back(char(*p));
+   else if(*p==' '||*p=='_'||*p=='-')value.push_back(' ');
+ }
+ auto prefix=[&](const char *s){return value.rfind(s,0)==0;};
+ return prefix("shadowmount")||prefix("eden encore")||
+        prefix("niakps5")||prefix("mes vid")||prefix("my videos")||
+        prefix("media gallery");
+}
+inline bool niak_application_category(const char *id,const char *name,
+ int verified,int is_homebrew,bool catalog_app,bool catalog_game){
+ if(id && std::string(id)=="PPSA99386")return true;
+ if(niak_known_application(name))return true;
+ if(verified==2||catalog_app)return true;
+ if(verified==1||catalog_game)return false;
+ return is_homebrew!=0;
+}

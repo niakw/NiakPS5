@@ -350,9 +350,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("left_spine(",source)
         self.assertIn("if(item.case_spine)",source)
         self.assertIn("panel(art,art_aspect",source)
+        self.assertIn("if(!item.title_id[0] || item.application)",source)
+        self.assertIn("niak_application_category(",stage)
+        self.assertNotIn("const auto title_rect=text_bounds(",source)
+        self.assertIn("const float space=1.f-layout.front_header;",source)
         self.assertIn("niak_select_back_media({",source)
         self.assertIn("if(chosen.second.texture)",source)
-        self.assertIn("block(0.f,0.f,1.f,1.f,Color::rgb(0x12243b))",source)
+        self.assertIn("Color::rgb(ps4?0x161a19:0xffffff)",source)
         self.assertNotIn("item.cover?item.cover:source",source)
         # Fallback design is runtime geometry; no generated image or new
         # commercial artwork is embedded in the application package.

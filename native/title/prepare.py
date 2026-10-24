@@ -272,7 +272,8 @@ audio::SoundSet Shell::sound_set() const''')
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
                      "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp",
                      "broker_catalog.cpp","broker_catalog.hpp","broker_snapshot.h","local_inventory.h",
-                     "launch_log_status.h","case_fallback_layout.hpp","case_back_media.hpp"):
+                     "launch_log_status.h","case_fallback_layout.hpp","case_back_media.hpp",
+                     "app_classification.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("profile.cpp", "profile.hpp", "avatar_dds.cpp", "avatar_dds.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
@@ -314,6 +315,13 @@ audio::SoundSet Shell::sound_set() const''')
         // Prefer the true installed app icon from the local system catalogue.
         // If absent/forbidden/corrupt, generate the existing neutral placeholder.
         if (item.title_id[0]) {
+            if(item.application) {
+                // Applications show native icons, never downloadable game art.
+                item.cover=niak_load_game_icon(renderer,item.title_id);
+                item.cover_is_image=item.cover!=0;
+                ++niak::case_media_stats.titles;
+                niak::case_media_stats.icons+=item.cover!=0;
+            } else {
             item.case_front = niak_load_case_art(renderer,item.title_id,"front");
             item.case_back = niak_load_case_art(renderer,item.title_id,"back");
             item.case_spine = niak_load_case_art(renderer,item.title_id,"spine");
@@ -356,6 +364,7 @@ audio::SoundSet Shell::sound_set() const''')
             stats.templates+=item.case_template_front!=0 &&
                              item.case_template_back!=0 &&
                              item.case_template_spine!=0;
+            } // game-only case media
         }
         if (item.cover)
         {
@@ -605,6 +614,7 @@ extern "C" {
 #endif
 #include "platform/ps5/system.hpp"
 #include "niak/title_meta.hpp"
+#include "niak/app_classification.hpp"
 #include "niak/broker_catalog.hpp"
 #include "niak/local_inventory.h"
 #include <algorithm>
@@ -786,21 +796,10 @@ void Catalog::reload()
             // The verified category wins over the installation origin.
             // Previously, the unconditional trailing "else" overwrote this
             // classification for virtually every game/media application.
-            if(std::strcmp(game.id,"PPSA99386")==0)
-                item.application=true; // NiakPS5 is always an app.
-            else if (std::strcmp(game.title,"Mes vidéos")==0 ||
-                     std::strcmp(game.title,"My Videos")==0 ||
-                     std::strcmp(game.title,"ShadowMount")==0 ||
-                     std::strcmp(game.title,"ShadowMountPlus")==0)
-                item.application=true; // Explicitly known console utility/media.
-            else if (game.application_category==2 ||
-                     (known && meta.category=="Application"))
-                item.application=true; // Verified inventory overrides install origin.
-            else if (game.application_category==1 ||
-                     (known && meta.category=="Jeu"))
-                item.application=false;
-            else
-                item.application=game.is_homebrew!=0;
+            item.application=niak_application_category(
+                game.id,owned_titles_.back().c_str(),game.application_category,
+                game.is_homebrew,known && meta.category=="Application",
+                known && meta.category=="Jeu");
             item.studio=game.discovered_from_homebrew==3
                 ? "Dernier inventaire local" :
                 item.application ? "Application installée" : "Jeu installé";
