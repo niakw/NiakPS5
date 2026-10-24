@@ -511,6 +511,39 @@ class AutoloadTests(unittest.TestCase):
             self.assertEqual(ftpmod.fetch_retail_covers(ftp,self.root),0)
         self.assertIn("FTP refusé=1",output.getvalue())
 
+    def test_webp_quality_80_cache_is_decodable_and_sent_to_ftp(self):
+        import io
+        import urllib.request
+        from unittest.mock import patch
+        try:
+            from PIL import Image, features
+        except ImportError:
+            self.skipTest("Pillow is optional; PNG compatibility covers this host")
+        if not features.check("webp"):
+            self.skipTest("This Pillow lacks WebP encoding")
+        jpeg=io.BytesIO()
+        Image.new("RGB",(600,900),(80,120,175)).save(jpeg,format="JPEG")
+        encoded=ftpmod._decode_retail_image(jpeg.getvalue(),"front")
+        self.assertEqual(encoded[:4],b"RIFF")
+        self.assertEqual(encoded[8:12],b"WEBP")
+        self.assertTrue(ftpmod._case_png_usable(encoded,"front"))
+        ident="PPSA34015"
+        source="00000000-0000-0000-0000-000000000001.jpg"
+        (self.root/"assets").mkdir(exist_ok=True)
+        (self.root/"assets/niak-launchbox-cases.tsv").write_text(
+            ident+"\\tOverview\\tfr:"+source+"\\t-\\t-\\t-\\t8\\n"
+        .replace("\\\\t","\\t").replace("\\\\n","\\n"))
+        f=FakeFTP({"/user/app/"+ident+"/eboot.bin":b"installed"})
+        class Response:
+            def __enter__(self):return self
+            def __exit__(self,*args):return None
+            def read(self,size):return jpeg.getvalue()
+        with patch.object(urllib.request,"urlopen",return_value=Response()):
+            self.assertEqual(ftpmod.fetch_retail_covers(f,self.root),1)
+        destination=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{ident}-front.webp"
+        self.assertIn(destination,f.files)
+        self.assertTrue(ftpmod._case_png_usable(f.files[destination],"front"))
+
     def test_launchbox_installs_only_games_present_on_console(self):
         from unittest.mock import patch
         import io
