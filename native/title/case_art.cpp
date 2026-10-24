@@ -13,93 +13,85 @@ extern "C" {
 #include <cstring>
 #include <cstdlib>
 #include <vector>
-std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,const char *side,float *aspect){
+#include <string>
+std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
+                                 const char *id,const char *side,float *aspect) {
  if(!niak_valid_title_id(id)||!side ||
     (std::strcmp(side,"front") && std::strcmp(side,"back") &&
      std::strcmp(side,"logo") && std::strcmp(side,"spine") &&
      std::strcmp(side,"poster") && std::strcmp(side,"hero") &&
      std::strcmp(side,"shot1") && std::strcmp(side,"shot2")))return 0;
+ // Do not let a stale/corrupt private PNG shadow another valid source.
+ std::vector<std::string> paths;
  char file[384];
- // Linux CI loads explicit non-commercial QA art. Never shipped in PS5 ZIP.
- // The native PS5 title always loads the locally installed private scans.
 #if defined(__linux__)
- const char *preview=std::getenv("NIAK_CASE_PREVIEW_ASSETS");
- if(preview && preview[0])
-     std::snprintf(file,sizeof(file),"%s/%s-%s.png",preview,id,side);
- else
+ if(const char *preview=std::getenv("NIAK_CASE_PREVIEW_ASSETS")) {
+     if(preview[0]) {
+         std::snprintf(file,sizeof(file),"%s/%s-%s.png",preview,id,side);
+         paths.emplace_back(file);
+     }
+ }
 #endif
+ std::snprintf(file,sizeof(file),
+     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",id,side);
+ paths.emplace_back(file);
+ std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.png",id,side);
+ paths.emplace_back(file);
+ std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
+ paths.emplace_back(file);
+ if(std::strcmp(side,"front")==0) {
      std::snprintf(file,sizeof(file),
-         "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",id,side);
- FILE *fp=std::fopen(file,"rb");
- // Prefer recent private scans; only fall back to the original app package
- // if the owner has not refreshed this title via FTP.
- if(!fp) {
-    std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
-    fp=std::fopen(file,"rb");
+         "/data/homebrew/%s/assets/box-front.png",id);
+     paths.emplace_back(file);
  }
- if(!fp) {
-    // Native sandbox private download cache: scanned art is loaded before
-    // recomposition. The HTTPS worker never blocks this GPU thread.
-    std::snprintf(file,sizeof(file),
-        "/download0/niak-case-%s-%s.png",id,side);
-    fp=std::fopen(file,"rb");
- }
- if(!fp && std::strcmp(side,"front")==0) {
-    // Homebrew game authors sometimes package their own portrait cover.
-    // Use it only if it later passes the strict PNG geometry checks below.
-    std::snprintf(file,sizeof(file),
-        "/data/homebrew/%s/assets/box-front.png",id);
-    fp=std::fopen(file,"rb");
- }
- if(!fp){
-     niak_queue_auto_case_art(id,side);
-     return 0;
- }
- if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
- const long bytes=std::ftell(fp);
- if(bytes<33||bytes>3*1024*1024||std::fseek(fp,0,SEEK_SET)!=0)
- {std::fclose(fp);return 0;}
- std::vector<unsigned char> png(static_cast<std::size_t>(bytes));
- const bool okay=std::fread(png.data(),1,png.size(),fp)==png.size();
- std::fclose(fp);if(!okay)return 0;
- if(png.size()<24||png[0]!=137||png[1]!=80||png[2]!=78||png[3]!=71)return 0;
- const unsigned width=(unsigned(png[16])<<24)|(unsigned(png[17])<<16)|
-                      (unsigned(png[18])<<8)|png[19];
- const unsigned height=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
-                       (unsigned(png[22])<<8)|png[23];
  const bool logo=std::strcmp(side,"logo")==0;
  const bool spine=std::strcmp(side,"spine")==0;
  const bool landscape=std::strcmp(side,"hero")==0 ||
                       std::strcmp(side,"shot1")==0 ||
                       std::strcmp(side,"shot2")==0;
- if(width<(logo?32u:spine?16u:64u)||height<(logo?20u:100u)||
-    width>(logo?1400u:landscape?2048u:1024u)||height>1536u)return 0;
- if(!logo) {
-    const float aspect=float(width)/float(height);
-    if(spine ? aspect>0.25f :
-       landscape ? (aspect<1.15f || aspect>3.1f) :
-       (aspect<0.55f || aspect>0.90f))
-        return 0;  // Never stretch square app icons or landscape backdrops.
- }
- std::vector<unsigned char> pixels;unsigned w=0,h=0;
- if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||
-    pixels.size()!=std::size_t(w)*h*4)return 0;
- // A 1024x1536 source was consuming 6 MiB of permanent VRAM per cover.
- // Projected sleeves never use that resolution: keep 512x768 at most.
- const unsigned max_w=logo?768u:spine?96u:landscape?768u:512u;
- const unsigned max_h=landscape?512u:768u;
- if(!niak_scale_case_rgba(pixels,w,h,max_w,max_h))return 0;
- const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
- if(handle) {
+ for(const std::string& filename:paths) {
+     FILE *fp=std::fopen(filename.c_str(),"rb");
+     if(!fp)continue;
+     if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);continue;}
+     const long size=std::ftell(fp);
+     if(size<33||size>3*1024*1024||
+        std::fseek(fp,0,SEEK_SET)!=0){std::fclose(fp);continue;}
+     std::vector<unsigned char> png(static_cast<std::size_t>(size));
+     const bool okay=std::fread(png.data(),1,png.size(),fp)==png.size();
+     std::fclose(fp);if(!okay)continue;
+     if(png.size()<24||
+        std::memcmp(png.data(),"\x89PNG\r\n\x1a\n",8)!=0)continue;
+     const unsigned width=(unsigned(png[16])<<24)|(unsigned(png[17])<<16)|
+                          (unsigned(png[18])<<8)|png[19];
+     const unsigned height=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
+                           (unsigned(png[22])<<8)|png[23];
+     if(width<(logo?32u:spine?16u:64u)||
+        height<(logo?20u:100u)||
+        width>(logo?1400u:landscape?2048u:1024u)||
+        height>1536u)continue;
+     if(!logo) {
+         const float ratio=float(width)/float(height);
+         if(spine?ratio>0.25f:
+            landscape?(ratio<1.15f||ratio>3.1f):
+                      (ratio<0.55f||ratio>0.90f))continue;
+     }
+     std::vector<unsigned char> pixels;unsigned w=0,h=0;
+     if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||
+        pixels.size()!=std::size_t(w)*h*4u)continue;
+     if(!niak_scale_case_rgba(pixels,w,h,
+         logo?768u:spine?96u:landscape?768u:512u,
+         landscape?512u:768u))continue;
+     const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
+     if(!handle)continue;
      if(aspect)*aspect=float(w)/float(h);
      niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
-     // Check the original CDN provenance off-thread even for an existing
-     // sandbox copy. The current PNG remains usable until a valid replacement
-     // has been downloaded atomically for the next launch.
-     if(std::strstr(file,"/download0/niak-case-")==file)
+     if(filename.rfind("/download0/niak-case-",0)==0)
          niak_queue_auto_case_art(id,side);
+     return handle;
  }
- return handle;
+ // Missing or invalid artwork: enqueue a private download, not an icon copy.
+ niak_queue_auto_case_art(id,side);
+ return 0;
 }
 
 namespace {

@@ -17,12 +17,14 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <mutex>
 #include <set>
 #include <string>
 #include <thread>
+#include <unistd.h>
 #include <unordered_map>
 #include <vector>
 
@@ -76,10 +78,24 @@ bool existing(const std::string& path,const std::string& source){
  if(std::string(value,size)!=source)return false;
  f=std::fopen(path.c_str(),"rb");
  if(!f)return false;
- unsigned char sig[8]{};
- const bool ok=std::fread(sig,1,8,f)==8 &&
-    std::memcmp(sig,"\x89PNG\r\n\x1a\n",8)==0;
- std::fclose(f);return ok;
+ if(std::fseek(f,0,SEEK_END)!=0){std::fclose(f);return false;}
+ const long length=std::ftell(f);
+ if(length<33 || length>3*1024*1024 ||
+    std::fseek(f,0,SEEK_SET)!=0){std::fclose(f);return false;}
+ std::vector<unsigned char> raw(static_cast<std::size_t>(length));
+ const bool complete=std::fread(raw.data(),1,raw.size(),f)==raw.size();
+ std::fclose(f);
+ if(!complete ||
+    std::memcmp(raw.data(),"\x89PNG\r\n\x1a\n",8)!=0)return false;
+ const unsigned iw=(unsigned(raw[16])<<24)|(unsigned(raw[17])<<16)|
+                   (unsigned(raw[18])<<8)|raw[19];
+ const unsigned ih=(unsigned(raw[20])<<24)|(unsigned(raw[21])<<16)|
+                   (unsigned(raw[22])<<8)|raw[23];
+ if(iw<16||ih<20||iw>2048||ih>1536||
+    std::uint64_t(iw)*ih>2500000u)return false;
+ std::vector<unsigned char> pixels;unsigned w=0,h=0;
+ return lodepng::decode(pixels,w,h,raw)==0 && w==iw && h==ih &&
+        pixels.size()==std::size_t(w)*h*4u;
 }
 std::unordered_map<std::string,ArtSlots> read_index(){
  std::unordered_map<std::string,ArtSlots> index;
@@ -166,25 +182,32 @@ bool convert_png(const std::vector<std::uint8_t>& bytes,
     return false;
  return true;
 }
+bool write_atomic(const std::string &path,
+                  const unsigned char *data,std::size_t size) {
+ if(!data || size==0 || path.size()>180)return false;
+ char temp[256];
+ const int n=std::snprintf(temp,sizeof(temp),"%s.XXXXXX",path.c_str());
+ if(n<=0||std::size_t(n)>=sizeof(temp))return false;
+ const int fd=mkstemp(temp);
+ if(fd<0)return false;
+ FILE *f=fdopen(fd,"wb");
+ if(!f){close(fd);std::remove(temp);return false;}
+ bool ok=std::fwrite(data,1,size,f)==size;
+ if(std::fflush(f)!=0)ok=false;
+ if(ok && fsync(fd)!=0)ok=false;
+ if(std::fclose(f)!=0)ok=false;
+ if(!ok || std::rename(temp,path.c_str())!=0){
+   std::remove(temp);return false;
+ }
+ return true;
+}
 bool save(const Task& task,const std::string& name,
           const std::vector<unsigned char>& png){
- const std::string path=cache_path(task),tmp=path+".tmp";
- FILE *out=std::fopen(tmp.c_str(),"wb");
- if(!out)return false;
- bool ok=std::fwrite(png.data(),1,png.size(),out)==png.size();
- if(std::fflush(out)!=0)ok=false;
- if(std::fclose(out)!=0)ok=false;
- if(!ok||std::rename(tmp.c_str(),path.c_str())!=0){
-   std::remove(tmp.c_str());return false;
- }
- const std::string marker=path+".source",marker_tmp=marker+".tmp";
- out=std::fopen(marker_tmp.c_str(),"wb");
- if(!out)return true; // valid image; recheck source next launch
- ok=std::fwrite(name.data(),1,name.size(),out)==name.size();
- if(std::fflush(out)!=0)ok=false;
- if(std::fclose(out)!=0)ok=false;
- if(!ok||std::rename(marker_tmp.c_str(),marker.c_str())!=0)
-   std::remove(marker_tmp.c_str());
+ const std::string path=cache_path(task);
+ if(!write_atomic(path,png.data(),png.size()))return false;
+ // The provenance marker is installed only AFTER its validated image.
+ (void)write_atomic(path+".source",
+             reinterpret_cast<const unsigned char*>(name.data()),name.size());
  return true;
 }
 void work(){
