@@ -206,6 +206,95 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(anno[8],"-")
   self.assertIn("PC description",anno[1])
 
+ def test_pc_only_scenery_without_pc_retail_front_on_ps4_and_ps5(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>501</DatabaseID><Platform>Windows</Platform>
+    <Name>The Adventure</Name><Overview>PC game description.</Overview></Game>
+   <GameImage><DatabaseID>501</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000501.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>501</DatabaseID><Type>Box - Back</Type>
+    <FileName>00000000-0000-0000-0000-000000000502.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>501</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000503.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>501</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000504.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>501</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000505.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  for platform,title in (("ps4","CUSA54321"),("ps5","PPSA54321")):
+   with self.subTest(platform=platform):
+    rows=mod.parse(io.BytesIO(xml),{(platform,"the adventure"):[title]})
+    self.assertEqual(len(rows),1)
+    row=rows[0]
+    self.assertEqual(row[0],title)
+    self.assertEqual(row[1],"PC game description.")
+    self.assertEqual(row[2:5],("-","-","-"))  # never Windows retail scans
+    self.assertIn("000000000503",row[6])
+    self.assertIn("000000000504",row[7])
+    self.assertIn("000000000505",row[8])
+
+ def test_console_box_front_wins_over_both_pc_box_and_fanart_box(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>600</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>Example Title</Name></Game>
+   <Game><DatabaseID>601</DatabaseID><Platform>Windows</Platform>
+    <Name>Example Title</Name></Game>
+   <GameImage><DatabaseID>600</DatabaseID><Type>Fanart - Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000600.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>600</DatabaseID><Type>Box - Front</Type>
+    <Region>France</Region>
+    <FileName>00000000-0000-0000-0000-000000000602.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000601.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000603.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000604.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  row=mod.parse(io.BytesIO(xml),{("ps5","example title"):["PPSA45678"]})[0]
+  self.assertIn("000000000602",row[2])  # genuine Sony Box - Front
+  self.assertNotIn("000000000600",row[2])
+  self.assertNotIn("000000000601",row[2])
+  self.assertIn("000000000603",row[6])  # PC fanart fills scenery
+  self.assertIn("000000000604",row[7])  # PC gameplay fills screenshot
+
+ def test_console_to_pc_fanart_failover_priority(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>600</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>Example Title</Name></Game>
+   <Game><DatabaseID>602</DatabaseID><Platform>Sony Playstation 4</Platform>
+    <Name>Example Title</Name></Game>
+   <Game><DatabaseID>601</DatabaseID><Platform>Windows</Platform>
+    <Name>Example Title</Name></Game>
+   <GameImage><DatabaseID>600</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000600.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>600</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000603.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>602</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000604.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000605.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000606.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  row=mod.parse(io.BytesIO(xml),{("ps5","example title"):["PPSA45678"]})[0]
+  self.assertEqual([x.split(":")[1].split(".")[0][-3:] for x in row[6].split(";")][:3],
+                   ["603","604","605"])
+  self.assertIn("000000000600",row[2])
+  self.assertIn("000000000606",row[7])  # PC title shot if gameplay missing
+
+ def test_ambiguous_pc_name_cannot_supply_console_art(self):
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>601</DatabaseID><Platform>Windows</Platform>
+    <Name>Example Title</Name></Game>
+   <Game><DatabaseID>602</DatabaseID><Platform>Windows</Platform>
+    <Name>Example Title</Name></Game>
+   <GameImage><DatabaseID>601</DatabaseID><Type>Fanart - Background</Type>
+    <FileName>00000000-0000-0000-0000-000000000601.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  self.assertEqual(mod.parse(io.BytesIO(xml),
+                    {("ps5","example title"):["PPSA45678"]}),[])
+
  def test_ambiguous_edition_is_never_assigned_at_random(self):
   source={("ps5","my game"):["PPSA00003"]}
   xml=b'''<LaunchBox>
