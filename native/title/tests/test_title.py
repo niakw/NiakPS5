@@ -191,6 +191,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("char line[8192]",meta)
         self.assertIn("niak_title_overview",meta)
 
+    def test_actual_native_home_screenshot_is_rendered_in_ci(self):
+        workflow=(ROOT.parent/".github/workflows/native-title.yml").read_text()
+        preview=(ROOT/"title"/"host_preview.py").read_text()
+        self.assertIn("NIAK_HOME_PREVIEW=1",workflow)
+        self.assertIn('render("niakps5-home")',preview)
+        self.assertIn("NiakPS5-OpenGL-home",workflow)
+
     def test_wallpaper_attribution_and_right_rail(self):
         ui=(ROOT/"title"/"patch_home.py").read_text()
         source=(ROOT/"title"/"daily_backdrop.cpp").read_text()

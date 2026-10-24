@@ -281,7 +281,17 @@ extern "C" int sceUserServiceGetUserName(int,char *name,std::size_t capacity){
 }
 ''',"utf8")
     # Capture a SEALED case from four real OpenGL angles, never its inside.
-    one(main, '    if (const char *strip = std::getenv("HUI_STRIP"))', """    if (std::getenv("NIAK_CASE_TOUR")) {
+    one(main, '    if (const char *strip = std::getenv("HUI_STRIP"))', """    if (std::getenv("NIAK_HOME_PREVIEW")) {
+        // Screenshot of the actual native OpenGL HOME surface, not a
+        // marketing mockup. Host test titles/media are explicit fixtures.
+        hui::InputFrame idle;
+        idle.connected=true;
+        shell.show(0,false);
+        for(int n=0;n<120;++n)shell.update(idle,kDt);
+        render("niakps5-home");
+        return ok ? 0 : 1;
+    }
+    if (std::getenv("NIAK_CASE_TOUR")) {
         // Exactly TWO titles, one PS4 then one PS5: no commercial box
         // scans for any of their three faces. These are real GL snapshots.
         hui::InputFrame idle;

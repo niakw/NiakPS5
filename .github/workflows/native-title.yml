@@ -64,6 +64,23 @@ jobs:
           rm -rf build/niak-preview
           NIAK_CASE_TOUR=1 USE_CCACHE=0 bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-preview aurora 1920 1080
           python3 native/title/validate_preview.py build/niak-preview
+          mkdir -p build/niak-home
+          NIAK_HOME_PREVIEW=1 USE_CCACHE=0 bash .build/ps5-title-kit/tools/host-snapshots.sh build/niak-home aurora 1920 1080
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          p=Path("build/niak-home/niakps5-home.png")
+          assert p.is_file(), "Actual native home screenshot absent"
+          with Image.open(p) as im:
+              im.verify()
+          print("NIAK_NATIVE_HOME_PREVIEW:",p)
+          PY
+      - name: Upload native home screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: NiakPS5-OpenGL-home
+          path: build/niak-home/niakps5-home.png
+          if-no-files-found: error
       - name: Upload genuine native UI previews
         if: always()
         uses: actions/upload-artifact@v4
