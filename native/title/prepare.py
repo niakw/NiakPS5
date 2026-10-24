@@ -268,6 +268,7 @@ audio::SoundSet Shell::sound_set() const''')
     for filename in ("game_icons.cpp", "game_icons.hpp"):
         shutil.copy2(project / "native" / "title" / filename, src_niak / filename)
     for filename in ("case_renderer.cpp","case_renderer.hpp","case_art.cpp","case_art.hpp",
+                     "case_auto_art.cpp","case_auto_art.hpp",
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
                      "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp",
                      "broker_catalog.cpp","broker_catalog.hpp","broker_snapshot.h","local_inventory.h",
@@ -279,7 +280,7 @@ audio::SoundSet Shell::sound_set() const''')
                      "one_shot_install.cpp", "one_shot_install.hpp"):
         shutil.copy2(project / "native" / "title" / "elevation" / filename,
                      src_niak / filename)
-    for filename in ("lodepng.cpp", "lodepng.h"):
+    for filename in ("lodepng.cpp", "lodepng.h", "stb_image.h"):
         shutil.copy2(project / "native" / "title" / "vendor" / filename, src_niak / filename)
     art_file = kit / "src/demo/catalog_art.cpp"
     replace_once(art_file, 'void Catalog::release_covers(gfx::Renderer &renderer)\n{\n    for (Item &item : items_)',

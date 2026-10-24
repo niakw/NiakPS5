@@ -39,6 +39,7 @@ int sceHttpSetRecvTimeOut(int,unsigned);
 namespace {
 constexpr const char *FEED="https://raw.githubusercontent.com/sharpemu/sharpemu-site/main/src/data/games.json";
 constexpr const char *MEDIA="https://image.api.playstation.com/";
+constexpr const char *LAUNCHBOX="https://images.launchbox-app.com/";
 constexpr std::size_t MAX_FEED=5u*1024u*1024u, MAX_PNG=7u*1024u*1024u;
 int context() {
   static int result=-1;static std::once_flag once;
@@ -50,6 +51,17 @@ int context() {
   });
   return result;
 }
+bool launchbox_filename(const std::string &name) {
+  const std::size_t start=name.rfind("r2_",0)==0?3u:0u;
+  if(name.size()<start+40 || name.size()>start+41)return false;
+  for(std::size_t i=start;i<start+36;++i) {
+    const char c=name[i];
+    if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')||
+         (c>='A'&&c<='F')||c=='-'))return false;
+  }
+  const auto ext=name.substr(start+36);
+  return ext==".png" || ext==".jpg" || ext==".jpeg";
+}
 bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &result) {
   // Host list is exact, not a substring. Refuse custom ports, parameters,
   // path traversal and redirects. No arbitrary user-supplied URLs.
@@ -58,7 +70,9 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
       url.find("?",std::strlen(MEDIA))==std::string::npos &&
       url.find("..",std::strlen(MEDIA))==std::string::npos &&
       url.rfind(".png")==url.size()-4;
-  if(!feed&&!art)return false;
+  const bool cases=url.rfind(LAUNCHBOX,0)==0 &&
+      launchbox_filename(url.substr(std::strlen(LAUNCHBOX)));
+  if(!feed&&!art&&!cases)return false;
   const int ctx=context();if(ctx<0)return false;
   int tmpl=sceHttpCreateTemplate(ctx,"NiakPS5-public-media/1.0",2,1);
   if(tmpl<0)return false;
@@ -149,4 +163,16 @@ bool niak_fetch_latest_ps5_wallpaper(const char *today_yyyy_mm_dd,
   (void)today_yyyy_mm_dd;(void)selection_seed;(void)png;
 #endif
   return false;
+}
+
+bool niak_fetch_launchbox_asset(const char *filename,
+                               std::vector<std::uint8_t>& bytes) {
+#if defined(__PROSPERO__)
+  if(!filename || !launchbox_filename(filename))return false;
+  // The request contains ONLY a public CDN filename; never game/title IDs,
+  // PS5 profiles, local network addresses, tokens or user data.
+  return get(std::string(LAUNCHBOX)+filename,5u*1024u*1024u,bytes);
+#else
+  (void)filename;(void)bytes;return false;
+#endif
 }

@@ -32,6 +32,18 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("settings_link_rc_=niak_open_system_settings()",ui)
         self.assertIn("Raccourci refusé par le système",ui)
 
+    def test_artwork_refresh_is_native_and_outside_render_thread(self):
+        builder=(ROOT/"title"/"prepare.py").read_text()
+        case=(ROOT/"title"/"case_art.cpp").read_text()
+        auto=(ROOT/"title"/"case_auto_art.cpp").read_text()
+        self.assertIn("case_auto_art.cpp",builder)
+        self.assertIn("niak_queue_auto_case_art(id,side)",case)
+        self.assertIn("/download0/niak-case-%s-%s.png",case)
+        self.assertIn("std::thread(work).detach()",auto)
+        self.assertIn("niak_fetch_launchbox_asset(",auto)
+        self.assertIn("requested>112u",auto)
+        self.assertIn("valid_filename(source)",auto)
+
     def test_short_game_overview_in_native_ui(self):
         metadata=(ROOT/"title"/"title_meta.cpp").read_text()
         self.assertIn("niak_short_overview(",metadata)

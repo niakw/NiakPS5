@@ -3,6 +3,7 @@
 #include "niak/case_art.hpp"
 #include "niak/lodepng.h"
 #include "niak/case_texture_scale.hpp"
+#include "niak/case_auto_art.hpp"
 #include "niak/asset_stats.hpp"
 extern "C" {
 #include "niak/catalog.h"
@@ -36,6 +37,13 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
     std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
     fp=std::fopen(file,"rb");
  }
+ if(!fp) {
+    // Native sandbox private download cache: scanned art is loaded before
+    // recomposition. The HTTPS worker never blocks this GPU thread.
+    std::snprintf(file,sizeof(file),
+        "/download0/niak-case-%s-%s.png",id,side);
+    fp=std::fopen(file,"rb");
+ }
  if(!fp && std::strcmp(side,"front")==0) {
     // Homebrew game authors sometimes package their own portrait cover.
     // Use it only if it later passes the strict PNG geometry checks below.
@@ -43,7 +51,10 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
         "/data/homebrew/%s/assets/box-front.png",id);
     fp=std::fopen(file,"rb");
  }
- if(!fp)return 0;
+ if(!fp){
+     niak_queue_auto_case_art(id,side);
+     return 0;
+ }
  if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
  const long bytes=std::ftell(fp);
  if(bytes<33||bytes>3*1024*1024||std::fseek(fp,0,SEEK_SET)!=0)
