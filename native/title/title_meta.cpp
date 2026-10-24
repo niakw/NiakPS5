@@ -173,7 +173,7 @@ std::string niak_title_overview(const char *id) {
        char *second=std::strchr(first+1,'\t');if(!second)continue;
        *first=0;*second=0;
        // Allow only explicitly sourced French publisher/editorial pages.
-       if(std::strncmp(first+1,"https://www.jeuxvideo.com/",25)!=0 &&
+       if(std::strncmp(first+1,"https://www.jeuxvideo.com/",26)!=0 &&
           std::strncmp(first+1,"https://www.playstation.com/fr-fr/",34)!=0)
          continue;
        char *description=second+1;

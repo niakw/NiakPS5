@@ -5,16 +5,38 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class NativeTitleTests(unittest.TestCase):
-    def test_sourced_french_overview_for_installed_game(self):
-        text=(ROOT/"title"/"title_meta.cpp").read_text()
-        source=(ROOT/"title"/"fr_overviews.tsv").read_text()
+    def test_all_game_french_source_index_is_canonical_and_safe(self):
+        import importlib.util
+        import tempfile
+        from pathlib import Path
+        path=ROOT/"title"/"fr_source_index.py"
+        spec=importlib.util.spec_from_file_location("fr_source_index",path)
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        source=(ROOT/"title"/"fr_overviews.tsv").read_text(encoding="utf-8")
+        rows=module.normalized_rows(source)
+        self.assertGreater(len(rows),0)
+        self.assertTrue(all(len(row)==3 and row[0].startswith(("CUSA","PPSA"))
+                            for row in rows))
+        self.assertTrue(all(row[1].startswith(module.ALLOWED) for row in rows))
+        with tempfile.TemporaryDirectory() as folder:
+            destination=Path(folder)/"niak-overviews-fr-sourced.tsv"
+            self.assertEqual(module.generate(ROOT/"title"/"fr_overviews.tsv",
+                                             destination),len(rows))
+            actual=destination.read_text(encoding="utf-8")
+            self.assertNotIn("\\\\t",actual)
+            self.assertEqual(len(actual.splitlines()),len(rows))
+            self.assertTrue(all(len(line.split("\\t"))==3 for line in actual.splitlines()))
+        for bad in ("CUSA12345\\thttps://evil.example/fr\\tTexte",
+                    "BADID\\thttps://www.jeuxvideo.com/jeu\\tTexte",
+                    "CUSA12345\\thttps://www.jeuxvideo.com/jeu\\t"):
+            with self.assertRaises(ValueError):
+                module.normalized_rows(bad)
         builder=(ROOT/"title"/"build.sh").read_text()
-        self.assertIn("niak-overviews-fr-sourced.tsv",text)
-        self.assertIn("fr_overviews.tsv",builder)
-        self.assertIn("CUSA00004",source)
-        self.assertIn("CUSA00223",source)
-        self.assertIn("CUSA00263",source)
-        self.assertIn("jeuxvideo.com",source)
+        native=(ROOT/"title"/"title_meta.cpp").read_text()
+        self.assertIn("fr_source_index.py",builder)
+        self.assertIn("niak-overviews-fr-sourced.tsv",native)
+        self.assertIn('jeuxvideo.com/",26',native)
 
     def test_known_locally_installed_utilities_are_not_placed_as_games(self):
         classification=(ROOT/"title"/"app_classification.hpp").read_text()
