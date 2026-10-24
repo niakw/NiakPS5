@@ -385,11 +385,10 @@ void work(){
    }
    // Region/server variation: a missing FR image can fall back to EU or
    // another validated image, without ever trusting an arbitrary URL.
-   // Three sources for retail fronts/backs and for scenic backgrounds:
-   // prefer the installed platform, then the related console, then PC.
-   // Screenshots remain single-shot to keep focus navigation responsive.
-   const unsigned candidate_limit=
-       (task.side=="front"||task.side=="back"||task.side=="hero")?3u:1u;
+   // At most three CDN candidates per requested side: platform-native,
+   // matching other-console and then PC scenic alternatives. Never attempt
+   // PC physical Box - Front/Back: indexer excludes those source categories.
+   const unsigned candidate_limit=3u;
    unsigned examined=0;
    bool transient_failure=false,downloaded=false;
    for(const std::string &source:candidates) {
