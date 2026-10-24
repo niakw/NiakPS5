@@ -132,6 +132,11 @@ cp "$root/native/title/cover_sources.py" "$out/tools/cover_sources.py"
 cp "$root/native/title/launchbox_index.py" "$out/tools/launchbox_index.py"
 cp "$root/native/title/translate_overviews.py" "$out/tools/translate_overviews.py"
 cp "$root/native/title/AUTOSTART.md" "$out/tools/AUTOSTART.md"
+# The native title statically links public HTTPS dependencies. Ship notices
+# and their original licence texts inside the SAME FTP installation folder.
+mkdir -p "$out/tools/licenses"
+cp "$root"/native/title/vendor/licenses/*.txt "$out/tools/licenses/"
+cp "$root/THIRD_PARTY_NOTICES.md" "$out/tools/THIRD_PARTY_NOTICES.md"
 # GitHub automatically creates ONE downloadable ZIP from dist/ftp-dropin.
 # Do not produce extra ZIP layers or include archive files in FTP /data.
 python3 "$root/native/title/pack_ftp_dragdrop.py" \
