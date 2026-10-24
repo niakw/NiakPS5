@@ -154,5 +154,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "docs(preview): refresh real NiakPS5 OpenGL home [skip ci]"
-          # Normal fast-forward only: never overwrite concurrent user changes.
+          # A maintainer may have pushed docs while the SDK built. Rebase our
+          # single screenshot commit on today's main, without force pushing.
+          git fetch origin main
+          git rebase origin/main
           git push origin HEAD:main
