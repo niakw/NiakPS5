@@ -7,13 +7,13 @@ This checklist records independently observable results. A CI green light confir
 | PLDmgr broker | 48 IDs from two snapshots; local PING active on target PS5 13.60 | Long-session stability and different users |
 | Native game library | Visible on target console | Updated game/app classifications including ShadowMount and media titles |
 | Play / Jouer | A homebrew game opened from NiakPS5 | Return after closing a game; entitlement/disc-required error is owned by Sony |
-| Artwork | 14,951 verified LaunchBox metadata matches in successful CI build; existing private-cache integrity tests | Native HTTPS artwork download and next-launch cache, PS4 back mixed with matching PS5 front, distinct PC screenshots |
+| Artwork | LaunchBox index distinguishes fanart, gameplay and game-title screenshots, with host tests and six OpenGL preview fixtures | HTTPS downloads, new background layer and actual on-console results remain unverified |
 | Descriptions | Maximum three sourced sentences / 360 characters in code and tests | Real-screen truncation and available French text |
 | Localization | FR control and genre strings reviewed in staging | Full settings/glyph check with actual PS5 display |
 | Settings | UI diagnostics positioned in the right rail in code | No overlap at 1080p on-console and experimental PS5 settings shortcut |
 | Wallpaper | Source title/date caption supplied by packaged wallpaper metadata | Captions readable on chosen backgrounds |
 | Return after game | One-shot broker return gate with 10-second stable Sony Home guard, host-tested | Actual PS5 close-game lifecycle and disc-refusal behavior |
-| Security | Six reported CodeQL patterns patched; host validation | CodeQL findings must be confirmed closed by a subsequent scan |
+| Security and privacy | Tracked-file privacy scan runs in host CI; common token, account path, private key, LAN and filename patterns checked | Manual audit of history, binary images, connected archives and CodeQL finding states still needed |
 | Distribution | One merge-only `data/` FTP tree; PLDmgr autoload untouched | New title registration varies by firmware |
 | Documentation | FR/EN marketing README, real Mesa screenshot, GitHub issue/security templates | Repository About description/topics need a maintainer's UI action |
 

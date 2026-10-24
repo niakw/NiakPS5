@@ -8,3 +8,15 @@ __pycache__/
 .env
 .env.*
 !/native/title/vendor/
+.DS_Store
+*.pem
+*.p12
+*.pfx
+*.key
+*.har
+*.pcap
+*.token
+*.credentials
+ftp-dumps/
+private-logs/
+screenshots-private/
