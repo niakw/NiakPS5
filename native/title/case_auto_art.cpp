@@ -271,9 +271,16 @@ bool save(const Task& task,const std::string& name,
           const std::vector<unsigned char>& png){
  const std::string path=cache_path(task);
  if(!write_atomic(path,png.data(),png.size()))return false;
- // The provenance marker is installed only AFTER its validated image.
- (void)write_atomic(path+".source",
-             reinterpret_cast<const unsigned char*>(name.data()),name.size());
+ // Treat image plus provenance as one logical cache entry. A validated PNG
+ // without its matching source marker is not reusable and must not count as
+ // a completed download. Remove both parts if the second write fails.
+ const std::string marker=path+".source";
+ if(!write_atomic(marker,
+       reinterpret_cast<const unsigned char*>(name.data()),name.size())){
+   (void)std::remove(path.c_str());
+   (void)std::remove(marker.c_str());
+   return false;
+ }
  return true;
 }
 void queue_retry(State &s,Task task){

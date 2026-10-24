@@ -15,6 +15,30 @@ extern "C" {
 #include <cstdlib>
 #include <vector>
 #include <string>
+namespace {
+// Private CDN PNGs are valid only after their .source marker is committed.
+// Earlier interrupted writes must never displace the fallback box art.
+bool valid_download_source(const std::string &image_path) {
+ const std::string marker=image_path+".source";
+ FILE *f=std::fopen(marker.c_str(),"rb");
+ if(!f)return false;
+ char name[64]{};
+ const std::size_t length=std::fread(name,1,sizeof(name),f);
+ const bool ended=std::feof(f)!=0;
+ std::fclose(f);
+ if(!ended)return false;
+ const bool r2=length>=3 && std::memcmp(name,"r2_",3)==0;
+ const std::size_t offset=r2?3u:0u;
+ if(length!=offset+40u && length!=offset+41u)return false;
+ for(std::size_t i=offset;i<offset+36;i++){
+   const char c=name[i];
+   if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')||
+        (c>='A'&&c<='F')||c=='-'))return false;
+ }
+ const std::string ext(name+offset+36,length-offset-36);
+ return ext==".jpg"||ext==".jpeg"||ext==".png";
+}
+} // namespace
 std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
                                  const char *id,const char *side,float *aspect) {
  if(!niak_valid_title_id(id)||!side ||
@@ -51,6 +75,10 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
                       std::strcmp(side,"shot1")==0 ||
                       std::strcmp(side,"shot2")==0;
  for(const std::string& filename:paths) {
+     // The FTP override and packaged scans have independent provenance.
+     // Only worker-generated PNGs require the atomic .source sidecar.
+     if(filename.rfind("/download0/niak-case-",0)==0 &&
+        !valid_download_source(filename))continue;
      FILE *fp=std::fopen(filename.c_str(),"rb");
      if(!fp)continue;
      if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);continue;}

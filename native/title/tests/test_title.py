@@ -100,6 +100,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('data[std::string(line)]=overview;',(
             ROOT/"title"/"title_meta.cpp").read_text())
         self.assertIn("mkstemp(temp)",auto)
+        self.assertIn("if(!write_atomic(marker,",auto)
+        self.assertIn("(void)std::remove(path.c_str());",auto)
+        self.assertIn("(void)std::remove(marker.c_str());",auto)
+        self.assertIn("!valid_download_source(filename)",case)
+        self.assertIn('filename.rfind("/download0/niak-case-",0)',case)
         self.assertIn("lodepng::decode(pixels,w,h,raw)",auto)
         self.assertIn("for(const std::string& filename:paths)",case)
         self.assertIn("valid_filename(filename)",auto)
