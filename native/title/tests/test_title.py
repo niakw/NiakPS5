@@ -155,7 +155,7 @@ class NativeTitleTests(unittest.TestCase):
         stale=auto.index("if(task.generation!=s.generation || task.id!=s.selected)break;",network)
         failure=auto.index("s.last_network_error.store(error);",network)
         self.assertLess(stale,failure)
-        decode=auto.index("const bool converted=convert_png(",network)
+        decode=auto.index("const bool converted=convert_webp(",network)
         stale_decode=auto.index("if(task.generation!=s.generation || task.id!=s.selected)break;",decode)
         decode_count=auto.index("++s.decode_failed;",decode)
         self.assertLess(stale_decode,decode_count)
