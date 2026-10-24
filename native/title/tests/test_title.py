@@ -372,8 +372,8 @@ class NativeTitleTests(unittest.TestCase):
         ui=(ROOT/"title"/"patch_home.py").read_text()
         source=(ROOT/"title"/"daily_backdrop.cpp").read_text()
         self.assertIn("niak_daily_backdrop_caption()",ui)
-        self.assertIn("1430, 752",ui)
-        self.assertIn("1430, 926",ui)
+        self.assertIn("1430, 766",ui)
+        self.assertIn("1430, 930",ui)
         self.assertIn("labels.tsv",source)
         self.assertIn("Fond du jour",source)
 
