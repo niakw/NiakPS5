@@ -237,7 +237,8 @@ class NativeTitleTests(unittest.TestCase):
         ftp=(ROOT/"title"/"ftp_install.py").read_text()
         self.assertLess(case_art.index('"/download0/niak-case-%s-%s.png"'),
                         case_art.index('"/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png"'))
-        self.assertIn("source==first_source and _cache_hit",ftp)
+        self.assertIn("source==first_source and any(",ftp)
+        self.assertIn("_cache_hit(ftp,file,side) for file in existing",ftp)
         self.assertIn("examined>=reusable_rank",auto)
         self.assertIn("if(!downloaded && reusable_rank<candidates.size())",auto)
         self.assertIn("if(existing(target,candidates[i]))",auto)
