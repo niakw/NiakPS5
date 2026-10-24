@@ -7,7 +7,7 @@ This checklist records independently observable results. A CI green light confir
 | PLDmgr broker | 48 IDs from two snapshots; local PING active on target PS5 13.60 | Long-session stability and different users |
 | Native game library | Visible on target console | Updated game/app classifications including ShadowMount and media titles |
 | Play / Jouer | A homebrew game opened from NiakPS5 | Return after closing a game; entitlement/disc-required error is owned by Sony |
-| Artwork | LaunchBox index distinguishes fanart, gameplay and game-title screenshots, with host tests and six OpenGL preview fixtures | HTTPS downloads, new background layer and actual on-console results remain unverified |
+| Artwork | LaunchBox index merges bundled metadata with private overrides; only selected game triggers HTTPS; CDN completion refreshes its 3D case in-session | PS5 network permissions, actual on-device CDN delivery and cache writes remain unverified |
 | Descriptions | Maximum three sourced sentences / 360 characters in code and tests | Real-screen truncation and available French text |
 | Localization | FR control and genre strings reviewed in staging | Full settings/glyph check with actual PS5 display |
 | Settings | UI diagnostics positioned in the right rail in code | No overlap at 1080p on-console and experimental PS5 settings shortcut |

@@ -16,7 +16,7 @@ Naviguez entre **Jeux**, **Applications** et **Réglages** avec la DualSense. Re
 
 ### Les jaquettes s'enrichissent automatiquement
 
-NiakPS5 privilégie les véritables rectos, versos et tranches LaunchBox. Pour les faces absentes, le titre **tente lui-même**, en arrière-plan, de récupérer les images connues de l'index LaunchBox public, de décoder JPEG/PNG et de les placer dans son cache privé. **Aucun script Mac n'est requis pour cette tentative automatique.** Les images récupérées sont utilisées lors du prochain lancement de l'application ; ce chargement n'est pas instantané.
+NiakPS5 privilégie les véritables rectos, versos et tranches LaunchBox. **Seule la sélection d'un jeu** déclenche une demande de visuels au CDN : parcourir les autres jeux ne provoque pas de téléchargement. Le traitement en arrière-plan privilégie les faces officielles, valide JPEG/PNG puis utilise le cache privé. Une image récupérée peut apparaître sur le boîtier 3D sélectionné **sans relancer l'application**. Aucun script Mac n'est nécessaire pour cette tentative.
 
 L'accès HTTPS dépend des autorisations réseau du firmware et de la disponibilité de LaunchBox. Si une image n'est pas disponible, le boîtier conserve son rendu recomposé avec les éléments PS4/PS5 appropriés. Les scans commerciaux ne sont pas inclus dans le paquet GitHub et aucune capture personnelle n'est publiée.
 

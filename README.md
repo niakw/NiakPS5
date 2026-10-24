@@ -16,7 +16,7 @@ Use your DualSense to browse **Games**, **Applications**, and **Settings**. Expl
 
 ### Artwork refreshes automatically
 
-NiakPS5 prioritizes genuine LaunchBox front, back, and spine scans. When artwork is missing, the title **tries to fetch known public-index images itself** on a background thread, convert JPEG/PNG to its private cache, and use them on the **next app launch**. A separate Mac script is not needed for this automatic attempt.
+NiakPS5 prioritizes genuine LaunchBox front, back, and spine scans. **Selecting a game** is the only trigger for new CDN image requests; browsing other library entries does not download their artwork. The background worker uses the vetted LaunchBox index, with front/back first and a validated local cache. Successfully downloaded images can appear in the selected 3D case **during the same session**, without restarting the application. A separate Mac script is not required.
 
 HTTPS access depends on the console sandbox, firmware, and LaunchBox availability. If media cannot be fetched, NiakPS5 keeps a consistent reconstructed case with the correct PS4/PS5 elements. Third-party commercial scans are not distributed in the GitHub package.
 
