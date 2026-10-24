@@ -350,6 +350,59 @@ def _decode_retail_image(raw,side):
     return None
 
 LAUNCHBOX_PRIVATE_INDEX=f"/data/homebrew/{TITLE}/assets/niak-launchbox-cases.tsv"
+CASE_CACHE_SOURCES=f"/data/homebrew/{TITLE}/assets/niak-cases/source-cache-v2.tsv"
+CASE_SIDES=frozenset(("front","back","spine","logo","hero","shot1","shot2"))
+
+def _read_case_sources(ftp):
+    """Only accept trusted CDN image basenames, never URLs or arbitrary paths."""
+    try: raw=_bounded_retrieve(ftp,CASE_CACHE_SOURCES,limit=128*1024)
+    except (OSError,ValueError):return {}
+    entries={}
+    if not raw:return entries
+    for line in raw.decode("utf8","replace").splitlines():
+        parts=line.split("\t")
+        if len(parts)!=3:continue
+        ident,side,filename=parts
+        if (re.fullmatch(r"(PPSA|CUSA)[0-9]{5}",ident)
+                and side in CASE_SIDES
+                and re.fullmatch(r"(?:r2_)?[0-9A-Fa-f-]{36}\.(?:jpe?g|png)",filename)):
+            entries[(ident,side)]=filename
+    return entries
+
+def _case_png_usable(raw,side):
+    """Validate cached PNG dimensions and the full byte stream, not its name.
+
+    The PS5 renderer needs portrait retail covers, thin spines, or wide
+    gameplay art. Corrupted/incompatible legacy cache is retried.
+    """
+    if not raw or len(raw)>3*1024*1024 or raw[:8]!=b"\x89PNG\r\n\x1a\n":
+        return False
+    try:
+        from PIL import Image
+        with Image.open(BytesIO(raw)) as image:
+            image.verify()
+        with Image.open(BytesIO(raw)) as image:
+            width,height=image.size
+    except (ImportError,ValueError,OSError,SyntaxError):
+        return False
+    if not 16<=width<=4096 or not 20<=height<=4096:return False
+    aspect=width/height
+    if side=="spine":return height>=100 and aspect<=0.25
+    if side in ("hero","shot1","shot2"):
+        return width>=320 and height>=180 and 1.15<=aspect<=3.1
+    if side=="logo":return width>=32 and height>=20
+    return height>=200 and 0.55<=aspect<=0.90
+
+def _cache_hit(ftp,remote,side):
+    try: raw=_bounded_retrieve(ftp,remote,limit=3*1024*1024)
+    except (OSError,ValueError):return False
+    return _case_png_usable(raw,side)
+
+def _write_case_sources(ftp,sources):
+    rows=(f"{ident}\t{side}\t{filename}\n"
+          for (ident,side),filename in sorted(sources.items()))
+    upload(ftp,CASE_CACHE_SOURCES,"".join(rows).encode("ascii"))
+
 
 def rebuild_installed_launchbox_index(ftp,folder,archive=None):
     """Reconcile LaunchBox against the OWNER's current title names locally.
@@ -423,6 +476,10 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
     import urllib.request
     import urllib.error
     cached=_remote_filenames(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases") or set()
+    sources=_read_case_sources(ftp)
+    updated_sources=False
+    reusable=0
+    stale=0
     shipped=0
     indexed_matches=0
     attempted=0
@@ -445,10 +502,15 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
         used_images=set()
         for side,field in slots:
             destination=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
-            if posixpath.basename(destination) in cached and not force:
-                continue
             choices=columns[field]
             if choices=="-":continue
+            candidates={choice.split(":",1)[-1] for choice in choices.split(";")}
+            if posixpath.basename(destination) in cached and not force:
+                source=sources.get((ident,side))
+                if source in candidates and _cache_hit(ftp,destination,side):
+                    reusable+=1
+                    continue
+                stale+=1   # Old, wrong region, or unreadable: repair ONLY this side.
             for candidate in choices.split(";")[:8]:
                 parts=candidate.split(":",1)
                 if len(parts)!=2:continue
@@ -487,12 +549,19 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
                     failed_ftp+=1
                     continue
                 cached.add(posixpath.basename(destination))
+                sources[(ident,side)]=name
+                updated_sources=True
                 used_images.add(name)
                 shipped+=1
                 break
+    if updated_sources:
+        try:_write_case_sources(ftp,sources)
+        except (OSError,error_perm):
+            print("LaunchBox : provenance du cache non enregistrée, images conservées.")
     print(f"LaunchBox: {len(installed)} titres installés visibles par FTP, "
           f"{indexed_matches} correspondances exactes, {attempted} visuels tentés, "
-          f"{shipped} fichiers transférés.")
+          f"{shipped} fichiers transférés, {reusable} réutilisés, "
+          f"{stale} anciens/invalides réévalués.")
     if any((failed_http,failed_network,failed_image,failed_ftp)):
         codes=", ".join(f"{code}: {count}" for code,count in sorted(failed_http.items()))
         print("LaunchBox diagnostic : "
