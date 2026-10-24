@@ -253,7 +253,7 @@ audio::SoundSet Shell::sound_set() const''')
                  '    float case_shot2_aspect = 16.0f/9.0f;\n'
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    int last_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
                  '#include "gfx/draw_list.hpp"\n#include "niak/cover_stream_state.hpp"')
     replace_once(catalog_h,
@@ -262,7 +262,8 @@ audio::SoundSet Shell::sound_set() const''')
         '    bool refresh_if_unavailable(gfx::Renderer &renderer,\n'
         '                                const ui::Fonts &fonts);\n'
         '    bool stream_next_covers(gfx::Renderer &renderer, const ui::Fonts &fonts,\n'
-        '                            std::size_t budget);')
+        '                            std::size_t budget);\n'
+        '    bool refresh_selected_case_art(gfx::Renderer &renderer);')
     replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
     src_niak = kit / "src/niak"
@@ -323,7 +324,7 @@ audio::SoundSet Shell::sound_set() const''')
         item.case_template_back=0;
         item.case_template_spine=0;''')
     replace_once(art_file, '#include "gfx/renderer.hpp"',
-                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/asset_stats.hpp"\n#include <algorithm>')
+                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/case_auto_art.hpp"\n#include "niak/asset_stats.hpp"\n#include <algorithm>')
     replace_once(art_file, '    release_covers(renderer);\n    constexpr float kSize',
                  '    release_covers(renderer);\n    niak::case_media_stats={};\n    constexpr float kSize')
     replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',
@@ -398,6 +399,8 @@ audio::SoundSet Shell::sound_set() const''')
         '''    release_covers(renderer);
     niak::case_media_stats={};
     cover_stream_.reset(items_.size());
+    last_case_focus_=-1;
+    last_case_completed_=niak_case_art_download_status().completed;
     niak::case_media_stats.total_titles=static_cast<unsigned>(
         std::count_if(items_.begin(),items_.end(),
             [](const Item &item){return item.title_id[0]!=0;}));
@@ -421,6 +424,43 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
         Item &item=items_[choice];
         int index=static_cast<int>(choice);
         // Prefer the true installed app icon''')
+    # Only the currently selected game gets newly downloaded case textures,
+    # and those GPU uploads run on the renderer thread (not the HTTP worker).
+    replace_once(art_file, '\n} // namespace hui::demo',
+    """
+bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
+{
+    const int index=niak::case_media_stats.preferred_index;
+    const unsigned completed=niak_case_art_download_status().completed;
+    if(index<0 || static_cast<std::size_t>(index)>=items_.size())return false;
+    if(index==last_case_focus_ && completed==last_case_completed_)
+        return false;
+    last_case_focus_=index;
+    last_case_completed_=completed;
+    Item &selected=items_[static_cast<std::size_t>(index)];
+    if(selected.application || !selected.title_id[0] || !selected.cover)
+        return false;
+    bool changed=false;
+    const auto missing=[&](std::uint32_t &texture,const char *side,
+                           float *aspect=nullptr) {
+        if(texture)return;
+        texture=niak_load_case_art(renderer,selected.title_id,side,aspect);
+        changed |= texture!=0;
+    };
+    missing(selected.case_front,"front");
+    missing(selected.case_back,"back");
+    missing(selected.case_spine,"spine");
+    if(!selected.case_front)
+        missing(selected.logo_art,"logo",&selected.logo_art_aspect);
+    if(!selected.case_back) {
+        missing(selected.case_hero,"hero",&selected.case_hero_aspect);
+        missing(selected.case_shot1,"shot1",&selected.case_shot1_aspect);
+        missing(selected.case_shot2,"shot2",&selected.case_shot2_aspect);
+    }
+    return changed;
+}
+} // namespace hui::demo""")
+
     # Defer streaming when the user is holding a direction or pressing an
     # action, to avoid a blocking filesystem lookup during navigation.
     # GPU texture creation remains on the renderer's owning thread.
@@ -430,6 +470,9 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
         if(frames>0 && frames%4u==0 && input.nav==Direction::none &&
            input.pressed==0 && input.held==0 && !input.focus_lost)
             (void)catalog.stream_next_covers(renderer,fonts,1);
+        if(frames>0 && frames%12u==0 && input.nav==Direction::none &&
+           input.pressed==0 && input.held==0 && !input.focus_lost)
+            (void)catalog.refresh_selected_case_art(renderer);
         // PLDmgr or title-mount services may start AFTER Catalog construction.
         // Poll at most once per ~600 frames while the UI is idle. Rebuild both
         // catalogue art and Aurora shelves on this same renderer thread; no
