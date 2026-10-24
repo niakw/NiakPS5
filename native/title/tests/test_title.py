@@ -53,7 +53,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("niak_queue_auto_case_art(id,side)",case)
         self.assertIn("niak_select_case_art(selected.application?nullptr:selected.title_id)",builder)
         self.assertIn("niak::case_media_stats.preferred_index=index",builder)
-        self.assertIn("if(task.id!=s.selected)continue",auto)
+        self.assertIn("if(task.generation!=s.generation || task.id!=s.selected)",auto)
         self.assertIn("s.tasks.clear();",auto)
         self.assertIn("Catalog::refresh_selected_case_art(",builder)
         self.assertIn("if(index==niak::case_media_stats.preferred_index)",builder)
