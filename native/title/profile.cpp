@@ -69,7 +69,10 @@ void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
     // Generic staged assets without a matching owner AND format are unsafe:
     // the console may have changed active users since the last FTP install.
     char marker[32]{};
-    std::FILE *owner=std::fopen(
+    // The sandbox may forbid raw /data access while exposing the same
+    // privileged broker assets safely through its own /app0 mount.
+    std::FILE *owner=std::fopen("/app0/assets/niak-profile-source.txt","rb");
+    if(!owner)owner=std::fopen(
         "/data/homebrew/PPSA99386/assets/niak-profile-source.txt","rb");
     if(owner) {
         (void)std::fgets(marker,sizeof(marker),owner);
@@ -78,9 +81,12 @@ void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
     const bool identified=std::strncmp(marker,identity,10)==0 && marker[10]==' ';
     const bool staged_png=identified && std::strcmp(marker+11,"png\n")==0;
     const bool staged_dds=identified && std::strcmp(marker+11,"dds\n")==0;
-    if(staged_png)
+    if(staged_png) {
         niak_user_avatar=niak_load_local_png(renderer,
+            "/app0/assets/niak-profile.png");
+        if(!niak_user_avatar)niak_user_avatar=niak_load_local_png(renderer,
             "/data/homebrew/PPSA99386/assets/niak-profile.png");
+    }
     if(!niak_user_avatar)
         niak_user_avatar=niak_load_profile_cache_png(renderer,
             static_cast<unsigned>(current));
@@ -99,9 +105,12 @@ void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
             if(niak_user_avatar)break;
         }
     }
-    if(!niak_user_avatar && staged_dds)
+    if(!niak_user_avatar && staged_dds) {
         niak_user_avatar=niak_load_dds_avatar(renderer,
+            "/app0/assets/niak-profile.dds");
+        if(!niak_user_avatar)niak_user_avatar=niak_load_dds_avatar(renderer,
             "/data/homebrew/PPSA99386/assets/niak-profile.dds");
+    }
 }
 std::uint32_t niak_profile_avatar() {
     if(!niak_user_avatar || niak_avatar_owner<0)return 0;
