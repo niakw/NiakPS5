@@ -106,12 +106,15 @@ bool existing(const std::string& path,const std::string& source){
 }
 std::unordered_map<std::string,ArtSlots> read_index(){
  std::unordered_map<std::string,ArtSlots> index;
- // Installed-title-specific metadata takes precedence over the generic
- // bundled catalogue (exactly like the native overview reader).
- FILE *f=std::fopen(
-    "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv","rb");
- if(!f)f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
- if(!f)return index;
+ // The packaged LaunchBox index must remain authoritative after a PS5
+ // update. An old private FTP overlay may add/replace valid media per side,
+ // but missing fields must NEVER hide a newer packaged entry.
+ const char *const sources[]={
+    "/app0/assets/niak-launchbox-cases.tsv",
+    "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
+ for(const char *source:sources) {
+ FILE *f=std::fopen(source,"rb");
+ if(!f)continue;
  char line[8192];
  while(index.size()<50000 && std::fgets(line,sizeof(line),f)){
    if(!std::strchr(line,'\n') && !std::feof(f)){
@@ -148,9 +151,15 @@ std::unordered_map<std::string,ArtSlots> read_index(){
        begin=end+1;
      }
    }
-   index.emplace(columns[0],std::move(parts));
+   bool usable=false;
+   for(const auto &part:parts)usable|=!part.empty();
+   if(!usable)continue;
+   auto &current=index[columns[0]];
+   for(std::size_t i=0;i<current.size();++i)
+     if(!parts[i].empty())current[i]=std::move(parts[i]);
  }
  std::fclose(f);
+ }
  return index;
 }
 bool convert_png(const std::vector<std::uint8_t>& bytes,

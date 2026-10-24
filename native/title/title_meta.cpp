@@ -188,12 +188,13 @@ std::string niak_title_overview(const char *id) {
  if(localized!=french.end())return niak_short_overview(localized->second);
  static const auto index=[]() {
    std::unordered_map<std::string,std::string> data;
-   FILE *f=std::fopen(
-       "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv","rb");
-   if(!f) f=std::fopen("/app0/assets/niak-launchbox-cases.tsv","rb");
-   if(!f)return data;
-   // Regional assets can occupy several KB per title. Keep the overview
-   // even when front/back/hero each list multiple valid CDN candidates.
+   // Read bundled fresh LaunchBox descriptions first. An older FTP overlay
+   // is allowed to improve them, but its "-" or missing Overview column
+   // must not permanently hide bundled descriptions.
+   const char *const sources[]={"/app0/assets/niak-launchbox-cases.tsv",
+       "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
+   for(const char *source:sources) {
+   FILE *f=std::fopen(source,"rb");if(!f)continue;
    char line[8192];
    while(std::fgets(line,sizeof(line),f)) {
      if(!std::strchr(line,'\n')&&!std::feof(f)) {
@@ -208,9 +209,11 @@ std::string niak_title_overview(const char *id) {
      tab=std::strchr(overview,'\t');
      if(tab)*tab=0;
      if(*overview && std::strcmp(overview,"-")!=0)
-       data.emplace(line,overview);
+       data[std::string(line)]=overview;
    }
-   std::fclose(f);return data;
+   std::fclose(f);
+   }
+   return data;
  }();
  const auto it=index.find(id);
  return it==index.end()?std::string{}:niak_short_overview(it->second);

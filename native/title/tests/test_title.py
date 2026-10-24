@@ -67,6 +67,10 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("s.tasks.push_front({title_id,side})",auto)
         self.assertIn("cdn.last_network_error",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("for(const std::string &source:candidates)",auto)
+        self.assertIn('"/app0/assets/niak-launchbox-cases.tsv"',auto)
+        self.assertIn("if(!parts[i].empty())current[i]=std::move(parts[i]);",auto)
+        self.assertIn('data[std::string(line)]=overview;',(
+            ROOT/"title"/"title_meta.cpp").read_text())
         self.assertIn("mkstemp(temp)",auto)
         self.assertIn("lodepng::decode(pixels,w,h,raw)",auto)
         self.assertIn("for(const std::string& filename:paths)",case)
