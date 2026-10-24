@@ -265,6 +265,7 @@ void work(){
      for(;;){
        if(!s.tasks.empty()){
          task=std::move(s.tasks.front());s.tasks.pop_front();
+         s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
          break;
        }
        if(s.retries.empty()){s.cv.wait(lock);continue;}
@@ -273,6 +274,7 @@ void work(){
        const auto due=next->retry_at;
        if(std::chrono::steady_clock::now()>=due){
          task=std::move(*next);s.retries.erase(next);
+         s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
          break;
        }
        s.cv.wait_until(lock,due);
@@ -337,7 +339,10 @@ void work(){
        task.retry_at=std::chrono::steady_clock::now()+
            std::chrono::seconds(task.attempt==1?20:60);
        std::lock_guard<std::mutex> guard(s.mutex);
-       if(task.id==s.selected)s.retries.push_back(std::move(task));
+       if(task.id==s.selected){
+         s.retries.push_back(std::move(task));
+         s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
+       }
      }else{
        ++s.exhausted;
      }
@@ -361,7 +366,7 @@ void niak_queue_auto_case_art(const char *title_id,const char *side){
    if(std::strcmp(side,"front")==0||std::strcmp(side,"back")==0)
      s.tasks.push_front({title_id,side});
    else s.tasks.push_back({title_id,side});
-   ++s.queued;
+   s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
    if(!s.started){
      s.started=true;
      std::thread(work).detach();
@@ -385,6 +390,7 @@ void niak_select_case_art(const char *title_id) {
    // in flight can finish; no next title ever waits behind the whole shelf.
    s.tasks.clear();
    s.retries.clear();
+   s.queued.store(0);
    s.seen.clear();
  }
  s.cv.notify_one();
