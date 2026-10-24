@@ -36,13 +36,13 @@ A folder copy alone cannot enable a missing autoload entry or fetch private Laun
 From your Mac, use the **bundled** FTP script, with no additional app installed on the PS5:
 
 ```bash
-python3 PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --port 2121 --refresh-art
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --port 2121 --refresh-art
 ```
 
 It matches current installed-title names to LaunchBox, downloads missing images, validates and tracks cached source images. **Close and reopen NiakPS5** for GPU textures to reload.
 
 ```bash
-python3 PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --status
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --status
 ```
 
 Use `--refresh-art --force-art` only to repair artwork that is still wrong. Copyrighted scans stay in the **owner's private console cache**, not in the public repository.
@@ -51,7 +51,7 @@ Use `--refresh-art --force-art` only to repair artwork that is still wrong. Copy
 
 ```bash
 export NIAK_DEEPL_API_KEY="YOUR_DEEPL_API_KEY"
-python3 PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --refresh-art --translate-fr
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP_ADDRESS --refresh-art --translate-fr
 ```
 
 The optional translation may consume your DeepL API quota. No private title inventory, profile data or API key is uploaded to this GitHub repository.

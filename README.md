@@ -36,13 +36,13 @@ Une copie FTP seule **n'active pas** un nouvel autoload et **ne télécharge pas
 Depuis le Mac, après extraction de l'artefact, utilisez **l'outil inclus** dans NiakPS5 (aucune nouvelle app à installer sur la console) :
 
 ```bash
-python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --port 2121 --refresh-art
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --port 2121 --refresh-art
 ```
 
 Cette commande relève les titres installés, reconstruit un index LaunchBox local, récupère les faces/captures manquantes et conserve un cache par source. **Fermez et rouvrez NiakPS5** pour recharger les textures GPU. Pour contrôler la couverture sans modification :
 
 ```bash
-python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --status
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --status
 ```
 
 Si une ancienne image reste invalide, `--refresh-art --force-art` peut la retélécharger ; n'utilisez cette option qu'en cas de besoin. Les scans téléchargés restent sur **votre propre PS5**, et non dans le dépôt public.
@@ -51,7 +51,7 @@ Si une ancienne image reste invalide, `--refresh-art --force-art` peut la retél
 
 ```bash
 export NIAK_DEEPL_API_KEY="VOTRE_CLE_API_DEEPL"
-python3 PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --refresh-art --translate-fr
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host IP_DE_LA_PS5 --refresh-art --translate-fr
 ```
 
 L'enrichissement traduit les textes disponibles, sans envoyer les identifiants de titres ou les profils PS5. Il peut consommer votre quota DeepL. Les traductions sont conservées dans le stockage privé de NiakPS5 et l'anglais reste le repli en cas d'échec.

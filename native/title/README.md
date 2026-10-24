@@ -17,10 +17,10 @@ Le workflow publie **deux familles d'aperçus réels OpenGL** : l'écran d'accue
 5. Le transfert FTP ne se produit pas automatiquement par une copie du paquet. Les fichiers commerciaux ne sont jamais redistribués via GitHub.
 
 ```bash
-python3 PPSA99386/tools/ftp_install.py --host PS5_IP --status
-python3 PPSA99386/tools/ftp_install.py --host PS5_IP --refresh-art
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP --status
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP --refresh-art
 # Seulement pour réparer un cache persistant incorrect :
-python3 PPSA99386/tools/ftp_install.py --host PS5_IP --refresh-art --force-art
+python3 data/homebrew/PPSA99386/tools/ftp_install.py --host PS5_IP --refresh-art --force-art
 ```
 
 ## Traduction / Localization
