@@ -41,6 +41,7 @@ struct State {
  std::deque<Task> tasks;
  std::set<std::string> seen;
  bool started=false;
+ std::string selected;
  std::atomic<unsigned> indexed{0},queued{0},completed{0},
      network_failed{0},decode_failed{0},write_failed{0},unmatched{0};
  std::atomic<int> last_network_error{0};
@@ -238,6 +239,10 @@ void work(){
      s.cv.wait(lock,[&]{return !s.tasks.empty();});
      task=std::move(s.tasks.front());s.tasks.pop_front();
    }
+   {
+     std::lock_guard<std::mutex> guard(s.mutex);
+     if(task.id!=s.selected)continue; // navigation cancelled old work
+   }
    const auto found=index.find(task.id);
    if(found==index.end()){++s.unmatched;continue;}
    const int field=side_index(task.side);
@@ -255,6 +260,10 @@ void work(){
        (task.side=="front"||task.side=="back")?3u:1u;
    unsigned examined=0;
    for(const std::string &source:candidates) {
+     {
+       std::lock_guard<std::mutex> guard(s.mutex);
+       if(task.id!=s.selected)break;
+     }
      if(examined++>=candidate_limit)break;
      if(requested>=512u) { ++s.exhausted;break; }
      ++requested;++s.requests;
@@ -267,6 +276,10 @@ void work(){
      std::vector<unsigned char> png;
      if(!convert_png(bytes,source,task.side,png)){
        ++s.decode_failed;continue;
+     }
+     {
+       std::lock_guard<std::mutex> guard(s.mutex);
+       if(task.id!=s.selected)break;
      }
      if(save(task,source,png)){++s.completed;break;}
      ++s.write_failed;
@@ -283,7 +296,8 @@ void niak_queue_auto_case_art(const char *title_id,const char *side){
  const std::string name=std::string(title_id)+"-"+side;
  {
    std::lock_guard<std::mutex> lock(s.mutex);
-   if(s.seen.size()>=kMaxQueued || !s.seen.insert(name).second)return;
+   if(s.selected!=title_id ||
+      s.seen.size()>=kMaxQueued || !s.seen.insert(name).second)return;
    // Scan the entire library without starving all remaining box fronts:
    // missing official front/back scans outrank extra logo/screenshots. New
    // titles also get a chance when the user navigates a long game shelf.
@@ -299,6 +313,29 @@ void niak_queue_auto_case_art(const char *title_id,const char *side){
  s.cv.notify_one();
 #else
  (void)title_id;(void)side;
+#endif
+}
+
+void niak_select_case_art(const char *title_id) {
+#if defined(__PROSPERO__)
+ State &s=state();
+ const bool valid=valid_id(title_id);
+ {
+   std::lock_guard<std::mutex> lock(s.mutex);
+   if(s.selected==(valid?std::string(title_id):std::string{}))return;
+   s.selected=valid?title_id:"";
+   // Only ONE game's CDN requests belong in the queue. A request already
+   // in flight can finish; no next title ever waits behind the whole shelf.
+   s.tasks.clear();
+   s.seen.clear();
+ }
+ if(!valid)return;
+ // Eden Encore: originals first; scenery only for reconstruction. push_front
+ // for front/back means both actual faces precede the optional resources.
+ for(const char *side:{"spine","logo","hero","shot1","shot2","back","front"})
+   niak_queue_auto_case_art(title_id,side);
+#else
+ (void)title_id;
 #endif
 }
 

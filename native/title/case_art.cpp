@@ -86,12 +86,10 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
      if(!handle)continue;
      if(aspect)*aspect=float(w)/float(h);
      niak::case_media_stats.case_texture_bytes+=std::uint64_t(w)*h*4u;
-     if(filename.rfind("/download0/niak-case-",0)==0)
-         niak_queue_auto_case_art(id,side);
      return handle;
  }
- // Missing or invalid artwork: enqueue a private download, not an icon copy.
- niak_queue_auto_case_art(id,side);
+ // Missing artwork is NOT a download request. Only selecting a game can
+ // enqueue CDN work. Library streaming loads existing local cache offline.
  return 0;
 }
 

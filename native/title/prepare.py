@@ -74,6 +74,22 @@ def prepare(kit: Path, project: Path, revision: str):
             shelves_.resize(1);
         }'''
     replace_once(aurora, old, new)
+    replace_once(aurora, '#include "niak/launch_bridge.hpp"',
+                 '#include "niak/launch_bridge.hpp"\n#include "niak/case_auto_art.hpp"\n#include "niak/asset_stats.hpp"')
+    replace_once(aurora,
+        '        // ---- animation state ----',
+        '''        // Only the focused GAME triggers remote LaunchBox artwork.
+        // Set stream priority first to load cached media without network.
+        const int index=focused_item();
+        niak::case_media_stats.preferred_index=index;
+        if(index!=last_art_selection_) {
+            last_art_selection_=index;
+            const demo::Item &selected=item(index);
+            niak_select_case_art(selected.application?nullptr:selected.title_id);
+        }
+        // ---- animation state ----''')
+    replace_once(aurora,'    int shown_ = 0;',
+                 '    int last_art_selection_ = -1;\n    int shown_ = 0;')
     replace_once(aurora, '"Aurora Shelf",', '"NiakPS5",')
     replace_once(aurora, '"A console home screen: hero panel, cover shelves, frosted details",',
                  '"Votre console. Votre espace. Accueil natif NiakPS5.",')
