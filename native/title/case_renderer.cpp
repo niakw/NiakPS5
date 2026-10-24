@@ -159,11 +159,13 @@ void outer_face(DrawList &list,const Camera &camera,
             // Background-size: cover uses cropped UVs, not width stretching.
             const auto art=item.case_poster?item.case_poster:
                 item.case_scene?item.case_scene:
+                item.case_hero?item.case_hero:
                 (item.cover_is_image?item.cover:0);
             const float art_aspect=item.case_poster?item.poster_aspect:
-                item.case_scene?item.case_scene_aspect:1.0f;
+                item.case_scene?item.case_scene_aspect:
+                item.case_hero?item.case_hero_aspect:1.0f;
             const bool icon_fallback=art && art==item.cover &&
-                !item.case_poster && !item.case_scene;
+                !item.case_poster && !item.case_scene && !item.case_hero;
             if(icon_fallback) {
                 // One fallback illustration, not the same app/game icon
                 // twice. Cover-crop the source into the whole printable
