@@ -184,11 +184,11 @@ static int invalidate_profile_asset(void) {
     const int ok=fchmod(fd,0644)==0 && fsync(fd)==0;
     return close(fd)==0 && ok;
 }
-static void copy_current_avatar_png(int user) {
-    if(user<0)return;
+static int copy_current_avatar_png(int user) {
+    if(user<0)return 0;
     if(!invalidate_profile_asset()) {
         report("Avatar owner invalidation denied", -1);
-        return;
+        return 0;
     }
     char profile[256],source[320];
     snprintf(profile,sizeof(profile),
@@ -199,7 +199,7 @@ static void copy_current_avatar_png(int user) {
     if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.png",png,8)) {
         mark_profile_asset(user,"png");
         report("Current user PNG avatar staged",0);
-        return;
+        return 1;
     }
     for(int i=0;i<3;++i) {
         const char *name=i==0?"avatar128.dds":i==1?"avatar260.dds":"avatar64.dds";
@@ -207,10 +207,11 @@ static void copy_current_avatar_png(int user) {
         if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.dds",dds,4)) {
             mark_profile_asset(user,"dds");
             report("Current user DDS avatar staged",0);
-            return;
+            return 1;
         }
     }
     report("Current user avatar inaccessible: no image staged",0);
+    return 0;
 }
 
 /* The user-authorized PLDmgr one-shot stays resident as a narrow, LOCAL-ONLY
@@ -290,8 +291,8 @@ static void serve_launch_requests(void) {
     // Listen for launcher PING/GAMES immediately. Previously a 12x3-second
     // autostart polling loop delayed the launch broker by up to 36 seconds.
     unsigned startup_attempts=0;
-    int startup_done=0,profile_checked=0;
-    uint64_t next_start_ms=0, next_heartbeat_ms=0;
+    int startup_done=0,profile_checked=0,staged_profile_user=-1;
+    uint64_t next_start_ms=0, next_heartbeat_ms=0, next_avatar_ms=0;
     uint64_t started_at_ms=0;
     // The original 21,600 two-second iterations silently stopped the
     // launch service after roughly twelve hours. Keep the opt-in broker
@@ -330,6 +331,18 @@ static void serve_launch_requests(void) {
                     report("NiakPS5 verified installed applications",apps);
                 }
             } else report("NiakPS5 broker inventory roots inaccessible",count);
+            // The active profile cache may become readable AFTER the GUI
+            // starts or after a profile switch. Retry on the already bounded
+            // heartbeat without touching an unrelated account's image.
+            int avatar_user=-1;
+            if(sceUserServiceGetForegroundUser(&avatar_user)==0 &&
+               avatar_user>=0 &&
+               (!profile_checked || avatar_user!=staged_profile_user) &&
+               now>=next_avatar_ms) {
+                profile_checked=copy_current_avatar_png(avatar_user);
+                staged_profile_user=avatar_user;
+                next_avatar_ms=now+30000u;
+            }
             report("NiakPS5 broker heartbeat PID",(int)getpid());
             // Timestamp each heartbeat so offline FTP diagnostics can tell
             // an old journal from evidence of recent service activity.
@@ -355,9 +368,11 @@ static void serve_launch_requests(void) {
                 int user=-1;
                 const int user_rc=sceUserServiceGetForegroundUser(&user);
                 if(user_rc==0 && user>=0) {
-                    if(!profile_checked) {
-                        copy_current_avatar_png(user);
-                        profile_checked=1;
+                    if((!profile_checked || user!=staged_profile_user) &&
+                       now>=next_avatar_ms) {
+                        profile_checked=copy_current_avatar_png(user);
+                        staged_profile_user=user;
+                        next_avatar_ms=now+30000u;
                     }
                     const int rc=launch_title_as_user(NIAK_TITLE,user);
                     if(rc==0)startup_done=1;
