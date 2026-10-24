@@ -188,19 +188,8 @@ void outer_face(DrawList &list,const Camera &camera,
                 block(0.f,layout.front_header-0.004f,1.f,
                       layout.front_header,Color::rgb(0x2884e7));
             }
-            // A genuine transparent title logo belongs ON TOP of the artwork.
-            // Preserve its aspect; no second square icon or dark lower panel.
-            if(item.logo_art) {
-                const float logo_h=std::clamp(
-                    0.78f*case_aspect/std::max(0.5f,item.logo_art_aspect),
-                    0.07f,0.19f);
-                const float top=0.79f-logo_h*0.5f;
-                const auto logo=[&](float u,float v){
-                    return paper(0.11f+u*0.78f,top+v*logo_h);
-                };
-                printed(list,item.logo_art,logo,
-                        near_frontal?12:18,near_frontal?3:5);
-            }
+            // Never stamp an additional clear logo onto existing artwork.
+            // Posters and game icons may already contain the game's wordmark.
         } else {
             // Fanart - Background is the soft full-page illustration IN THE
             // paper, not a separate card behind screenshots or text.

@@ -583,6 +583,9 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         if(frames>0 && frames%4u==0 && input.nav==Direction::none &&
            input.pressed==0 && input.held==0 && !input.focus_lost)
             (void)catalog.stream_next_covers(renderer,fonts,1);
+        if(frames>0 && frames%600u==0 && input.nav==Direction::none &&
+            input.pressed==0 && input.held==0 && !input.focus_lost)
+            niak_profile_refresh_avatar(renderer);
         if(frames>0 && frames%12u==0 && input.nav==Direction::none &&
            input.pressed==0 && input.held==0 && !input.focus_lost)
             (void)catalog.refresh_selected_case_art(renderer);

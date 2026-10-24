@@ -63,16 +63,19 @@ def patch(kit):
     s=exactly(s,'        if (focused_item() != shown_)',
               '        niak::case_media_stats.preferred_index=focused_item();\n'
               '        if (focused_item() != shown_)')
-    # Show the authentic clear logo when LaunchBox provided one, AND the title.
-    # Keep the name readable even if the logo scan has transparent margins.
+    # The console title is the only visible title on the hero panel.
+    # Do not superimpose LaunchBox clear logos over the game-name text.
+    # Reserve enough vertical space for two lines BEFORE the genre/ID.
     s=exactly(s,'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',
-       '''if (it.logo_art)
-            list.image(it.logo_art, {x + 460, 220, 300, 85}, gfx::kFullUv, kWhite);
-        ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);''')
-    # Keep the long title inside the available left column.
-    s=exactly(s,'ui::text(list, fonts.display, it.title, x - 4, 304, 88, kWhite);',
-        'ui::paragraph(list, fonts.display, it.title, x - 4, 285, '
-        '66, 1110, 73, kWhite, 2);')
+        'ui::paragraph(list, fonts.display, it.title, x - 4, 282, '
+        '54, 1040, 61, kWhite, 2);')
+    s=exactly(s, 'text, x, 358, 26, kWhite.with_alpha(0.78f)',
+                 'text, x, 411, 24, kWhite.with_alpha(0.78f)')
+    s=exactly(s, 'list.star(cursor + 42, 349, 12,', 'list.star(cursor + 42, 401, 12,')
+    s=exactly(s, 'text, cursor + 62, 358, 26, kWhite',
+                 'text, cursor + 62, 411, 24, kWhite')
+    s=exactly(s, 'it.blurb, x, 414, 28, 820, 40,', 
+                 'it.blurb, x, 463, 24, 820, 32,')
     # The glyph sits on the left of the 220px-wide button; center the label
     # in the remaining area, not at the old left-aligned English text position.
     s=exactly(s,'''ui::text(list, fonts.semibold, it.title_id[0] ? "Jouer" : "Indisponible", play.x + 72,

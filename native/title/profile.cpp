@@ -56,6 +56,8 @@ static std::uint32_t niak_user_avatar=0;
 static int niak_avatar_owner=-1;
 void niak_profile_load_avatar(hui::gfx::Renderer &renderer)
 {
+    // A foreground-user switch must never leak an old account's GPU texture.
+    if(niak_user_avatar)renderer.destroy_texture(niak_user_avatar);
     niak_user_avatar=0;
     niak_avatar_owner=-1;
     int current=-1;
@@ -109,4 +111,19 @@ std::uint32_t niak_profile_avatar() {
     if(sceUserServiceGetForegroundUser(&current)!=0 ||
        current!=niak_avatar_owner)return 0;
     return niak_user_avatar;
+}
+
+// Files exported by the privileged local broker may arrive AFTER the GUI
+// starts. Retry only while the user is idle, at most once every ten seconds.
+// Never substitute a different user's avatar or create a fake PSN icon.
+void niak_profile_refresh_avatar(hui::gfx::Renderer &renderer)
+{
+    static std::time_t checked_at=0;
+    const std::time_t now=std::time(nullptr);
+    if(checked_at && now>=checked_at && now-checked_at<10)return;
+    checked_at=now;
+    int current=-1;
+    if(sceUserServiceGetForegroundUser(&current)!=0 || current<0)return;
+    if(niak_user_avatar && current==niak_avatar_owner)return;
+    niak_profile_load_avatar(renderer);
 }

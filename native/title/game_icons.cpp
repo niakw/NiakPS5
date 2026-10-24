@@ -30,7 +30,9 @@ extern "C" {
 
 namespace {
 constexpr std::size_t kMaximumPng = 4U * 1024U * 1024U;
-constexpr int kTarget = 512;
+// Library tiles are ~200 px wide. 256 px icon textures save 75% of the
+// RGBA8 GPU memory per installed title compared with the old 512 px cache.
+constexpr int kTarget = 256;
 NiakIconEndpointPolicy icon_endpoint;
 std::uint64_t endpoint_now_ms() {
     using namespace std::chrono;
