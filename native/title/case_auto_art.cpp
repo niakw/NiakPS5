@@ -8,6 +8,7 @@
 #include "niak/case_texture_scale.hpp"
 #include "niak/lodepng.h"
 #include <webp/encode.h>
+#include <webp/decode.h>
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #define STBI_NO_STDIO
