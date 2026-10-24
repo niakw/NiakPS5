@@ -594,6 +594,9 @@ class NativeTitleTests(unittest.TestCase):
         # Near-front/back holds use fewer quads; full perspective returns
         # during rotation to preserve the 3D box proportions and corners.
         self.assertIn("const bool near_frontal=std::fabs(camera.cs)>0.985f",source)
+        self.assertIn("const float copy_opacity=std::clamp(",source)
+        self.assertIn("list.push_opacity(copy_opacity);",source)
+        self.assertIn("list.pop_opacity();",source)
         self.assertIn("near_frontal?12:32",source)
         self.assertIn("near_frontal?12:24",source)
         self.assertNotIn("near_frontal?12:18",source)
