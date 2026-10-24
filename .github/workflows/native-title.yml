@@ -122,3 +122,37 @@ jobs:
           path: dist/ftp-dropin/
           if-no-files-found: error
           compression-level: 6
+
+  publish-home:
+    name: Publish verified native home screenshot
+    needs: title
+    # The capture is REAL Mesa/OpenGL output from the title job, never generated art.
+    # Do not touch README/image when the native build or visual checks failed.
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'schedule' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: NiakPS5-OpenGL-home
+          path: .build/home-screenshot
+      - name: Store genuine home capture in README assets
+        run: |
+          set -euo pipefail
+          test -s .build/home-screenshot/niakps5-home.png
+          mkdir -p docs/images
+          cp .build/home-screenshot/niakps5-home.png docs/images/niakps5-home.png
+          git add docs/images/niakps5-home.png
+          if git diff --cached --quiet; then
+            echo "README screenshot unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(preview): refresh real NiakPS5 OpenGL home [skip ci]"
+          # Normal fast-forward only: never overwrite concurrent user changes.
+          git push origin HEAD:main
