@@ -2,6 +2,9 @@
 // Optional pre-cached LaunchBox retail PS4/PS5 case print.
 #include "niak/case_art.hpp"
 #include "niak/lodepng.h"
+#if defined(__PROSPERO__)
+#include <webp/decode.h>
+#endif
 #include "niak/case_texture_scale.hpp"
 #include "niak/case_auto_art.hpp"
 #include "niak/case_footer_alpha.hpp"
@@ -69,16 +72,23 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
      }
  }
 #endif
+ // Native CDN WebP cache takes precedence over old PNG, if provenance is valid.
+ std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.webp",id,side);
+ paths.emplace_back(file);
  // A verified CDN replacement takes priority over older FTP artwork.
  // Without this ordering a downloaded PS5 back could stay invisible behind
  // the previously installed PS4/PC fallback after a successful upgrade.
  std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.png",id,side);
  paths.emplace_back(file);
- std::snprintf(file,sizeof(file),
-     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",id,side);
- paths.emplace_back(file);
- std::snprintf(file,sizeof(file),"/app0/assets/niak-cases/%s-%s.png",id,side);
- paths.emplace_back(file);
+ // Prefer WebP FTP art when present; retain PNG for older installations.
+ for(const char *format:{
+     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.webp",
+     "/app0/assets/niak-cases/%s-%s.webp",
+     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",
+     "/app0/assets/niak-cases/%s-%s.png"}) {
+     std::snprintf(file,sizeof(file),format,id,side);
+     paths.emplace_back(file);
+ }
  if(std::strcmp(side,"front")==0) {
      std::snprintf(file,sizeof(file),
          "/data/homebrew/%s/assets/box-front.png",id);
@@ -103,12 +113,26 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
      std::vector<unsigned char> png(static_cast<std::size_t>(size));
      const bool okay=std::fread(png.data(),1,png.size(),fp)==png.size();
      std::fclose(fp);if(!okay)continue;
-     if(png.size()<24||
-        std::memcmp(png.data(),"\x89PNG\r\n\x1a\n",8)!=0)continue;
-     const unsigned width=(unsigned(png[16])<<24)|(unsigned(png[17])<<16)|
-                          (unsigned(png[18])<<8)|png[19];
-     const unsigned height=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
-                           (unsigned(png[22])<<8)|png[23];
+     if(png.size()<24)continue;
+     const bool webp=std::memcmp(png.data(),"RIFF",4)==0 &&
+                     std::memcmp(png.data()+8,"WEBP",4)==0;
+     unsigned width=0,height=0;
+     if(webp) {
+#if defined(__PROSPERO__)
+         int iw=0,ih=0;
+         if(!WebPGetInfo(png.data(),png.size(),&iw,&ih) ||
+            iw<=0||ih<=0)continue;
+         width=unsigned(iw);height=unsigned(ih);
+#else
+         continue; // Host preview retains PNG-only fixtures.
+#endif
+     } else {
+         if(std::memcmp(png.data(),"\x89PNG\r\n\x1a\n",8)!=0)continue;
+         width=(unsigned(png[16])<<24)|(unsigned(png[17])<<16)|
+               (unsigned(png[18])<<8)|png[19];
+         height=(unsigned(png[20])<<24)|(unsigned(png[21])<<16)|
+                (unsigned(png[22])<<8)|png[23];
+     }
      if(width<(logo?32u:spine?16u:64u)||
         height<(logo?20u:100u)||
         width>(logo?1400u:landscape?2048u:1024u)||
@@ -119,9 +143,18 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
             landscape?(ratio<1.15f||ratio>3.1f):
                       (ratio<0.55f||ratio>0.90f))continue;
      }
-     std::vector<unsigned char> pixels;unsigned w=0,h=0;
-     if(lodepng::decode(pixels,w,h,png)!=0||w!=width||h!=height||
-        pixels.size()!=std::size_t(w)*h*4u)continue;
+     std::vector<unsigned char> pixels;unsigned w=width,h=height;
+     if(webp) {
+#if defined(__PROSPERO__)
+         pixels.resize(std::size_t(w)*h*4u);
+         if(!WebPDecodeRGBAInto(png.data(),png.size(),pixels.data(),
+                                pixels.size(),int(w*4u)))continue;
+#else
+         continue;
+#endif
+     } else if(lodepng::decode(pixels,w,h,png)!=0||
+               w!=width||h!=height||
+               pixels.size()!=std::size_t(w)*h*4u)continue;
      if(!niak_scale_case_rgba(pixels,w,h,
          logo?768u:spine?96u:landscape?768u:512u,
          landscape?512u:768u))continue;

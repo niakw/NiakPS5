@@ -7,6 +7,7 @@
 #include "niak/daily_runtime.hpp"
 #include "niak/case_texture_scale.hpp"
 #include "niak/lodepng.h"
+#include <webp/encode.h>
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #define STBI_NO_STDIO
@@ -109,7 +110,7 @@ bool valid_filename(const std::string& name){
  return ext==".jpg" || ext==".png" || ext==".jpeg";
 }
 std::string cache_path(const Task& task){
- return std::string(ROOT)+task.id+"-"+task.side+".png";
+ return std::string(ROOT)+task.id+"-"+task.side+".webp";
 }
 bool existing(const std::string& path,const std::string& source){
  const std::string marker=path+".source";
@@ -202,7 +203,7 @@ std::unordered_map<std::string,ArtSlots> read_index(){
  }
  return index;
 }
-bool convert_png(const std::vector<std::uint8_t>& bytes,
+bool convert_webp(const std::vector<std::uint8_t>& bytes,
                  const std::string& source,const std::string& side,
                  std::vector<unsigned char>& output){
  // Eden accepts full retail scans before resizing them for its cache.
@@ -245,8 +246,15 @@ bool convert_png(const std::vector<std::uint8_t>& bytes,
  if(!niak_scale_case_rgba(pixels,w,h,
        spine?96u:logo?768u:landscape?768u:512u,
        landscape?512u:768u))return false;
- if(lodepng::encode(output,pixels,w,h)!=0 || output.size()>3u*1024u*1024u)
-    return false;
+ // WebP quality 80; it does not imply an 80% saving for every picture.
+ // RGBA preserves transparency in spine and other eligible artwork.
+ std::uint8_t *encoded=nullptr;
+ const std::size_t size=WebPEncodeRGBA(pixels.data(),int(w),int(h),
+                                       int(w*4u),80.f,&encoded);
+ if(!encoded||size==0)return false;
+ if(size>3u*1024u*1024u){WebPFree(encoded);return false;}
+ output.assign(encoded,encoded+size);
+ WebPFree(encoded);
  return true;
 }
 bool write_atomic(const std::string &path,
@@ -269,14 +277,14 @@ bool write_atomic(const std::string &path,
  return true;
 }
 bool save(const Task& task,const std::string& name,
-          const std::vector<unsigned char>& png){
+          const std::vector<unsigned char>& webp){
  const std::string path=cache_path(task);
  const std::string marker=path+".source";
  // Stage both files BEFORE invalidating the current cache entry.
  // A new PNG must never be advertised by an obsolete .source marker.
  const std::string staged_png=path+".pending";
  const std::string staged_source=marker+".pending";
- if(!write_atomic(staged_png,png.data(),png.size()))return false;
+ if(!write_atomic(staged_png,webp.data(),webp.size()))return false;
  if(!write_atomic(staged_source,
        reinterpret_cast<const unsigned char*>(name.data()),name.size())){
    (void)std::remove(staged_png.c_str());
@@ -423,15 +431,15 @@ void work(){
      if(!fetched)continue;
      // Keep the latest CDN failure visible until another game is selected.
      // A successful front must not hide an HTTPS failure on the back.
-     std::vector<unsigned char> png;
-     const bool converted=convert_png(bytes,source,task.side,png);
+     std::vector<unsigned char> webp;
+     const bool converted=convert_webp(bytes,source,task.side,webp);
      {
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.generation!=s.generation || task.id!=s.selected)break;
        if(!converted)++s.decode_failed;
      }
      if(!converted)continue;
-     const bool saved=save(task,source,png);
+     const bool saved=save(task,source,webp);
      {
        std::lock_guard<std::mutex> guard(s.mutex);
        if(task.generation!=s.generation || task.id!=s.selected)break;

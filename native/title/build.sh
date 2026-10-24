@@ -86,7 +86,7 @@ PY
 # Keep the reference kit's asset / runtime inputs and attribution.
 make -C "$stage" init TITLE_ID="$title" APP_NAME=NiakPS5 APP_CATEGORY=game
 # See PacBrew docs: SQLite is a read-only static link, no .db modification.
-make -C "$stage" USE_CCACHE=0 PACBREW_PACKAGES=libcurl PACBREW_INCLUDE_PATHS=include PACBREW_STATIC_ARCHIVES=lib/libsqlite3.a
+make -C "$stage" USE_CCACHE=0 PACBREW_PACKAGES="libcurl libwebp" PACBREW_INCLUDE_PATHS=include PACBREW_STATIC_ARCHIVES=lib/libsqlite3.a
 test -f "$stage/dist/$title/eboot.bin"
 test -f "$stage/dist/$title/sce_module/libc.prx"
 test -f "$stage/dist/$title/sce_sys/param.json"

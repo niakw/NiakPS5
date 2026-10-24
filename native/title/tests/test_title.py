@@ -122,6 +122,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("catalog.refresh_selected_case_art(renderer)",builder)
         self.assertIn("completed==last_case_completed_",builder)
         self.assertIn("/download0/niak-case-%s-%s.png",case)
+        self.assertIn("/download0/niak-case-%s-%s.webp",case)
+        self.assertIn("WebPDecodeRGBAInto(",case)
+        self.assertIn("WebPEncodeRGBA(",auto)
+        self.assertIn("80.f,&encoded",auto)
+        self.assertIn('PACBREW_PACKAGES="libcurl libwebp"',(ROOT/"title"/"build.sh").read_text())
         self.assertIn("std::thread(work).detach()",auto)
         self.assertIn("niak_fetch_launchbox_asset_ex(",auto)
         self.assertNotIn("requested>=512u",auto)
@@ -142,8 +147,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("transient_network_failure(error)",auto)
         self.assertIn("const bool fetched=niak_fetch_launchbox_asset_ex(",auto)
         self.assertIn("if(!fetched)continue;",auto)
-        self.assertIn("const bool converted=convert_png(",auto)
-        self.assertIn("const bool saved=save(task,source,png);",auto)
+        self.assertIn("const bool converted=convert_webp(",auto)
+        self.assertIn("const bool saved=save(task,source,webp);",auto)
         # The old request must be rejected under the same selection lock
         # before publishing its last HTTP error or counting a decode failure.
         network=auto.index("const bool fetched=niak_fetch_launchbox_asset_ex(")

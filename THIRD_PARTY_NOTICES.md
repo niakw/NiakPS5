@@ -15,6 +15,7 @@ during each build; see the build logs for the resolved package versions.
 | Component | Licence | Licence text distributed in `tools/licenses/` |
 | --- | --- | --- |
 | libcurl | curl licence (MIT/X) | `curl-COPYING.txt` |
+| libwebp | BSD-style | `libwebp-COPYING.txt` |
 | OpenSSL | Apache License 2.0 | `openssl-LICENSE.txt` |
 | zlib | zlib licence | `zlib-LICENSE.txt` |
 | zstd | BSD-3-Clause | `zstd-LICENSE.txt` |
