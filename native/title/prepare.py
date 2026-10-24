@@ -952,7 +952,10 @@ void Catalog::reload()
                     if(record.application_category &&
                        games[i].application_category!=2)
                         games[i].application_category=record.application_category;
-                    if(std::strcmp(games[i].title,games[i].id)==0 && record.title[0])
+                    // The FTP overlay is sourced from THIS installed ID's
+                    // signed/validated param.json. Its fr-FR title overrides
+                    // app.db's generic English titleName where available.
+                    if(record.title[0])
                         std::snprintf(games[i].title,sizeof(games[i].title),
                                       "%s",record.title);
                     break;

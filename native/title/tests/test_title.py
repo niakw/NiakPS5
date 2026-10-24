@@ -420,6 +420,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("loading_percent",case)
         self.assertNotIn("progress_percent",case)
 
+    def test_manifest_french_title_overrides_english_db(self):
+        source=(ROOT/"title"/"prepare.py").read_text()
+        ftp=(ROOT/"title"/"ftp_install.py").read_text()
+        self.assertIn('if(record.title[0])',source)
+        self.assertIn('languages=["fr-FR","en-US"',ftp)
+        self.assertLess(ftp.index('for lang in languages:',ftp.index('title=None')),
+                        ftp.index('title=meta.get("titleName")',ftp.index('title=None')))
+
     def test_streamed_catalog_does_not_block_first_visible_frame(self):
         source=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("bool Catalog::stream_next_covers",source)

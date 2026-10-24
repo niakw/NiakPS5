@@ -157,12 +157,16 @@ def upload_local_homebrew_names(ftp):
             params={}
         languages=["fr-FR","en-US",str(params.get("defaultLanguage",""))]
         languages += [k for k in params if isinstance(params[k],dict)]
-        title=meta.get("titleName")
+        # Prefer the installed title's LOCALIZED French display name over
+        # the often-English top-level titleName, even when both are present.
+        # Never infer translations or alter a title ID.
+        title=None
+        for lang in languages:
+            value=params.get(lang)
+            if isinstance(value,dict) and isinstance(value.get("titleName"),str):
+                title=value["titleName"];break
         if not title:
-            for lang in languages:
-                value=params.get(lang)
-                if isinstance(value,dict) and value.get("titleName"):
-                    title=value["titleName"];break
+            title=meta.get("titleName")
         if isinstance(title,str):
             title=" ".join(title.split())[:120]
             category=meta.get("applicationCategoryType")
