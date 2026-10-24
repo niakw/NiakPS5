@@ -617,7 +617,7 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
             return false;
         }''')
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
-                 '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"\n#include "niak/one_shot_install.hpp"')
+                 '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"\n#include "niak/one_shot_install.hpp"\n#include "niak/asset_stats.hpp"')
     replace_once(kit / "src/main.cpp",
         '    sys::log("[HUI] entry");',
         '    sys::log("[HUI] entry");\n'
