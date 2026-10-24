@@ -45,6 +45,10 @@ std::uint64_t endpoint_now_ms() {
 bool download(const std::string &uri, std::vector<unsigned char> &out)
 {
     if(!icon_endpoint.allowed(endpoint_now_ms()))return false;
+    // Whole-operation deadline: a slow local HTTP response must not hold
+    // the renderer thread indefinitely by trickling one fragment at a time.
+    const auto deadline=std::chrono::steady_clock::now()+
+                        std::chrono::milliseconds(220);
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         icon_endpoint.transport_failed(endpoint_now_ms());
@@ -53,17 +57,15 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     // ShadowMountPlus may close its HTTP socket while assets are loading;
     // do not let SIGPIPE kill the entire native title.
     niak_socket_guard(sock);
-    // This runs during idle-only case streaming on the graphics thread.
-    // A stalled loopback endpoint must not hold a single frame for 1.5s.
-    // 350ms is a per-recv window; healthy multi-chunk downloads can proceed.
-    timeval timeout{0, 350000};
+    // Socket timeouts are individual limits, not the overall deadline.
+    timeval timeout{0, 100000};
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_port = htons(10101);
     address.sin_addr.s_addr = htonl(0x7f000001u);
-    if (niak_connect_bounded(sock, reinterpret_cast<sockaddr *>(&address), sizeof(address), 90) < 0)
+    if (niak_connect_bounded(sock, reinterpret_cast<sockaddr *>(&address), sizeof(address), 75) < 0)
     {
         close(sock);
         icon_endpoint.transport_failed(endpoint_now_ms());
@@ -74,6 +76,9 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     std::size_t sent = 0;
     while (sent < request.size())
     {
+        if(std::chrono::steady_clock::now()>=deadline) {
+            close(sock);icon_endpoint.transport_failed(endpoint_now_ms());return false;
+        }
         const ssize_t n = niak_socket_send(sock, request.data() + sent, request.size() - sent);
         if (n <= 0) { close(sock); icon_endpoint.transport_failed(endpoint_now_ms()); return false; }
         sent += static_cast<std::size_t>(n);
@@ -87,6 +92,12 @@ bool download(const std::string &uri, std::vector<unsigned char> &out)
     // Complete Content-Length and chunked bodies without waiting for EOF:
     // the local API may legitimately keep its HTTP connection open.
     while(response.size()<kMaximumPng+8192+256*1024) {
+        const auto remaining=std::chrono::duration_cast<std::chrono::microseconds>(
+            deadline-std::chrono::steady_clock::now()).count();
+        if(remaining<=0) {icon_endpoint.transport_failed(endpoint_now_ms());break;}
+        const auto wait_us=std::min<std::int64_t>(remaining,100000);
+        timeval recv_timeout{0,static_cast<suseconds_t>(std::max<std::int64_t>(wait_us,1000))};
+        (void)setsockopt(sock,SOL_SOCKET,SO_RCVTIMEO,&recv_timeout,sizeof(recv_timeout));
         const ssize_t count=recv(sock,buffer.data(),buffer.size(),0);
         if(count>0) {
             response.insert(response.end(),buffer.begin(),buffer.begin()+count);
@@ -257,6 +268,8 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     {
         if (const auto texture=decode_upload(renderer,png)) return texture;
     }
+    // Do not double a socket timeout with an immediate thumbnail retry.
+    if(icon_endpoint.consecutive_failures>0)return 0;
     png.clear();
     if (download(url+"&size=thumb",png))
         return decode_upload(renderer,png);
