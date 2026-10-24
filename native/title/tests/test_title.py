@@ -79,7 +79,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("++s.generation;",auto)
         self.assertIn("s.last_network_error.store(0);",auto)
         self.assertIn("0x%08X",(ROOT/"title"/"patch_home.py").read_text())
-        self.assertIn("task.attempt<2",auto)
+        self.assertIn("if(task.attempt>=2)",auto)
         self.assertIn("transient_network_failure(error)",auto)
         self.assertIn("cdn.last_network_stage",(ROOT/"title"/"patch_home.py").read_text())
         self.assertIn("if(stage)*stage=3",(ROOT/"title"/"daily_runtime.cpp").read_text())
