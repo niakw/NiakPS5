@@ -112,11 +112,11 @@ static inline int niak_broker_named_application(const char *json,
  if(!json||!id)return 0;
  const char *identity=niak_json_direct(json,"titleId");
  if(identity) {
-  char actual[16]{0};
+  char actual[16]={0};
   if(!niak_json_title_value(identity,actual,sizeof(actual)) ||
      strcmp(actual,id)!=0)return 0;
  }
- char name[192]{0};
+ char name[192]={0};
  const char *title=niak_json_direct(json,"titleName");
  if(niak_json_title_value(title,name,sizeof(name)) &&
     niak_broker_known_app_name(name))return 1;
