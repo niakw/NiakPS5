@@ -575,10 +575,37 @@ bool Catalog::refresh_pending_case_art(gfx::Renderer &renderer) {
     if(focus<0 || static_cast<std::size_t>(focus)>=items_.size())return false;
     Item &selected=items_[static_cast<std::size_t>(focus)];
     if(!selected.title_id[0] || selected.application)return false;
+    // The worker's decoded RGBA result may be obsolete by the time we poll:
+    // check official faces, fallback visibility, and pending CDN refreshes
+    // BEFORE allocating a GPU texture. The worker slot is consumed even
+    // when the catalogue no longer needs this specific side.
+    const auto accept=[](const char *side,void *context)->bool {
+        const Item &item=*static_cast<const Item *>(context);
+        if(std::strcmp(side,"front")==0)
+            return !item.case_front || (item.case_reload_mask & (1u<<0));
+        if(std::strcmp(side,"back")==0)
+            return !item.case_back || (item.case_reload_mask & (1u<<1));
+        if(std::strcmp(side,"spine")==0)
+            return !item.case_spine || (item.case_reload_mask & (1u<<2));
+        if(std::strcmp(side,"logo")==0)
+            return !item.case_front && !item.logo_art;
+        if(std::strcmp(side,"poster")==0)
+            return !item.case_front && !item.case_poster;
+        if(std::strcmp(side,"hero")==0)
+            return (!item.case_front || !item.case_back) &&
+                (!item.case_hero || (item.case_reload_mask & (1u<<4)));
+        if(std::strcmp(side,"shot1")==0)
+            return !item.case_back &&
+                (!item.case_shot1 || (item.case_reload_mask & (1u<<5)));
+        if(std::strcmp(side,"shot2")==0)
+            return !item.case_back &&
+                (!item.case_shot2 || (item.case_reload_mask & (1u<<6)));
+        return false;
+    };
     char side[16]{};
     float aspect=1.0f;
     auto handle=niak_take_prepared_case_art(
-        renderer,selected.title_id,side,&aspect);
+        renderer,selected.title_id,side,&aspect,accept,&selected);
     if(!handle)return false;
     std::uint32_t *destination=nullptr;
     float *destination_aspect=nullptr;

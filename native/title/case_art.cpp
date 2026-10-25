@@ -309,7 +309,8 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
 // There is no renderer work, file read or socket call on an empty poll.
 std::uint32_t niak_take_prepared_case_art(
         hui::gfx::Renderer &renderer,const char *expected_id,
-        char (&side)[16],float *aspect) {
+        char (&side)[16],float *aspect,
+        bool (*accept)(const char *,void *),void *opaque) {
     side[0]=0;
 #if defined(__PROSPERO__)
     auto &state=prepared_case_state();
@@ -337,6 +338,9 @@ std::uint32_t niak_take_prepared_case_art(
     if(pixels.empty() || selected_side.size()>=sizeof(side) ||
        !w || !h || w>2048u || h>1536u ||
        pixels.size()!=std::size_t(w)*h*4u)return 0;
+    // The catalogue can reject a superseded/redundant paper face BEFORE
+    // allocating GPU memory. Always consume the result and wake the worker.
+    if(accept && !accept(selected_side.c_str(),opaque))return 0;
     std::memcpy(side,selected_side.c_str(),selected_side.size()+1u);
     const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
     if(handle) {
@@ -346,6 +350,7 @@ std::uint32_t niak_take_prepared_case_art(
     return handle;
 #else
     (void)renderer;(void)expected_id;(void)aspect;
+    (void)accept;(void)opaque;
     return 0;
 #endif
 }

@@ -49,6 +49,11 @@ class AsyncRetailCaseArtTests(unittest.TestCase):
         self.assertIn("state.selected_id==expected_id",poll)
         self.assertLess(poll.index("if(pixels.empty()"),poll.index("renderer.create_texture("))
         self.assertIn("track_case_texture(handle,w,h);",poll)
+        self.assertIn("if(accept && !accept(selected_side.c_str(),opaque))return 0;",poll)
+        self.assertLess(poll.index("if(accept && !accept(selected_side.c_str(),opaque))return 0;"),
+                        poll.index("renderer.create_texture("))
+        self.assertIn("renderer,selected.title_id,side,&aspect,accept,&selected",STAGE)
+        self.assertIn("bool (*accept)(const char *,void *)=nullptr",HEADER)
         self.assertIn("bool Catalog::refresh_pending_case_art(",STAGE)
         self.assertIn("catalog.refresh_pending_case_art(renderer);",STAGE)
         self.assertIn("niak_destroy_case_texture(renderer,handle);",STAGE)
