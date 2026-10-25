@@ -222,6 +222,41 @@ static int copy_current_avatar_png(int user) {
     return 0;
 }
 
+/* FTP replacement of the native title may remove an avatar or its owner
+ * marker even while the already-running broker remembers an earlier success.
+ * Check only the foreground user's exact private marker and the corresponding
+ * fixed app asset. No other profile is enumerated or read.
+ */
+static int current_avatar_asset_staged(int user) {
+    if(user<0)return 0;
+    const char *marker_path=
+        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt";
+    const int fd=open(marker_path,O_RDONLY|O_NOFOLLOW|O_NONBLOCK);
+    if(fd<0)return 0;
+    struct stat marker_info;
+    if(fstat(fd,&marker_info)!=0 || !S_ISREG(marker_info.st_mode) ||
+       marker_info.st_size<14 || marker_info.st_size>31) {
+        close(fd);return 0;
+    }
+    char marker[32]={0};
+    const ssize_t size=read(fd,marker,sizeof(marker)-1);
+    close(fd);
+    if(size!=marker_info.st_size)return 0;
+    char expected[32];
+    const int n=snprintf(expected,sizeof(expected),"0x%08X ",
+                         (unsigned)user);
+    if(n!=11 || strncmp(marker,expected,(size_t)n)!=0)return 0;
+    const char *image=NULL;
+    if(strcmp(marker+n,"png\n")==0)
+        image="/data/homebrew/PPSA99386/assets/niak-profile.png";
+    else if(strcmp(marker+n,"dds\n")==0)
+        image="/data/homebrew/PPSA99386/assets/niak-profile.dds";
+    else return 0;
+    struct stat st;
+    return lstat(image,&st)==0 && S_ISREG(st.st_mode) &&
+           st.st_size>=144 && st.st_size<=2*1024*1024;
+}
+
 /* The user-authorized PLDmgr one-shot stays resident as a narrow, LOCAL-ONLY
  * launch broker. Native titles cannot reliably start other games from their
  * sandbox. No remote bind, no files / commands / arbitrary title IDs accepted.
@@ -345,11 +380,18 @@ static void serve_launch_requests(void) {
             int avatar_user=-1;
             if(sceUserServiceGetForegroundUser(&avatar_user)==0 &&
                avatar_user>=0 &&
-               (!profile_checked || avatar_user!=staged_profile_user) &&
                now>=next_avatar_ms) {
-                profile_checked=copy_current_avatar_png(avatar_user);
+                // A success is not permanent: FTP updates can remove the
+                // staged file or the binding to this foreground account.
+                const int still_staged=profile_checked &&
+                    avatar_user==staged_profile_user &&
+                    current_avatar_asset_staged(avatar_user);
+                if(!still_staged)
+                    profile_checked=copy_current_avatar_png(avatar_user);
                 staged_profile_user=avatar_user;
-                next_avatar_ms=now+30000u;
+                // Missing assets retry soon; verified assets only receive
+                // one inexpensive stat/marker check every two minutes.
+                next_avatar_ms=now+(profile_checked?120000u:30000u);
             }
             report("NiakPS5 broker heartbeat PID",(int)getpid());
             // Timestamp each heartbeat so offline FTP diagnostics can tell
