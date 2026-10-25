@@ -1005,6 +1005,49 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         '    sys::log("[NiakPS5] BOOT 09: construct shell");\n'
         '    app::Shell shell(fonts, catalog, kDataRoot, renderer.glass_texture());\n'
         '    sys::log("[NiakPS5] BOOT 10: shell constructed");')
+    # Record the last completed boot phase in the title's own sandbox.
+    # A PS5 crash may kill stdout before the log is retrieved. This is a
+    # best-effort fallback, never a prerequisite to booting the UI.
+    replace_once(kit / "src/platform/ps5/system.cpp",
+        '    std::fputs(line, stdout);\n    sceKernelDebugOutText(0, line);',
+        '''    std::fputs(line, stdout);
+    sceKernelDebugOutText(0, line);
+    if (std::strncmp(line, "[NiakPS5] BOOT ", 15) == 0)
+    {
+        const bool first = std::strstr(line, "BOOT 01:") != nullptr;
+        if (std::FILE *boot = std::fopen("/download0/niak-boot-phase.log",
+                                         first ? "wb" : "ab"))
+        {
+            (void)std::fwrite(line, 1, std::strlen(line), boot);
+            (void)std::fclose(boot);
+        }
+    }''')
+    # Split the first frame itself into independent phases. A console crash
+    # before first swap can now be separated from shell update/compose,
+    # GL submit, and display swap.
+    replace_once(kit / "src/main.cpp",
+        '        shell.update(input, dt);',
+        '        if (frames == 0) sys::log("[NiakPS5] BOOT 11: shell update");\n'
+        '        shell.update(input, dt);\n'
+        '        if (frames == 0) sys::log("[NiakPS5] BOOT 12: update complete");')
+    replace_once(kit / "src/main.cpp",
+        '        shell.compose(renderer);',
+        '        if (frames == 0) sys::log("[NiakPS5] BOOT 13: shell compose");\n'
+        '        shell.compose(renderer);\n'
+        '        if (frames == 0) sys::log("[NiakPS5] BOOT 14: compose complete");')
+    replace_once(kit / "src/main.cpp",
+        '        renderer.present(0, display.width(), display.height());',
+        '        if (frames == 0) sys::log("[NiakPS5] BOOT 15: GL present");\n'
+        '        renderer.present(0, display.width(), display.height());')
+    replace_once(kit / "src/main.cpp",
+        '        if (!display.swap())',
+        '        if (frames == 0) sys::log("[NiakPS5] BOOT 16: EGL swap");\n'
+        '        if (!display.swap())')
+    replace_once(kit / "src/main.cpp",
+        '        ++frames;',
+        '        ++frames;\n'
+        '        if (frames == 1) sys::log("[NiakPS5] BOOT 17: first frame presented");')
+
     replace_once(aurora, '#include "ui/glyphs.hpp"',
                  '#include "ui/glyphs.hpp"\n#include "niak/daily_backdrop.hpp"')
     # The PacBrew SQLite build references localtime_r, not exported by the
