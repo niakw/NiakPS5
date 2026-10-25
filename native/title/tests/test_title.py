@@ -291,7 +291,10 @@ class NativeTitleTests(unittest.TestCase):
 
     def test_launchbox_metadata_build_rejects_empty_overviews(self):
         build=(ROOT/"title"/"build.sh").read_text()
-        self.assertIn("LaunchBox overviews missing:",build)
+        self.assertIn("LaunchBox missing real media:",build)
+        self.assertIn("actual<50",build)
+        self.assertIn("fronts<100",build)
+        self.assertIn("backs<100",build)
         self.assertIn('el.findtext("Overview","")',(ROOT/"title"/"launchbox_index.py").read_text())
 
     def test_short_game_overview_in_native_ui(self):
