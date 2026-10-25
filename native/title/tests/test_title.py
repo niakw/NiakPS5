@@ -235,8 +235,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("frames%12u==0 || first_idle_focus",native_stage)
         self.assertNotIn('missing(selected.logo_art,"logo"',native_stage)
         self.assertNotIn('item.logo_art=niak_load_case_art(',native_stage)
-        self.assertIn("updated[1],&selected.case_back",(ROOT/"title"/"prepare.py").read_text())
-        self.assertIn("niak_destroy_case_texture(renderer,*updated_side.second);",(ROOT/"title"/"prepare.py").read_text())
+        self.assertIn("for(unsigned side=0;side<updated.size();++side)",(ROOT/"title"/"prepare.py").read_text())
+        self.assertIn("selected.case_reload_mask|=(1u<<side);",(ROOT/"title"/"prepare.py").read_text())
         case_art=(ROOT/"title"/"case_art.cpp").read_text()
         ftp=(ROOT/"title"/"ftp_install.py").read_text()
         self.assertLess(case_art.index('"/download0/niak-case-%s-%s.png"'),

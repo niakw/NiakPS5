@@ -25,7 +25,9 @@ class HydrationBudgetTest(unittest.TestCase):
         self.assertIn('missing(selected.case_back,"back")',sequence)
         self.assertIn('missing(selected.case_spine,"spine")',sequence)
         self.assertIn("case_status.sides_completed[side]!=last_case_sides_[side]",SOURCE)
-        self.assertIn("niak_destroy_case_texture(renderer,*updated_side.second)",SOURCE)
+        self.assertIn("selected.case_reload_mask|=(1u<<side);",SOURCE)
+        self.assertIn("if(texture && !(selected.case_reload_mask & bit))return;",SOURCE)
+        self.assertIn("if(*destination)niak_destroy_case_texture(renderer,*destination);",SOURCE)
 
 if __name__=="__main__":
     unittest.main()

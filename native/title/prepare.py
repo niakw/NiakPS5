@@ -251,7 +251,7 @@ audio::SoundSet Shell::sound_set() const''')
                  '    float case_hero_aspect = 16.0f/9.0f;\n'
                  '    float case_shot1_aspect = 16.0f/9.0f;\n'
                  '    float case_shot2_aspect = 16.0f/9.0f;\n'
-                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
+                 '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    unsigned case_reload_mask = 0;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
                  '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::size_t icon_retry_cursor_ = 0;\n    unsigned case_hydration_step_ = 0;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
@@ -340,7 +340,7 @@ audio::SoundSet Shell::sound_set() const''')
         item.cover = 0;
         item.case_template_front=0;
         item.case_template_back=0;
-        item.case_template_spine=0;''')
+        item.case_template_spine=0;\n        item.case_reload_mask=0;''')
     replace_once(art_file, '#include "gfx/renderer.hpp"',
                  '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/case_auto_art.hpp"\n#include "niak/asset_stats.hpp"\n#include <algorithm>\n#include <cstring>')
     replace_once(art_file, '    release_covers(renderer);\n    constexpr float kSize',
@@ -606,11 +606,28 @@ bool Catalog::refresh_pending_case_art(gfx::Renderer &renderer) {
         (selected.case_back &&
         (std::strcmp(side,"shot1")==0 || std::strcmp(side,"shot2")==0 ||
          (std::strcmp(side,"hero")==0 && selected.case_front)));
-    if(!destination || *destination || redundant) {
+    // A CDN replacement is allowed to supersede a resident official face.
+    // The OLD texture remains visible throughout disk read and worker decode;
+    // destroy it only when the new GPU texture has already been allocated.
+    unsigned side_index=7u;
+    for(const auto &entry : {
+        std::pair<const char *,unsigned>{"front",0u},
+        {"back",1u},{"spine",2u},{"hero",4u},
+        {"shot1",5u},{"shot2",6u}}) {
+        if(std::strcmp(side,entry.first)==0) {
+            side_index=entry.second;
+            break;
+        }
+    }
+    const unsigned bit=side_index<7u?(1u<<side_index):0u;
+    const bool refreshing=bit && (selected.case_reload_mask & bit);
+    if(!destination || redundant || (*destination && !refreshing)) {
         niak_destroy_case_texture(renderer,handle);
         return false;
     }
+    if(*destination)niak_destroy_case_texture(renderer,*destination);
     *destination=handle;
+    selected.case_reload_mask&=~bit;
     if(destination_aspect)*destination_aspect=aspect;
     if(selected.case_front) {
         niak_destroy_case_texture(renderer,selected.logo_art);
@@ -705,25 +722,38 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         return false;
     }
     bool changed=false;
-    // Only invalidate faces belonging to the SAME title. The worker's
-    // completion counters are global: switching games must never interpret
-    // a previous game's download as a new change for this selected game.
-    // Release only the affected face, not the whole 3D case.
-    for(std::pair<bool,std::uint32_t*> updated_side : {
-         std::pair<bool,std::uint32_t*>{updated[0],&selected.case_front},
-         {updated[1],&selected.case_back},
-         {updated[2],&selected.case_spine},
-         {updated[3],&selected.logo_art},
-         {updated[4],&selected.case_hero},
-         {updated[5],&selected.case_shot1},
-         {updated[6],&selected.case_shot2}})
-        if(updated_side.first)
-            niak_destroy_case_texture(renderer,*updated_side.second);
+    // Do not destroy an official face when the CDN commits a newer scan:
+    // CPU preparation is asynchronous, and removal here creates a blank
+    // face until the worker and GPU upload have finished.
+    // The source's per-side epochs are scoped to the current selection.
+    for(unsigned side=0;side<updated.size();++side) {
+        // Logo art is not displayed as a separate front overlay on PS5.
+        if(updated[side] && side!=3u)
+            selected.case_reload_mask|=(1u<<side);
+    }
     const auto missing=[&](std::uint32_t &texture,const char *side,
                            float *aspect=nullptr) {
-        if(texture)return;
-        texture=niak_load_case_art(renderer,selected.title_id,side,aspect);
-        changed |= texture!=0;
+        unsigned bit=0;
+        for(const auto &entry : {
+            std::pair<const char *,unsigned>{"front",0u},
+            {"back",1u},{"spine",2u},{"hero",4u},
+            {"shot1",5u},{"shot2",6u}}) {
+            if(std::strcmp(side,entry.first)==0) {
+                bit=(1u<<entry.second);
+                break;
+            }
+        }
+        if(texture && !(selected.case_reload_mask & bit))return;
+        // PS5 queues new artwork and returns zero. Keep the resident
+        // texture intact until refresh_pending_case_art accepts the new one.
+        const auto refreshed=niak_load_case_art(
+            renderer,selected.title_id,side,aspect);
+        if(refreshed) {
+            if(texture)niak_destroy_case_texture(renderer,texture);
+            texture=refreshed;
+            selected.case_reload_mask&=~bit;
+            changed=true;
+        }
     };
     const char *platform=selected.title_id[0]=='C'?"ps4":"ps5";
     // At most ONE expensive image decode/upload for each idle tick.
