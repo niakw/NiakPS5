@@ -15,5 +15,12 @@ int main(){
  assert(!niak_application_category("PPSA12345","Unknown Title",0,1,false,true));
  assert(!niak_application_category("CUSA12345","Some Game",0,0,false,false));
  assert(niak_application_category("PPSA12345","Homebrew",0,1,false,false));
+ // A late, verified manifest corrects BOTH directions of shelf placement.
+ assert(niak_category_needs_refresh(false,true,false));
+ assert(niak_category_needs_refresh(true,false,true));
+ assert(!niak_category_needs_refresh(true,true,true));
+ assert(!niak_category_needs_refresh(false,false,true));
+ assert(!niak_category_needs_refresh(true,false,false));
+ assert(!niak_category_needs_refresh(false,false,false));
  return 0;
 }
