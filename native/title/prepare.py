@@ -82,14 +82,20 @@ def prepare(kit: Path, project: Path, revision: str):
         // Set stream priority first to load cached media without network.
         const int index=focused_item();
         niak::case_media_stats.preferred_index=index;
-        if(index!=last_art_selection_) {
-            last_art_selection_=index;
-            const demo::Item &selected=item(index);
-            niak_select_case_art(selected.application?nullptr:selected.title_id);
+        // The numeric shelf index is NOT a stable title identity: a late
+        // broker catalogue rebuild can replace the game at the same slot.
+        // Compare title IDs, not indices, so CDN tasks track the actual
+        // foreground game and an unchanged game does not restart downloads.
+        const demo::Item &selected=item(index);
+        const char *art_id=(selected.application || !selected.title_id[0])?
+            "" : selected.title_id;
+        if(std::strcmp(last_art_title_,art_id)!=0) {
+            std::snprintf(last_art_title_,sizeof(last_art_title_),"%s",art_id);
+            niak_select_case_art(art_id[0]?art_id:nullptr);
         }
         // ---- animation state ----''')
     replace_once(aurora,'    int shown_ = 0;',
-                 '    int last_art_selection_ = -1;\n    int shown_ = 0;')
+                 '    char last_art_title_[16] = {};\n    int shown_ = 0;')
     replace_once(aurora, '"Aurora Shelf",', '"NiakPS5",')
     replace_once(aurora, '"A console home screen: hero panel, cover shelves, frosted details",',
                  '"Votre console. Votre espace. Accueil natif NiakPS5.",')
