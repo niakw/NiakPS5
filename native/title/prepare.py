@@ -267,6 +267,7 @@ audio::SoundSet Shell::sound_set() const''')
         '    bool refresh_pending_game_icons(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_case_background(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_case_art(gfx::Renderer &renderer);\n'
+        '    bool refresh_pending_case_templates(gfx::Renderer &renderer);\n'
         '    void retry_missing_game_icons();')
     replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
@@ -528,6 +529,28 @@ bool Catalog::refresh_pending_case_background(gfx::Renderer &renderer) {
 
 // The worker returns only already scaled pixels. Refuse obsolete titles
 // BEFORE allocating their textures, then bind one approved scan per idle frame.
+// Shared PS4/PS5 mastheads, back strips and spines become available after
+// their worker decode. Attach only to missing faces of the selected game;
+// originals always supersede the template. No decoding occurs here.
+bool Catalog::refresh_pending_case_templates(gfx::Renderer &renderer) {
+    bool changed=niak_upload_one_prepared_case_template(renderer);
+    const int focus=niak::case_media_stats.preferred_index;
+    if(focus<0 || static_cast<std::size_t>(focus)>=items_.size())return changed;
+    Item &item=items_[static_cast<std::size_t>(focus)];
+    if(!item.title_id[0] || item.application)return changed;
+    const char *platform=item.title_id[0]=='C'?"ps4":"ps5";
+    const auto attach=[&](std::uint32_t &target,std::uint32_t original,
+                          const char *side) {
+        if(original || target)return;
+        const auto loaded=niak_get_ready_case_template(platform,side);
+        if(loaded){target=loaded;changed=true;}
+    };
+    attach(item.case_template_front,item.case_front,"front");
+    attach(item.case_template_back,item.case_back,"back");
+    attach(item.case_template_spine,item.case_spine,"spine");
+    return changed;
+}
+
 bool Catalog::refresh_pending_case_art(gfx::Renderer &renderer) {
     const int focus=niak::case_media_stats.preferred_index;
     if(focus<0 || static_cast<std::size_t>(focus)>=items_.size())return false;
@@ -774,6 +797,7 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         if(navigation_idle) {
             (void)catalog.refresh_pending_game_icons(renderer);
             (void)catalog.refresh_pending_case_art(renderer);
+            (void)catalog.refresh_pending_case_templates(renderer);
             (void)catalog.refresh_pending_case_background(renderer);
         }
         // Missing icons can recover after ShadowMountPlus starts late.

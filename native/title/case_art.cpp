@@ -366,36 +366,22 @@ void niak_destroy_case_texture(hui::gfx::Renderer &renderer,
 namespace {
 bool template_attempted[6]={};
 std::uint32_t template_textures[6]={};
-}
-void niak_release_case_templates(hui::gfx::Renderer &renderer) {
- for(int i=0;i<6;++i) {
-  niak_destroy_case_texture(renderer,template_textures[i]);
-  template_attempted[i]=false;
- }
-}
-std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
-                                      const char *platform,const char *part) {
- // Exactly six static, user-supplied files. Never form untrusted paths.
- const char *platforms[]={"ps4","ps5"};
- const char *parts[]={"front","back","spine"};
- int generation=-1,side=-1;
- for(int i=0;i<2;++i)
-     if(platform && std::strcmp(platform,platforms[i])==0)generation=i;
- for(int i=0;i<3;++i)
-     if(part && std::strcmp(part,parts[i])==0)side=i;
- if(generation<0||side<0)return 0;
- const int index=generation*3+side;
- if(template_attempted[index])return template_textures[index];
- template_attempted[index]=true;
+// The same authoritative PNG/WebP preference and alpha separation is used
+// by the host preview and the PS5 worker; no duplicate image pipeline.
+bool prepare_case_template_pixels(int generation,int side,
+                                  std::vector<unsigned char> &pixels,
+                                  unsigned &w,unsigned &h) {
+ const char *platform=generation==0?"ps4":"ps5";
+ const char *part=side==0?"front":side==1?"back":"spine";
  char file[512]{};
 #if defined(__linux__)
- const auto fail=[&](const char *reason)->std::uint32_t{
+ const auto fail=[&](const char *reason)->bool{
      std::fprintf(stderr,"[NiakPS5 preview] fixed template %s-%s: %s [%s]\\n",
                   platform,part,reason,file);
-     return 0;
+     return false;
  };
 #else
- const auto fail=[&](const char *)->std::uint32_t{return 0;};
+ const auto fail=[&](const char *)->bool{return false;};
 #endif
  FILE *fp=nullptr;
 #if defined(__linux__)
@@ -431,14 +417,14 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  }
 #endif
  if(!fp)return fail("not found"); // Optional on offline PS5, required in CI.
- if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return 0;}
+ if(std::fseek(fp,0,SEEK_END)!=0){std::fclose(fp);return false;}
  const long size=std::ftell(fp);
  if(size<33 || size>3*1024*1024 || std::fseek(fp,0,SEEK_SET)!=0)
-     {std::fclose(fp);return 0;}
+     {std::fclose(fp);return false;}
  std::vector<unsigned char> bytes(static_cast<std::size_t>(size));
  const bool complete=std::fread(bytes.data(),1,bytes.size(),fp)==bytes.size();
- std::fclose(fp);if(!complete)return 0;
- if(bytes.size()<24)return 0;
+ std::fclose(fp);if(!complete)return false;
+ if(bytes.size()<24)return false;
  const bool webp=std::memcmp(bytes.data(),"RIFF",4)==0 &&
                   std::memcmp(bytes.data()+8,"WEBP",4)==0;
  unsigned width=0,height=0;
@@ -446,13 +432,13 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
 #if defined(__PROSPERO__)
      int iw=0,ih=0;
      if(!WebPGetInfo(bytes.data(),bytes.size(),&iw,&ih) ||
-        iw<=0||ih<=0)return 0;
+        iw<=0||ih<=0)return false;
      width=unsigned(iw);height=unsigned(ih);
 #else
      return fail("WebP template unsupported by host preview");
 #endif
  } else {
-     if(std::memcmp(bytes.data(),"\x89PNG\r\n\x1a\n",8)!=0)return 0;
+     if(std::memcmp(bytes.data(),"\x89PNG\r\n\x1a\n",8)!=0)return false;
      width=(unsigned(bytes[16])<<24)|(unsigned(bytes[17])<<16)|
            (unsigned(bytes[18])<<8)|bytes[19];
      height=(unsigned(bytes[20])<<24)|(unsigned(bytes[21])<<16)|
@@ -485,8 +471,7 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
 #endif
      return fail("invalid dimensions");
  }
- std::vector<unsigned char> pixels;
- unsigned w=width,h=height;
+ w=width;h=height;
  unsigned decode_error=0;
  if(webp) {
 #if defined(__PROSPERO__)
@@ -516,10 +501,147 @@ std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
  // Shared mastheads/footers also avoid needless original-size GPU textures.
  if(!niak_scale_case_rgba(pixels,w,h,side==2?96u:1024u,
                           side==2?768u:512u))return fail("resampling failed");
+ return true;
+}
+#if defined(__PROSPERO__)
+struct PreparedTemplates {
+ std::mutex mutex;
+ std::condition_variable wake;
+ std::deque<int> queue;
+ std::uint64_t generation=0;
+ int completed_index=-1;
+ std::vector<unsigned char> completed_pixels;
+ unsigned completed_width=0,completed_height=0;
+ bool started=false,completed=false;
+};
+PreparedTemplates &template_state() {
+ static auto *state=new PreparedTemplates;
+ return *state;
+}
+void template_reader_worker() {
+ auto &state=template_state();
+ for(;;) {
+  int index=-1;
+  std::uint64_t epoch=0;
+  {
+   std::unique_lock<std::mutex> lock(state.mutex);
+   state.wake.wait(lock,[&] {return !state.completed && !state.queue.empty();});
+   index=state.queue.front();
+   state.queue.pop_front();
+   epoch=state.generation;
+  }
+  std::vector<unsigned char> pixels;
+  unsigned width=0,height=0;
+  // This worker touches only CPU memory and the private local asset paths.
+  const bool okay=prepare_case_template_pixels(
+      index/3,index%3,pixels,width,height);
+  std::lock_guard<std::mutex> lock(state.mutex);
+  if(epoch!=state.generation || !okay)continue;
+  state.completed_index=index;
+  state.completed_width=width;
+  state.completed_height=height;
+  state.completed_pixels=std::move(pixels);
+  state.completed=true;
+ }
+}
+void queue_case_template(int index) {
+ auto &state=template_state();
+ std::lock_guard<std::mutex> lock(state.mutex);
+ // Exactly six canonical templates, queued once per renderer lifecycle.
+ if(state.queue.size()>=6)return;
+ state.queue.push_back(index);
+ if(!state.started) {
+  state.started=true;
+  std::thread([] {template_reader_worker();}).detach();
+ }
+ state.wake.notify_one();
+}
+#endif
+int case_template_index(const char *platform,const char *part) {
+ const char *platforms[]={"ps4","ps5"};
+ const char *parts[]={"front","back","spine"};
+ int generation=-1,side=-1;
+ for(int i=0;i<2;++i)
+     if(platform && std::strcmp(platform,platforms[i])==0)generation=i;
+ for(int i=0;i<3;++i)
+     if(part && std::strcmp(part,parts[i])==0)side=i;
+ return generation<0||side<0?-1:generation*3+side;
+}
+} // namespace
+
+void niak_release_case_templates(hui::gfx::Renderer &renderer) {
+#if defined(__PROSPERO__)
+ // A worker may still decode during a catalogue rebuild; invalidate both
+ // queued requests and in-flight results before freeing shared textures.
+ auto &state=template_state();
+ {
+  std::lock_guard<std::mutex> lock(state.mutex);
+  ++state.generation;
+  state.queue.clear();
+  state.completed=false;
+  state.completed_index=-1;
+  state.completed_pixels.clear();
+ }
+ state.wake.notify_one();
+#endif
+ for(int i=0;i<6;++i) {
+  niak_destroy_case_texture(renderer,template_textures[i]);
+  template_attempted[i]=false;
+ }
+}
+std::uint32_t niak_get_ready_case_template(const char *platform,const char *part) {
+ const int index=case_template_index(platform,part);
+ return index>=0?template_textures[index]:0;
+}
+bool niak_upload_one_prepared_case_template(hui::gfx::Renderer &renderer) {
+#if defined(__PROSPERO__)
+ auto &state=template_state();
+ std::vector<unsigned char> pixels;
+ int index=-1;
+ unsigned w=0,h=0;
+ {
+  std::lock_guard<std::mutex> lock(state.mutex);
+  if(!state.completed)return false;
+  index=state.completed_index;
+  pixels=std::move(state.completed_pixels);
+  w=state.completed_width;h=state.completed_height;
+  state.completed=false;
+  state.completed_index=-1;
+ }
+ state.wake.notify_one();
+ // Bound all graphics allocations, and never recreate a shared slot.
+ if(index<0||index>=6||template_textures[index] || !w||!h||
+    w>1024u||h>768u||pixels.size()!=std::size_t(w)*h*4u)return false;
+ template_textures[index]=renderer.create_texture(int(w),int(h),pixels.data());
+ if(template_textures[index]) {
+  track_case_texture(template_textures[index],w,h);
+  return true;
+ }
+ return false;
+#else
+ (void)renderer;
+ return false;
+#endif
+}
+std::uint32_t niak_load_case_template(hui::gfx::Renderer &renderer,
+                                      const char *platform,const char *part) {
+ const int index=case_template_index(platform,part);
+ if(index<0)return 0;
+ if(template_attempted[index])return template_textures[index];
+ template_attempted[index]=true;
+#if defined(__PROSPERO__)
+ // Decode/alpha-key/resize off the GL thread. This call never opens files.
+ queue_case_template(index);
+ (void)renderer;
+ return 0;
+#else
+ // Keep synchronous host Mesa fixtures deterministic.
+ std::vector<unsigned char> pixels;
+ unsigned w=0,h=0;
+ if(!prepare_case_template_pixels(index/3,index%3,pixels,w,h))return 0;
  template_textures[index]=renderer.create_texture(int(w),int(h),pixels.data());
  if(template_textures[index])
      track_case_texture(template_textures[index],w,h);
- else
-     return fail("GPU texture allocation failed");
  return template_textures[index];
+#endif
 }
