@@ -572,7 +572,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("using MetadataStamps=std::array<MetadataStamp,6>;",source)
         self.assertIn("MetadataStamps read_description_stamps()",source)
         self.assertIn("result.description_stamps=read_description_stamps();",source)
-        self.assertIn("if(!changed && result.description_stamps!=last_applied_description_stamps())",source)
+        self.assertIn("if(!changed && copy_changed) {",source)
         self.assertIn("last_applied_description_stamps()=result.description_stamps;",source)
         self.assertIn("niak_invalidate_title_metadata();",source)
         self.assertIn("(void)last_applied_description_stamps();",source)
@@ -585,6 +585,31 @@ class NativeTitleTests(unittest.TestCase):
         end=source.index("void Catalog::reload()",start)
         self.assertNotIn("::stat(",source[start:end])
         self.assertNotIn("read_description_stamps()",source[start:end])
+
+    def test_overview_only_hot_reload_keeps_gpu_textures_and_sorted_blurbs(self):
+        source=(ROOT/"title"/"prepare.py").read_text()
+        begin=source.index("bool Catalog::refresh_if_unavailable(")
+        end=source.index("void Catalog::reload()",begin)
+        refresh=source[begin:end]
+        fast=refresh[refresh.index("if(!changed && copy_changed) {"):
+                     refresh.index("if(!changed)return false;")]
+        self.assertIn("niak_invalidate_title_metadata();",fast)
+        self.assertIn("std::deque<std::string> refreshed_blurbs;",fast)
+        self.assertIn("for(const Item &item:items_)",fast)
+        self.assertIn("niak_title_overview(item.title_id)",fast)
+        self.assertIn("niak_title_summary(meta)",fast)
+        self.assertIn("owned_blurbs_.swap(refreshed_blurbs);",fast)
+        self.assertIn("items_[i].blurb=owned_blurbs_[i].c_str();",fast)
+        self.assertIn("return true;",fast)
+        self.assertNotIn("release_covers(renderer)",fast)
+        self.assertNotIn("items_.clear()",fast)
+        self.assertNotIn("reload();",fast)
+        self.assertNotIn("build_covers(",fast)
+        # The owner shell is recreated immediately after the returned true,
+        # before a concept can dereference any replaced description pointer.
+        self.assertIn("if(!tour && frames>0 && frames%600u==0",source)
+        self.assertIn("catalog.refresh_if_unavailable(renderer,fonts))",source)
+        self.assertIn("shell.reload_catalog_views();",source)
 
     def test_refreshed_catalogue_invalidates_sourced_overview_caches(self):
         meta=(ROOT/"title"/"title_meta.cpp").read_text()
