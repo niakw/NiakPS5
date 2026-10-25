@@ -518,7 +518,7 @@ class AutoloadTests(unittest.TestCase):
         self.assertTrue(ftpmod.valid_avatar_dds(low))
         self.assertEqual(ftp.files[output+"niak-profile.dds"],low)
         self.assertEqual(ftp.files[output+"niak-profile-source.txt"],
-                         b"0xA0B0C0D0 dds\\n")
+                         b"0xA0B0C0D0 dds\n")
 
     def test_short_or_truncated_dds_does_not_replace_existing_avatar(self):
         self.assertFalse(ftpmod.valid_avatar_dds(b"DDS "+bytes(200)))
