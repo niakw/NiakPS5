@@ -442,8 +442,83 @@ def patch(kit):
     int settings_link_rc_ = -1;
     bool top_focus_ = false;
 """)
+    # A late PLDmgr inventory can rebuild the Catalog while the user is on
+    # a game or Settings. Save navigation BY TITLE ID before old shelf indices
+    # disappear; never dereference those indices after the Catalog is replaced.
+    text = once(text, "class Aurora final : public app::Concept", """
+struct NiakNavigationSnapshot {
+    char title_id[16]{};
+    int active_tab=0, settings_cursor=0;
+    bool top_focus=false, valid=false;
+};
+NiakNavigationSnapshot &niak_navigation_snapshot() {
+    static auto *saved=new NiakNavigationSnapshot;
+    return *saved;
+}
+class Aurora final : public app::Concept""")
+    text = once(text, "        shown_ = previous_ = focused_item();", """
+        // The old concept was destroyed only after its Catalog refreshed.
+        // Its per-frame copied title ID is stable; its old shelf indices
+        // are not. Find that ID in the NEW catalogue, or keep safe defaults.
+        const auto &nav=niak_navigation_snapshot();
+        if(nav.valid) {
+            active_tab_=std::clamp(nav.active_tab,0,3);
+            settings_cursor_=std::clamp(nav.settings_cursor,0,9);
+            top_focus_=nav.top_focus;
+            bool found=false;
+            if(nav.title_id[0]) {
+                for(std::size_t r=0;r<shelves_.size() && !found;++r) {
+                    Shelf &shelf=shelves_[r];
+                    for(std::size_t column=0;column<shelf.items.size();++column) {
+                        const int item_index=shelf.items[column];
+                        if(std::strcmp(items[static_cast<std::size_t>(item_index)].title_id,
+                                       nav.title_id)!=0)continue;
+                        row_=static_cast<int>(r);
+                        shelf.column=static_cast<int>(column);
+                        found=true;
+                        break;
+                    }
+                }
+            }
+            // If this game's verified category changed, follow it to its
+            // NEW shelf; preserve Settings when Settings was already open.
+            if(active_tab_!=3 && found) {
+                if(shelves_.size()>1) {
+                    if(row_==1)active_tab_=2;
+                    else if(active_tab_==2)active_tab_=1;
+                } else if(active_tab_==2)active_tab_=0;
+            }
+            selected_tab_=active_tab_;
+        }
+        row_position_.snap(float(row_));
+        std::snprintf(last_selected_title_,sizeof(last_selected_title_),
+                      "%s",item(focused_item()).title_id);
+        shown_ = previous_ = focused_item();""")
+    text = once(text, "    const app::ConceptInfo &info() const override", """
+    ~Aurora() override {
+        // Do not read context_.catalog here: it was already rebuilt, and
+        // shelf indices from the old Concept may be out of bounds.
+        auto &nav=niak_navigation_snapshot();
+        std::snprintf(nav.title_id,sizeof(nav.title_id),
+                      "%s",last_selected_title_);
+        nav.active_tab=active_tab_;
+        nav.settings_cursor=settings_cursor_;
+        nav.top_focus=top_focus_;
+        nav.valid=true;
+    }
+
+    const app::ConceptInfo &info() const override""")
+    text = once(text, "        // ---- animation state ----", """
+        // Capture the displayed title AFTER controller navigation and
+        // BEFORE the background inventory probe can rebuild the catalogue.
+        std::snprintf(last_selected_title_,sizeof(last_selected_title_),
+                      "%s",item(focused_item()).title_id);
+        // ---- animation state ----""")
+    text = once(text, "    int active_tab_ = 0;", """
+    char last_selected_title_[16]{};
+    int active_tab_ = 0;""")
     file.write_text(text)
-    print("NiakPS5: live top tabs and settings controls patched")
+    print("NiakPS5: tabs, Settings and title-ID navigation restored on catalogue refresh")
 
 if __name__ == "__main__":
     parser=argparse.ArgumentParser()
