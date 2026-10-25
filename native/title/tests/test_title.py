@@ -150,10 +150,14 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp",case)
         self.assertIn("constexpr const char *FALLBACK_ROOT=",auto)
         self.assertIn("std::string fallback_cache_path(const Task& task)",auto)
-        self.assertIn("save_to(cache_path(task),name,webp) ||",auto)
-        self.assertIn("save_to(fallback_cache_path(task),name,webp)",auto)
+        self.assertIn("if(save_to(primary,name,webp))",auto)
+        self.assertIn("if(save_to(backup,name,webp))",auto)
+        self.assertIn('std::remove((backup+".source").c_str())',auto)
+        self.assertIn('std::remove((primary+".source").c_str())',auto)
         self.assertIn("existing(fallback_target,candidates[i])",auto)
         self.assertIn('filename.rfind("/data/homebrew/PPSA99386/assets/niak-cdn-case-",0)',case)
+        self.assertLess(case.index("/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp"),
+                        case.index("/download0/niak-case-%s-%s.webp"))
         self.assertLess(case.index("/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp"),
                         case.index("/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.webp"))
         self.assertIn("WebPDecodeRGBAInto(",case)
