@@ -63,7 +63,7 @@ std::array<SourceStamp,2> index_stamps(){
 using ArtSlots=std::array<std::vector<std::string>,7>;
 struct Task {
  std::string id,side;
- unsigned generation=0,attempt=0;
+ unsigned generation=0,attempt=0,index_attempt=0;
  std::chrono::steady_clock::time_point retry_at{};
 };
 bool transient_network_failure(int error){
@@ -306,12 +306,20 @@ bool save(const Task& task,const std::string& name,
  }
  return true;
 }
-void queue_retry(State &s,Task task){
- // Bound retries even when the index is temporarily unavailable at boot.
- if(task.attempt>=2){++s.exhausted;return;}
- ++task.attempt;
+void queue_retry(State &s,Task task,bool waiting_for_index=false){
+ // Keep HTTPS failures tightly bounded. Delayed /app0 or FTP metadata may
+ // appear several minutes after boot; that path needs a separate, bounded
+ // LOCAL retry budget without issuing a single additional network request.
+ unsigned &attempt=waiting_for_index?task.index_attempt:task.attempt;
+ const unsigned max_attempts=waiting_for_index?5u:2u;
+ if(attempt>=max_attempts){++s.exhausted;return;}
+ ++attempt;
+ const unsigned seconds=waiting_for_index?
+     (attempt==1?20u:attempt==2?60u:attempt==3?120u:
+      attempt==4?240u:360u):
+     (attempt==1?20u:60u);
  task.retry_at=std::chrono::steady_clock::now()+
-     std::chrono::seconds(task.attempt==1?20:60);
+     std::chrono::seconds(seconds);
  std::lock_guard<std::mutex> guard(s.mutex);
  if(task.generation!=s.generation)return;
  s.retries.push_back(std::move(task));
@@ -378,13 +386,21 @@ void work(){
      indexed_attempt=task.attempt;
      s.indexed.store(static_cast<unsigned>(index.size()));
    }
-   if(index.empty()){queue_retry(s,std::move(task));continue;}
+   if(index.empty()){queue_retry(s,std::move(task),true);continue;}
    const auto found=index.find(task.id);
-   if(found==index.end()){++s.unmatched;continue;}
+   if(found==index.end()){
+     if(task.index_attempt==0)++s.unmatched;
+     queue_retry(s,std::move(task),true);
+     continue;
+   }
    const int field=side_index(task.side);
    if(field<0)continue;
    const auto &candidates=found->second[std::size_t(field)];
-   if(candidates.empty()){++s.unmatched;continue;}
+   if(candidates.empty()){
+     if(task.index_attempt==0)++s.unmatched;
+     queue_retry(s,std::move(task),true);
+     continue;
+   }
    const std::string target=cache_path(task);
    // The fallback image can remain usable offline, but must not permanently
    // mask a newly available higher-priority PS5/PS4 Box - Back. Upgrade it
