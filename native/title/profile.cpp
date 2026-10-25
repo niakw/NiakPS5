@@ -5,6 +5,8 @@
 #include "gfx/renderer.hpp"
 #include "niak/avatar_dds.hpp"
 #include <vector>
+#include <array>
+#include <sys/stat.h>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -131,6 +133,50 @@ bool prepare_current_avatar(int current,int &width,int &height,
     return false;
 }
 
+// Only the current account's five source-cache files plus the six
+// application-local avatar files are observed. Stat runs on the avatar CPU
+// worker, not the GPU/input thread, so FTP replacement is cheap to detect.
+struct AvatarFileStamp {
+    std::uint64_t size=0,mtime=0,ctime=0,inode=0;
+    bool regular=false;
+    bool operator==(const AvatarFileStamp &other)const {
+        return size==other.size && mtime==other.mtime &&
+               ctime==other.ctime && inode==other.inode &&
+               regular==other.regular;
+    }
+};
+using AvatarFileStamps=std::array<AvatarFileStamp,11>;
+AvatarFileStamp avatar_file_stamp(const char *path) {
+    struct stat st{};
+    if(::stat(path,&st)!=0 || !S_ISREG(st.st_mode))return {};
+    return {static_cast<std::uint64_t>(st.st_size),
+            static_cast<std::uint64_t>(st.st_mtime),
+            static_cast<std::uint64_t>(st.st_ctime),
+            static_cast<std::uint64_t>(st.st_ino),true};
+}
+AvatarFileStamps read_avatar_source_stamps(int current) {
+    AvatarFileStamps stamps{};
+    static const char *const private_files[]={
+        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt",
+        "/data/homebrew/PPSA99386/assets/niak-profile.png",
+        "/data/homebrew/PPSA99386/assets/niak-profile.dds",
+        "/app0/assets/niak-profile-source.txt",
+        "/app0/assets/niak-profile.png",
+        "/app0/assets/niak-profile.dds"};
+    for(std::size_t i=0;i<6;++i)stamps[i]=avatar_file_stamp(private_files[i]);
+    static const char *const native_files[]={
+        "avatar.png","avatar440.dds","avatar260.dds",
+        "avatar128.dds","avatar64.dds"};
+    if(current>=0)for(std::size_t i=0;i<5;++i) {
+        char path[240]{};
+        const int n=std::snprintf(path,sizeof(path),
+            "/system_data/priv/cache/profile/0x%08X/%s",
+            static_cast<unsigned>(current),native_files[i]);
+        if(n>0 && n<static_cast<int>(sizeof(path)))
+            stamps[i+6]=avatar_file_stamp(path);
+    }
+    return stamps;
+}
 struct AvatarReadState {
     std::mutex mutex;
     std::condition_variable wake;
@@ -138,6 +184,8 @@ struct AvatarReadState {
     int completed_user=-1;
     std::uint64_t generation=0;
     bool started=false,pending=false,in_flight=false,completed=false;
+    bool texture_live=false,have_stamps=false;
+    AvatarFileStamps observed_stamps{};
     std::vector<std::uint8_t> completed_pixels;
     int width=0,height=0;
 };
@@ -158,6 +206,20 @@ void avatar_reader() {
             state.pending=false;
             state.in_flight=true;
         }
+        // A new staged avatar may arrive while a previously displayed
+        // image remains cached. Probe only metadata on this worker. Decode
+        // and re-upload ONLY when the owner's source files have changed.
+        const AvatarFileStamps stamps=read_avatar_source_stamps(user);
+        {
+            std::lock_guard<std::mutex> lock(state.mutex);
+            if(epoch!=state.generation || user!=state.selected_user)
+                continue;
+            if(state.texture_live && state.have_stamps &&
+               stamps==state.observed_stamps) {
+                state.in_flight=false;
+                continue;
+            }
+        }
         int width=0,height=0;
         std::vector<std::uint8_t> pixels;
         const bool ready=prepare_current_avatar(user,width,height,pixels);
@@ -166,6 +228,8 @@ void avatar_reader() {
             if(epoch!=state.generation || user!=state.selected_user)
                 continue;
             state.in_flight=false;
+            state.observed_stamps=stamps;
+            state.have_stamps=true;
             if(!ready)continue;
             state.completed_user=user;
             state.width=width;
@@ -181,6 +245,8 @@ void request_avatar_for(int current) {
     if(state.selected_user!=current) {
         state.selected_user=current;
         ++state.generation;
+        state.texture_live=false;
+        state.have_stamps=false;
         state.completed=false;
         state.completed_pixels.clear();
         state.pending=false;
@@ -235,6 +301,10 @@ void niak_profile_poll_avatar(hui::gfx::Renderer &renderer) {
     if(niak_user_avatar)renderer.destroy_texture(niak_user_avatar);
     niak_user_avatar=texture;
     niak_avatar_owner=user;
+    {
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(state.selected_user==user)state.texture_live=true;
+    }
 }
 // Broker files may arrive AFTER startup. Recheck only once per 10 seconds;
 // ordinary frames do no filesystem I/O, decoding or unnecessary GPU work.
@@ -245,6 +315,12 @@ void niak_profile_refresh_avatar(hui::gfx::Renderer &renderer) {
     checked_at=now;
     int current=-1;
     if(sceUserServiceGetForegroundUser(&current)!=0 || current<0)return;
-    if(niak_user_avatar && current==niak_avatar_owner)return;
+    if(niak_user_avatar && current==niak_avatar_owner) {
+        // A successful avatar is no longer a permanent cache miss for
+        // future FTP updates. The worker checks source file stamps without
+        // loading an image or touching the renderer when nothing changed.
+        request_avatar_for(current);
+        return;
+    }
     niak_profile_load_avatar(renderer);
 }
