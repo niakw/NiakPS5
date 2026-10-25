@@ -1155,19 +1155,61 @@ extern "C" {
 #include "niak/local_inventory.h"
 #include "niak/local_inventory_merge.hpp"
 #include <algorithm>
+#include <array>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <string>
+#include <sys/stat.h>
 #include <thread>
 #include <utility>
 #include <vector>
 
 namespace hui::demo
 {
+namespace {
+// Six bounded, read-only metadata stamps; no image or network scanning.
+// The GUI samples the initial generation just once at catalogue startup.
+// Subsequent probes run on the inventory worker every ~30 seconds.
+struct MetadataStamp {
+    std::uint64_t size=0,mtime=0,ctime=0,inode=0;
+    bool present=false;
+    bool operator==(const MetadataStamp &other)const {
+        return size==other.size && mtime==other.mtime &&
+               ctime==other.ctime && inode==other.inode &&
+               present==other.present;
+    }
+};
+using MetadataStamps=std::array<MetadataStamp,6>;
+MetadataStamps read_description_stamps() {
+    static const char *const paths[]={
+        "/app0/assets/niak-overviews-fr.tsv",
+        "/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv",
+        "/app0/assets/niak-overviews-fr-sourced.tsv",
+        "/data/homebrew/PPSA99386/assets/niak-overviews-fr-sourced.tsv",
+        "/app0/assets/niak-launchbox-cases.tsv",
+        "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
+    MetadataStamps stamps{};
+    for(std::size_t i=0;i<stamps.size();++i) {
+        struct stat st{};
+        if(::stat(paths[i],&st)!=0 || !S_ISREG(st.st_mode))continue;
+        stamps[i]={static_cast<std::uint64_t>(st.st_size),
+                   static_cast<std::uint64_t>(st.st_mtime),
+                   static_cast<std::uint64_t>(st.st_ctime),
+                   static_cast<std::uint64_t>(st.st_ino),true};
+    }
+    return stamps;
+}
+MetadataStamps &last_applied_description_stamps() {
+    static auto stamps=read_description_stamps();
+    return stamps;
+}
+} // namespace
 Catalog::Catalog()
 {
+    (void)last_applied_description_stamps();
     reload();
 }
 
@@ -1181,6 +1223,7 @@ struct InventoryProbeResult {
     // Owner-local FTP overlays are facts about names/categories, NOT proof
     // of installation. They can arrive after Catalog construction.
     std::vector<NiakGame> metadata;
+    MetadataStamps description_stamps{};
 };
 struct InventoryProbeState {
     std::mutex mutex;
@@ -1249,6 +1292,7 @@ InventoryProbeResult scan_inventory_background() {
         overlay.resize(static_cast<std::size_t>(overlays));
         result.metadata=std::move(overlay);
     }
+    result.description_stamps=read_description_stamps();
     return result;
 }
 void start_inventory_probe() {
@@ -1329,7 +1373,13 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
             break;
         }
     }
+    // A sparse FTP update can change ONLY French copy or a LaunchBox
+    // overview. Rebuild once for changed file stamps even when the installed
+    // IDs, localized display names and categories are all unchanged.
+    if(!changed && result.description_stamps!=last_applied_description_stamps())
+        changed=true;
     if(!changed)return false;
+    last_applied_description_stamps()=result.description_stamps;
 
     release_covers(renderer);
     items_.clear();
