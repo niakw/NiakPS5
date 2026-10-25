@@ -379,11 +379,11 @@ void work(){
    // metadata, when a sandbox mount appears, or on empty-index retries.
    const auto current_stamps=index_stamps();
    if(!index_loaded || current_stamps!=loaded_stamps ||
-      (index.empty() && task.attempt>indexed_attempt)){
+      (index.empty() && task.index_attempt>indexed_attempt)){
      index=read_index();
      loaded_stamps=current_stamps;
      index_loaded=true;
-     indexed_attempt=task.attempt;
+     indexed_attempt=task.index_attempt;
      s.indexed.store(static_cast<unsigned>(index.size()));
    }
    if(index.empty()){queue_retry(s,std::move(task),true);continue;}
