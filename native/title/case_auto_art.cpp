@@ -654,11 +654,12 @@ void work(){
      break;
    }
    // Retain a valid lower-priority back while online promotion fails.
-   // Never discard an existing PC/PS4 fallback just because the PS5 CDN
-   // cannot be reached. Reattempt transient failures with bounded backoff.
+   // After a failed cache write, task was MOVED into the local retry queue:
+   // its strings may be empty. Use the verified field index, never read a
+   // moved-from title/side, and do not call the pending write completed.
    if(!downloaded && reusable_rank<candidates.size()){
-     if(task.side=="front")official_front_ready=true;
-     if(task.side=="back")official_back_ready=true;
+     if(field==0)official_front_ready=true;
+     if(field==1)official_back_ready=true;
    }
    // Retry temporary HTTP failures without changing selection. Navigation
    // cancels both pending and delayed work for the previous title.
