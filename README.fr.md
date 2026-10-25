@@ -30,9 +30,9 @@ Sur la PS5 13.60 de test, **48 titres ont été trouvés**, la bibliothèque s'a
 
 1. Télécharger l'artefact **`NiakPS5-PPSA99386`** d'un [run vert sur `main`](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml).
 2. Extraire une seule fois l'archive ; fusionner son dossier **`data/`** à la racine FTP **`/`** de la PS5 **sans effacer les dossiers existants**.
-3. Ouvrir le titre **`PPSA99386`** sur la console. Le payload compagnon est livré dans le même dossier à copier.
+3. Ouvrir, via un chargeur homebrew compatible déjà configuré (par exemple ShadowMountPlus), le titre **`PPSA99386`** sur la console. Le payload compagnon est livré dans le même dossier à copier.
 
-Le paquet **ne modifie pas** `autoload.txt`, la configuration PLDmgr ni les fichiers du système Sony. Si un autoload NiakPS5 existe déjà et fonctionne, conservez-le. La simple copie FTP ne peut pas créer une entrée d'autoload manquante.
+Le paquet **ne modifie pas** `autoload.txt`, la configuration PLDmgr ni les fichiers du système Sony. Si un autoload NiakPS5 existe déjà et fonctionne, conservez-le. La simple copie FTP ne peut ni enregistrer un nouveau titre PS5 ni créer une entrée d'autoload manquante.
 
 Le cache d'artwork automatique est interne à NiakPS5. Les outils FTP supplémentaires sont documentés **uniquement pour le diagnostic ou la réparation** dans les [notes techniques](native/title/README.md), pas comme une étape normale de mise à jour.
 
