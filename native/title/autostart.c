@@ -206,8 +206,13 @@ static int copy_current_avatar_png(int user) {
         report("Avatar PNG owner marker refused",-1);
         return 0;
     }
-    for(int i=0;i<3;++i) {
-        const char *name=i==0?"avatar128.dds":i==1?"avatar260.dds":"avatar64.dds";
+    // Native PS5 profile caches can have avatar440.dds even when the PNG
+    // or smaller DDS derivatives are missing. Prefer the sharpest permitted
+    // BC3 image, while keeping the same strict foreground-user directory.
+    static const char *const avatar_files[]={
+        "avatar440.dds","avatar260.dds","avatar128.dds","avatar64.dds"};
+    for(size_t i=0;i<sizeof(avatar_files)/sizeof(avatar_files[0]);++i) {
+        const char *name=avatar_files[i];
         snprintf(source,sizeof(source),"%s/%s",profile,name);
         if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.dds",dds,4)) {
             if(mark_profile_asset(user,"dds")) {
