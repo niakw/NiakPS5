@@ -9,6 +9,19 @@ spec=importlib.util.spec_from_file_location("niak_ftp_install",SCRIPT)
 ftpmod=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ftpmod)
 
+def make_bc3_avatar_dds(width=128,height=128):
+    """Minimal decodable BC3 DDS: matches the native 512px bounded reader."""
+    import struct
+    blocks=((width+3)//4)*((height+3)//4)
+    data=bytearray(128+blocks*16)
+    data[:4]=b"DDS "
+    struct.pack_into("<I",data,4,124)
+    struct.pack_into("<I",data,12,height)
+    struct.pack_into("<I",data,16,width)
+    struct.pack_into("<I",data,76,32)
+    data[84:88]=b"DXT5"
+    return bytes(data)
+
 class FakeFTP:
     def __init__(self,files=None):
         self.files=dict(files or {})
@@ -466,7 +479,7 @@ class AutoloadTests(unittest.TestCase):
 
     def test_staged_dds_identifies_format_and_foreground_owner(self):
         user="0xA0B0C0D0"
-        dds=b"DDS "+bytes(220)
+        dds=make_bc3_avatar_dds(128)
         f=FakeFTP({"/system_data/priv/cache/profile/"+user+"/avatar128.dds":dds})
         ftpmod.install(f,self.root,False,avatar_user_id=user)
         root="/data/homebrew/PPSA99386/assets/"
@@ -481,8 +494,8 @@ class AutoloadTests(unittest.TestCase):
 
     def test_avatar_440_dds_preferred_over_smaller_fallback(self):
         user="0xA0B0C0D0"
-        high=b"DDS "+b"H"*220
-        low=b"DDS "+b"L"*220
+        high=make_bc3_avatar_dds(440)
+        low=make_bc3_avatar_dds(128)
         root="/system_data/priv/cache/profile/"+user+"/"
         f=FakeFTP({root+"avatar440.dds":high,root+"avatar128.dds":low})
         ftpmod.install(f,self.root,False,avatar_user_id=user)
@@ -490,6 +503,35 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(f.files[output+"niak-profile.dds"],high)
         self.assertEqual(f.files[output+"niak-profile-source.txt"],
                          b"0xA0B0C0D0 dds\n")
+
+    def test_incompatible_440_dds_falls_back_to_decodable_128(self):
+        user="0xA0B0C0D0"
+        high=bytearray(make_bc3_avatar_dds(440))
+        high[84:88]=b"DX10"  # Unsupported header, despite valid DDS magic.
+        low=make_bc3_avatar_dds(128)
+        root="/system_data/priv/cache/profile/"+user+"/"
+        ftp=FakeFTP({root+"avatar440.dds":bytes(high),
+                     root+"avatar128.dds":low})
+        ftpmod.install(ftp,self.root,False,avatar_user_id=user)
+        output="/data/homebrew/PPSA99386/assets/"
+        self.assertFalse(ftpmod.valid_avatar_dds(bytes(high)))
+        self.assertTrue(ftpmod.valid_avatar_dds(low))
+        self.assertEqual(ftp.files[output+"niak-profile.dds"],low)
+        self.assertEqual(ftp.files[output+"niak-profile-source.txt"],
+                         b"0xA0B0C0D0 dds\\n")
+
+    def test_short_or_truncated_dds_does_not_replace_existing_avatar(self):
+        self.assertFalse(ftpmod.valid_avatar_dds(b"DDS "+bytes(200)))
+        self.assertFalse(ftpmod.valid_avatar_dds(make_bc3_avatar_dds(128)[:-16]))
+        self.assertFalse(ftpmod.valid_avatar_dds(make_bc3_avatar_dds(512,512)[:500]))
+        self.assertFalse(ftpmod.valid_avatar_dds(make_bc3_avatar_dds(16,16)[:143]))
+
+    def test_broker_validates_avatar_dds_before_staging(self):
+        broker=(SCRIPT.parent/"autostart.c").read_text()
+        self.assertIn("static int niak_avatar_dds_supported(",broker)
+        self.assertIn('memcmp(data+84,"DXT5",4)!=0',broker)
+        self.assertIn("niak_avatar_dds_u32(data+76)!=32u",broker)
+        self.assertIn("ok=niak_avatar_dds_supported(data,size);",broker)
 
     def test_launchbox_reports_download_and_write_failures_without_secrets(self):
         from unittest.mock import patch
