@@ -1191,11 +1191,22 @@ InventoryProbeState &inventory_probe_state() {
     return *state;
 }
 void collect_inventory_ids(std::vector<std::string> &ids,
-                           const std::vector<NiakGame> &buffer,int count) {
+                           const std::vector<NiakGame> &buffer,int count,
+                           std::vector<std::string> *apps=nullptr) {
     for(int n=0;n<count && n<static_cast<int>(buffer.size());++n) {
-        const char *id=buffer[static_cast<std::size_t>(n)].id;
-        if(id[0] && std::find(ids.begin(),ids.end(),id)==ids.end())
+        const NiakGame &game=buffer[static_cast<std::size_t>(n)];
+        const char *id=game.id;
+        if(!id[0])continue;
+        if(std::find(ids.begin(),ids.end(),id)==ids.end())
             ids.emplace_back(id);
+        // The late scan must detect category changes for titles that were
+        // already on the shelf as generic games. Media manifests and actual
+        // installed launcher names are stronger evidence than the stale
+        // initial category. Do not infer applications from their description.
+        if(apps && (game.application_category==2 ||
+                    niak_known_application(game.title)) &&
+           std::find(apps->begin(),apps->end(),id)==apps->end())
+            apps->emplace_back(id);
     }
 }
 InventoryProbeResult scan_inventory_background() {
@@ -1204,14 +1215,18 @@ InventoryProbeResult scan_inventory_background() {
     int count=niak_scan_broker_games(records.data(),records.size());
     if(count>0)collect_inventory_ids(result.installed,records,count);
     count=niak_scan_installed_folders("",records.data(),records.size());
-    if(count>0)collect_inventory_ids(result.installed,records,count);
+    if(count>0)collect_inventory_ids(result.installed,records,count,
+                                      &result.applications);
     count=niak_scan_homebrews("",records.data(),records.size());
-    if(count>0)collect_inventory_ids(result.installed,records,count);
+    if(count>0)collect_inventory_ids(result.installed,records,count,
+                                      &result.applications);
     count=niak_scan_shadowmount(records.data(),records.size());
-    if(count>0)collect_inventory_ids(result.installed,records,count);
+    if(count>0)collect_inventory_ids(result.installed,records,count,
+                                      &result.applications);
     count=niak_scan_games("/system_data/priv/mms/app.db","",
                           records.data(),records.size());
-    if(count>0)collect_inventory_ids(result.installed,records,count);
+    if(count>0)collect_inventory_ids(result.installed,records,count,
+                                      &result.applications);
     count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_FILE,
                              records.data(),records.size());
     if(count<0)count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_SOURCE,
