@@ -115,6 +115,25 @@ static void report(const char *msg,int result) {
  * Never collect accounts, credentials, PSN tokens or any other user's media.
  * Source is the local PS5 profile cache; destination is one private app asset.
  */
+/* Match the graphical avatar decoder's DDS/BC3 contract BEFORE writing
+ * /data/homebrew. DDS magic alone is not enough: an incompatible 440 image
+ * could otherwise suppress the smaller usable 128/64 fallback. */
+static unsigned niak_avatar_dds_u32(const unsigned char *p) {
+    return (unsigned)p[0]|((unsigned)p[1]<<8)|
+           ((unsigned)p[2]<<16)|((unsigned)p[3]<<24);
+}
+static int niak_avatar_dds_supported(const unsigned char *data,size_t size) {
+    if(!data || size<144 || memcmp(data,"DDS ",4)!=0 ||
+       niak_avatar_dds_u32(data+4)!=124u ||
+       niak_avatar_dds_u32(data+76)!=32u ||
+       memcmp(data+84,"DXT5",4)!=0)return 0;
+    const unsigned width=niak_avatar_dds_u32(data+16);
+    const unsigned height=niak_avatar_dds_u32(data+12);
+    if(width<16u || height<16u || width>512u || height>512u)return 0;
+    const size_t blocks=((size_t)width+3u)/4u*
+                        (((size_t)height+3u)/4u);
+    return blocks<=(size-128u)/16u;
+}
 static int copy_profile_image(const char *source,const char *dest,
                               const unsigned char *magic,size_t signature_size) {
     FILE *in=fopen(source,"rb");
@@ -127,6 +146,8 @@ static int copy_profile_image(const char *source,const char *dest,
     if(!data){fclose(in);return 0;}
     int ok=fread(data,1,size,in)==size && memcmp(data,magic,signature_size)==0;
     fclose(in);
+    if(ok && signature_size==4 && memcmp(magic,"DDS ",4)==0)
+        ok=niak_avatar_dds_supported(data,size);
     if(ok) {
         struct stat folder;
         if(lstat("/data/homebrew/PPSA99386/assets",&folder)==0 &&
