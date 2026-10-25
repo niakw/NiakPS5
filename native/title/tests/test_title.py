@@ -1195,6 +1195,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sceUserServiceInitialize(NULL)",broker)
         self.assertIn("sceLncUtilInitialize()",broker)
         self.assertIn('sandbox-elevator.elf', (ROOT/"title"/"build.sh").read_text())
+        build=(ROOT/"title"/"build.sh").read_text()
+        workflow=(ROOT.parent/".github"/"workflows"/"native-title.yml").read_text()
+        self.assertIn('niakps5-link.map', build)
+        self.assertIn('NiakPS5-Crash-Map', workflow)
+        self.assertIn('.build/ps5-title-kit/build/llvm-pie.elf', workflow)
         # PLDmgr is delivered via the FTP archive. Never mutate credentials
         # of the GPU-rendering process during startup.
         self.assertNotIn("bootstrap_own_payload();", source)
