@@ -540,6 +540,25 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("char line[8192]",meta)
         self.assertIn("niak_title_overview",meta)
 
+    def test_late_description_files_refresh_even_without_title_changes(self):
+        source=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn("using MetadataStamps=std::array<MetadataStamp,6>;",source)
+        self.assertIn("MetadataStamps read_description_stamps()",source)
+        self.assertIn("result.description_stamps=read_description_stamps();",source)
+        self.assertIn("if(!changed && result.description_stamps!=last_applied_description_stamps())",source)
+        self.assertIn("last_applied_description_stamps()=result.description_stamps;",source)
+        self.assertIn("niak_invalidate_title_metadata();",source)
+        self.assertIn("(void)last_applied_description_stamps();",source)
+        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"',source)
+        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-overviews-fr-sourced.tsv"',source)
+        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"',source)
+        # Only the inventory thread collects stat data. The ordinary
+        # renderer checks a prepared fixed-size, in-memory value.
+        start=source.index("bool Catalog::refresh_if_unavailable(")
+        end=source.index("void Catalog::reload()",start)
+        self.assertNotIn("::stat(",source[start:end])
+        self.assertNotIn("read_description_stamps()",source[start:end])
+
     def test_refreshed_catalogue_invalidates_sourced_overview_caches(self):
         meta=(ROOT/"title"/"title_meta.cpp").read_text()
         header=(ROOT/"title"/"title_meta.hpp").read_text()
