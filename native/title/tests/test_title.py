@@ -712,6 +712,29 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("std::thread",gpu_source)
         self.assertNotIn("scan_inventory_background()",gpu_source)
 
+    def test_unreadable_current_profile_never_invalidates_staged_ftp_avatar(self):
+        broker=(ROOT/"title"/"autostart.c").read_text()
+        start=broker.index("static int copy_profile_image(")
+        end=broker.index("static int mark_profile_asset(",start)
+        copying=broker[start:end]
+        # A cache image must pass signature, size, BC3/PNG validation,
+        # temporary disk write and fsync before the old marker is cleared.
+        self.assertIn("if(ok)ok=invalidate_profile_asset();",copying)
+        self.assertIn("if(ok)ok=rename(temp,dest)==0;",copying)
+        self.assertLess(copying.index("if(close(fd)!=0)ok=0;"),
+                        copying.index("if(ok)ok=invalidate_profile_asset();"))
+        self.assertLess(copying.index("if(ok)ok=invalidate_profile_asset();"),
+                        copying.index("if(ok)ok=rename(temp,dest)==0;"))
+        body=broker[broker.index("static int copy_current_avatar_png(int user)"):
+                    broker.index("static int current_avatar_asset_staged(int user)")]
+        self.assertNotIn("invalidate_profile_asset()",body)
+        self.assertIn("if(copy_profile_image(source,",body)
+        self.assertIn('if(mark_profile_asset(user,"png"))',body)
+        self.assertIn('if(mark_profile_asset(user,"dds"))',body)
+        # Never weaken the protection when the owner marker cannot be
+        # invalidated: do not replace a different owner's existing bytes.
+        self.assertIn("if(!ok)unlink(temp);",copying)
+
     def test_avatar_ftp_updates_recheck_on_cpu_and_keep_existing_gpu_texture(self):
         profile=(ROOT/"title"/"profile.cpp").read_text()
         self.assertIn("using AvatarFileStamps=std::array<AvatarFileStamp,11>;",profile)
