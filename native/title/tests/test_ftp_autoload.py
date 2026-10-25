@@ -16,9 +16,9 @@ def make_png_avatar(width=128,height=128):
         return (struct.pack(">I",len(payload))+kind+payload+
                 struct.pack(">I",zlib.crc32(kind+payload)&0xffffffff))
     ihdr=struct.pack(">IIBBBBB",width,height,8,6,0,0,0)
-    scanlines=b"".join(b"\\x00"+b"\\x18\\x28\\x38\\xff"*width
+    scanlines=b"".join(b"\x00"+b"\x18\x28\x38\xff"*width
                        for _ in range(height))
-    return (b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",ihdr)+
+    return (b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",ihdr)+
             chunk(b"IDAT",zlib.compress(scanlines))+
             chunk(b"IEND",b""))
 
@@ -502,12 +502,12 @@ class AutoloadTests(unittest.TestCase):
         self.assertTrue(ftpmod.valid_avatar_png(good))
         self.assertFalse(ftpmod.valid_avatar_png(bytes(corrupt)))
         self.assertFalse(ftpmod.valid_avatar_png(good[:-12]))
-        self.assertFalse(ftpmod.valid_avatar_png(b"\\x89PNG\\r\\n\\x1a\\n"+bytes(200)))
+        self.assertFalse(ftpmod.valid_avatar_png(b"\x89PNG\r\n\x1a\n"+bytes(200)))
         ftpmod.install(ftp,self.root,False,avatar_user_id=user)
         dest="/data/homebrew/PPSA99386/assets/"
         self.assertEqual(ftp.files[dest+"niak-profile.dds"],dds)
         self.assertEqual(ftp.files[dest+"niak-profile-source.txt"],
-                         b"0xA0B0C0D0 dds\\n")
+                         b"0xA0B0C0D0 dds\n")
         self.assertNotIn(dest+"niak-profile.png",ftp.files)
 
     def test_avatar_broker_checks_png_dimensions_and_terminal_iend(self):
