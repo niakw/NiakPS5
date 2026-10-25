@@ -456,6 +456,29 @@ void enqueue_missing_scene(const char *id) {
 #endif
 } // namespace
 
+void niak_select_game_background_focus(const char *title_id) {
+#if defined(__PROSPERO__)
+    // Invalidate the pic1 worker's previous owner as soon as the selection
+    // changes, not several idle ticks later. Only queue state is touched.
+    const char *next=niak_valid_title_id(title_id)?title_id:"";
+    auto &state=case_background_state();
+    {
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(state.latest_title==next)return;
+        state.latest_title=next;
+        ++state.generation;
+        state.queue.clear();
+        state.queued.clear();
+        state.completed=false;
+        state.completed_title.clear();
+        state.completed_pixels.clear();
+    }
+    state.wake.notify_one();
+#else
+    (void)title_id;
+#endif
+}
+
 std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
 {
     // Media applications may use NPXSxxxxx, unlike regular PPSA/CUSA games.

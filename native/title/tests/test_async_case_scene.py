@@ -41,6 +41,27 @@ class AsyncCaseSceneTests(unittest.TestCase):
                        worker.index("if(pixels.empty())")]
         self.assertNotIn("state.queued.erase(",discard)
 
+    def test_immediate_focus_change_rejects_stale_scene(self):
+        start=SOURCE.index("void niak_select_game_background_focus(")
+        end=SOURCE.index("std::uint32_t niak_load_game_icon(",start)
+        code=SOURCE[start:end]
+        for needle in ("niak_valid_title_id(title_id)?title_id:",
+                       "if(state.latest_title==next)return;",
+                       "state.latest_title=next;",
+                       "++state.generation;",
+                       "state.queue.clear();",
+                       "state.queued.clear();",
+                       "state.completed=false;",
+                       "state.completed_title.clear();",
+                       "state.completed_pixels.clear();",
+                       "state.wake.notify_one();"):
+            self.assertIn(needle,code)
+        self.assertIn("void niak_select_game_background_focus(const char *title_id);",HEADER)
+        self.assertIn("niak_select_game_background_focus(art_id[0]?art_id:nullptr);",PATCH)
+        self.assertNotIn("renderer.",code)
+        self.assertNotIn("read_local_png(",code)
+        self.assertNotIn("decode_installed_art(",code)
+
     def test_ps5_scene_request_does_not_block_rendering(self):
         body=SOURCE[SOURCE.index("std::uint32_t niak_load_game_background("):
                     SOURCE.index("std::uint32_t niak_take_downloaded_game_background(")]

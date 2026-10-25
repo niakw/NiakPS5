@@ -34,6 +34,9 @@ class PreparedCaseFocusTests(unittest.TestCase):
         self.assertIn("niak_select_prepared_case_focus(art_id[0]?art_id:nullptr);",update)
         self.assertLess(update.index("niak_select_prepared_case_focus("),
                         update.index("niak_select_case_art("))
+        self.assertIn("niak_select_game_background_focus(art_id[0]?art_id:nullptr);",update)
+        self.assertLess(update.index("niak_select_game_background_focus("),
+                        update.index("niak_select_case_art("))
         self.assertNotIn("navigation_idle",update)
         self.assertIn('#include "niak/case_art.hpp"',BUILDER)
 
