@@ -343,7 +343,45 @@ void work(){
          s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
          break;
        }
-       if(s.retries.empty()){s.cv.wait(lock);continue;}
+       if(s.retries.empty()){
+         if(s.selected.empty()){s.cv.wait(lock);continue;}
+         // All attempts can expire before FTP mounts a new metadata index.
+         // Check ONLY two local file stamps every 30 s while a title stays
+         // focused. No HTTPS request is made unless the index truly changes.
+         const std::string watched_title=s.selected;
+         const unsigned watched_epoch=s.generation.load();
+         const auto wake=s.cv.wait_for(lock,std::chrono::seconds(30));
+         if(wake==std::cv_status::timeout &&
+            s.tasks.empty() && s.retries.empty() &&
+            s.selected==watched_title &&
+            s.generation.load()==watched_epoch) {
+           lock.unlock();
+           const auto current=index_stamps();
+           lock.lock();
+           if(s.tasks.empty() && s.retries.empty() &&
+              s.selected==watched_title &&
+              s.generation.load()==watched_epoch &&
+              current!=loaded_stamps) {
+             // A new or replaced LaunchBox index can add missing faces.
+             // Revisit just this game; existing provenance-checked WebP
+             // caches prevent redundant transfers and image decoding.
+             s.seen.clear();
+             for(const char *side:{"spine","hero","shot1","shot2",
+                                   "back","front"}) {
+               s.seen.insert(watched_title+"-"+side);
+               Task pending{};
+               pending.id=watched_title;
+               pending.side=side;
+               pending.generation=watched_epoch;
+               if(pending.side=="front"||pending.side=="back")
+                 s.tasks.push_front(std::move(pending));
+               else s.tasks.push_back(std::move(pending));
+             }
+             s.queued.store(static_cast<unsigned>(s.tasks.size()));
+           }
+         }
+         continue;
+       }
        const auto next=std::min_element(s.retries.begin(),s.retries.end(),
            [](const Task &a,const Task &b){return a.retry_at<b.retry_at;});
        const auto due=next->retry_at;
