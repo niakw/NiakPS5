@@ -32,3 +32,14 @@ inline bool niak_application_category(const char *id,const char *name,
  if(catalog_game)return false;
  return is_homebrew!=0;
 }
+
+/* A late installed-title inventory may correct a shelf built before the
+ * title manifest mounted. Verified apps win; verified games may DEMOTE an
+ * old application only when no current installed app evidence conflicts.
+ * FTP labels alone never trigger a live category flip. */
+inline bool niak_category_needs_refresh(bool current_app,
+                                         bool verified_app,
+                                         bool verified_game) {
+ return (verified_app && !current_app) ||
+        (verified_game && !verified_app && current_app);
+}
