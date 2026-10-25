@@ -108,13 +108,21 @@ filter_defs='''    # pkg-config -D flags must not leak from libs into prospro-ll
     pacbrew_libs=("${pacbrew_link_flags[@]}")
 '''
 s=s.replace(anchor,filter_defs+anchor,1)
+# The installed .SELF is stripped of the full linker layout. Preserve an
+# address-to-symbol map from the SAME compiled revision for PS5 SIGSEGV triage.
+# This only modifies the pinned ephemeral kit and adds no console privileges.
+map_anchor='    -e _start -o "$build/llvm-pie.elf" "${link_inputs[@]}" \\'
+if s.count(map_anchor)!=1:
+    raise SystemExit("Pinned native map anchor changed; review required")
+s=s.replace(map_anchor,
+    '    -e _start -Map "$build/niakps5-link.map" -o "$build/llvm-pie.elf" "${link_inputs[@]}" \\',1)
 f.write_text(s)
 PY
 # Keep the reference kit's asset / runtime inputs and attribution.
 make -C "$stage" init TITLE_ID="$title" APP_NAME=NiakPS5 APP_CATEGORY=game
 # See PacBrew docs: SQLite is a read-only static link, no .db modification.
 make -C "$stage" USE_CCACHE=0 PACBREW_PACKAGES="libcurl libwebp" PACBREW_INCLUDE_PATHS=include PACBREW_STATIC_ARCHIVES=lib/libsqlite3.a
-test -f "$stage/dist/$title/eboot.bin"
+# These files stay in CI for crash symbolization, outside the FTP payload.\ntest -s "$stage/build/llvm-pie.elf"\ntest -s "$stage/build/niakps5-link.map"\ntest -f "$stage/dist/$title/eboot.bin"
 test -f "$stage/dist/$title/sce_module/libc.prx"
 test -f "$stage/dist/$title/sce_sys/param.json"
 out="$root/dist/$title"
