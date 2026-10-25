@@ -874,6 +874,13 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("packaged_count,private_count,cached_count",source)
         self.assertIn("game.application_category==2",source)
         self.assertIn("niak_known_application(game.title)",source)
+        self.assertIn("std::vector<NiakGame> metadata;",source)
+        self.assertIn("result.metadata=std::move(overlay);",source)
+        self.assertIn("niak_merge_local_inventories(",source)
+        self.assertIn("for(const NiakGame &record:result.metadata)",source)
+        self.assertIn("record.application_category==2 && !existing->application",source)
+        self.assertIn("std::strcmp(existing->title,record.title)!=0",source)
+        self.assertIn("record.id)==result.installed.end())continue;",source)
         self.assertIn("&result.applications);",source)
         self.assertIn("std::chrono::seconds(30)",source)
         self.assertIn("if(!state.running)",source)
@@ -903,7 +910,7 @@ class NativeTitleTests(unittest.TestCase):
             "niak_scan_broker_games(", "niak_scan_installed_folders(",
             "niak_scan_homebrews(", "niak_scan_shadowmount(",
             "niak_scan_games(", "niak_snapshot_read(",
-            "std::thread("):
+            "niak_merge_local_inventories(", "std::thread("):
             self.assertNotIn(blocking_call,ui)
         self.assertIn("if(schedule)start_inventory_probe();",ui)
         self.assertIn("if(!ready)return false;",ui)
@@ -915,7 +922,8 @@ class NativeTitleTests(unittest.TestCase):
         for required in (
             "niak_scan_broker_games(", "niak_scan_installed_folders(",
             "niak_scan_homebrews(", "niak_scan_shadowmount(",
-            "niak_scan_games(", "niak_snapshot_read("):
+            "niak_scan_games(", "niak_snapshot_read(",
+            "niak_merge_local_inventories("):
             self.assertIn(required,worker)
 
     def test_real_catalog_only(self):
