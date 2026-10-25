@@ -15,6 +15,7 @@ extern "C" {
 #include "gfx/renderer.hpp"
 #include <cstdio>
 #include <cstring>
+#include <sys/stat.h>
 #include <cstdlib>
 #include <vector>
 #include <string>
@@ -90,8 +91,24 @@ static bool niak_prepare_case_pixels(
  std::snprintf(file,sizeof(file),
      "/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp",id,side);
  paths.emplace_back(file);
+ const std::size_t private_slot=paths.size()-1;
  std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.webp",id,side);
  paths.emplace_back(file);
+ const std::size_t download_slot=paths.size()-1;
+ // When a previously read-only mount becomes writable, a freshly
+ // committed /download0 marker can coexist with an old private marker
+ // that the worker could not delete. Load the NEWER committed image
+ // first, not the private one unconditionally. Both still require
+ // their own provenance and a successful complete image decode.
+ // Stat runs only on the dedicated image CPU worker on PS5.
+ const std::string private_marker=paths[private_slot]+".source";
+ const std::string download_marker=paths[download_slot]+".source";
+ struct stat private_info{},download_info{};
+ if(::stat(private_marker.c_str(),&private_info)==0 &&
+    ::stat(download_marker.c_str(),&download_info)==0 &&
+    S_ISREG(private_info.st_mode) && S_ISREG(download_info.st_mode) &&
+    download_info.st_mtime>private_info.st_mtime)
+    std::swap(paths[private_slot],paths[download_slot]);
  // A verified CDN replacement takes priority over older FTP artwork.
  // Without this ordering a downloaded PS5 back could stay invisible behind
  // the previously installed PS4/PC fallback after a successful upgrade.
