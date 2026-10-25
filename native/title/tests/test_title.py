@@ -599,6 +599,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_title_overview(item.title_id)",fast)
         self.assertIn("niak_title_summary(meta)",fast)
         self.assertIn("owned_blurbs_.swap(refreshed_blurbs);",fast)
+        self.assertIn("bool texts_changed=false;",fast)
+        self.assertIn("refreshed_blurbs[i]!=current",fast)
+        self.assertIn("if(!texts_changed)return false;",fast)
+        self.assertLess(fast.index("if(!texts_changed)return false;"),
+                        fast.index("owned_blurbs_.swap(refreshed_blurbs);"))
         self.assertIn("items_[i].blurb=owned_blurbs_[i].c_str();",fast)
         self.assertIn("return true;",fast)
         self.assertNotIn("release_covers(renderer)",fast)
