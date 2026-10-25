@@ -27,8 +27,10 @@ class NavigationRestorePolicy(unittest.TestCase):
         destructor = SOURCE.split('~Aurora() override {', 1)[1].split(
             "const app::ConceptInfo &info()", 1
         )[0]
-        self.assertNotIn("context_.catalog", destructor)
-        self.assertNotIn("focused_item()", destructor)
+        executable="\\n".join(line for line in destructor.splitlines()
+                            if not line.lstrip().startswith("//"))
+        self.assertNotIn("context_.catalog", executable)
+        self.assertNotIn("focused_item()", executable)
 
 
 if __name__ == "__main__":
