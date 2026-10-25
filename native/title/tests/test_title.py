@@ -319,6 +319,26 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("for(const std::string& filename:paths)",case)
         self.assertIn("valid_filename(filename)",auto)
 
+    def test_failed_launchbox_webp_write_retries_offline_without_another_http_get(self):
+        source=(ROOT/"title"/"case_auto_art.cpp").read_text()
+        self.assertIn("std::vector<unsigned char> pending_webp;",source)
+        self.assertIn("std::string pending_source;",source)
+        self.assertIn("void queue_write_retry(State &s,Task task)",source)
+        self.assertIn("if(task.write_attempt>=3u)",source)
+        self.assertIn("task.write_attempt==1u?20u:",source)
+        self.assertIn("if(!task.pending_webp.empty()) {",source)
+        self.assertIn("save(task,task.pending_source,task.pending_webp);",source)
+        self.assertIn("task.pending_webp=std::move(webp);",source)
+        self.assertIn("queue_write_retry(s,std::move(task));",source)
+        self.assertIn("!deferred_write",source)
+        begin=source.index("if(!task.pending_webp.empty()) {")
+        end=source.index("// The screenshots are unused",begin)
+        offline=source[begin:end]
+        self.assertNotIn("niak_fetch_launchbox_asset_ex(",offline)
+        self.assertNotIn("convert_webp(",offline)
+        self.assertIn("++s.completed;",offline)
+        self.assertIn("++s.write_failed;",offline)
+
     def test_launchbox_metadata_build_rejects_empty_overviews(self):
         build=(ROOT/"title"/"build.sh").read_text()
         self.assertIn("LaunchBox missing real media:",build)
