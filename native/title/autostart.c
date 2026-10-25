@@ -198,6 +198,10 @@ static int niak_avatar_png_supported(const unsigned char *data,size_t size) {
     }
     return 0;
 }
+// The owner marker must be cleared only when a VALID new image is ready
+// for commit. An unreadable source must leave a previously staged FTP
+// avatar intact, while replacing bytes must never inherit the old owner.
+static int invalidate_profile_asset(void);
 static int copy_profile_image(const char *source,const char *dest,
                               const unsigned char *magic,size_t signature_size) {
     FILE *in=fopen(source,"rb");
@@ -236,6 +240,12 @@ static int copy_profile_image(const char *source,const char *dest,
                     }
                     ok=written==size && fchmod(fd,0644)==0 && fsync(fd)==0;
                     if(close(fd)!=0)ok=0;
+                    // Preserve a valid owner-bound FTP image if the PS5
+                    // cache is missing, invalid or the new temporary write
+                    // failed. Once bytes are ready, clear provenance BEFORE
+                    // replacing the destination so a different user never
+                    // inherits another user's cached portrait.
+                    if(ok)ok=invalidate_profile_asset();
                     if(ok)ok=rename(temp,dest)==0;
                     if(!ok)unlink(temp);
                 }
@@ -275,10 +285,8 @@ static int invalidate_profile_asset(void) {
 }
 static int copy_current_avatar_png(int user) {
     if(user<0)return 0;
-    if(!invalidate_profile_asset()) {
-        report("Avatar owner invalidation denied", -1);
-        return 0;
-    }
+    // A denied or absent current-profile source is not an instruction to
+    // erase a previously validated owner-bound avatar already staged.
     char profile[256],source[320];
     snprintf(profile,sizeof(profile),
              "/system_data/priv/cache/profile/0x%08X",(unsigned)user);
