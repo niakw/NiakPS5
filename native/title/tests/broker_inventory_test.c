@@ -56,6 +56,38 @@ int main(void) {
  assert(niak_broker_apps_from_inventory(buffer,app_ids,sizeof(app_ids),root)==3);
  assert(strstr(app_ids,"NPXS11111\n")!=NULL);
  assert(strstr(app_ids,"PPSA12346\n")!=NULL);
+ // Search ONLY manifest title fields: a game description cannot claim to
+ // be Eden Encore, and a mismatched manifest titleId is never trusted.
+ snprintf(command,sizeof(command),
+    "mkdir -p '%s/user/app/PPSA22222/sce_sys' "
+    "'%s/user/app/PPSA33333/sce_sys' "
+    "'%s/user/app/PPSA44444/sce_sys' "
+    "'%s/user/app/PPSA55555/sce_sys'",root,root,root,root);
+ assert(system(command)==0);
+ snprintf(path,sizeof(path),"%s/user/app/PPSA22222/sce_sys/param.json",root);
+ p=fopen(path,"wb");assert(p);
+ fputs("{\"titleId\":\"PPSA22222\",\"titleName\":\"Normal game\","
+       "\"description\":\"Created using Eden Encore and ShadowMountPlus\"}",p);
+ fclose(p);
+ snprintf(path,sizeof(path),"%s/user/app/PPSA33333/sce_sys/param.json",root);
+ p=fopen(path,"wb");assert(p);
+ fputs("{\"titleId\":\"PPSA33333\",\"titleName\":\"ShadowMountPlus\"}",p);
+ fclose(p);
+ snprintf(path,sizeof(path),"%s/user/app/PPSA44444/sce_sys/param.json",root);
+ p=fopen(path,"wb");assert(p);
+ fputs("{\"titleId\":\"PPSA33333\",\"titleName\":\"Eden Encore\"}",p);
+ fclose(p);
+ snprintf(path,sizeof(path),"%s/user/app/PPSA55555/sce_sys/param.json",root);
+ p=fopen(path,"wb");assert(p);
+ fputs("{\"titleId\":\"PPSA55555\",\"localizedParameters\":"
+       "{\"fr-FR\":{\"titleName\":\"Mes vidéos\"}}}",p);
+ fclose(p);
+ assert(niak_broker_inventory(buffer,sizeof(buffer),root)==9);
+ assert(niak_broker_apps_from_inventory(buffer,app_ids,sizeof(app_ids),root)==5);
+ assert(strstr(app_ids,"PPSA22222\n")==NULL);
+ assert(strstr(app_ids,"PPSA44444\n")==NULL);
+ assert(strstr(app_ids,"PPSA33333\n")!=NULL);
+ assert(strstr(app_ids,"PPSA55555\n")!=NULL);
  char small[12];
  assert(niak_broker_inventory(small,sizeof(small),root)==1);
  snprintf(command,sizeof(command),"rm -rf -- '%s'",root);
