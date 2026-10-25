@@ -23,14 +23,15 @@ python3 "$root/native/title/prepare.py" --kit "$stage" --project "$root" --revis
 python3 "$root/native/title/compose_music.py" "$stage/assets/audio/music"
 # Best-effort recent games from Steam; offline/error => original animated smoke.
 python3 "$root/native/title/fetch_daily_games.py" --output "$stage/assets/niak-daily"
-# Exact LaunchBox PlayStation 4/5 regional metadata; no retail scans
-# redistributed in public CI artifacts. Fail over to system catalogue.
+# Exact LaunchBox PlayStation 4/5 regional metadata; never redistribute
+# retail scans in the public package. A green native build MUST include a
+# populated, verified CDN index. An empty header silently disabled every
+# game's runtime art downloads on consoles installed from that package.
 if ! python3 "$root/native/title/launchbox_index.py" --download \
     --titles "$root/native/title/ps_titles.tsv" \
     --output "$stage/assets/niak-launchbox-cases.tsv"; then
-  echo "LaunchBox index unavailable; keeping public PlayStation title metadata" >&2
-  printf '# title\tOverview\tFront\tBack\tSpine\tLogo\tLaunchBoxID\n' \
-    > "$stage/assets/niak-launchbox-cases.tsv"
+  echo "ERROR: LaunchBox metadata unavailable; refusing incomplete PS5 package" >&2
+  exit 1
 fi
 # A successfully downloaded LaunchBox database with thousands of matches
 # MUST contain at least some real short overviews. Do not ship an empty
@@ -39,19 +40,28 @@ python3 - "$stage/assets/niak-launchbox-cases.tsv" <<'PY'
 from pathlib import Path
 import sys
 rows=Path(sys.argv[1]).read_text(encoding="utf8").splitlines()
-if len(rows)>1000:
-    actual=sum(1 for row in rows[1:] if len(row.split("\t"))>=10 and row.split("\t")[1]!="-")
-    if actual<50:
-        raise SystemExit(f"LaunchBox overviews missing: {actual} of {len(rows)-1} matches")
-    print(f"LaunchBox indexed descriptions: {actual}/{len(rows)-1}")
-    # The real public metadata feed must populate independent back sources.
-    # Catch upstream type/field drift BEFORE producing a "green" package
-    # with empty backs. Nothing is downloaded to a private console here.
-    counts=[sum(1 for row in rows[1:] if len(row.split("\t"))>=10
-                and row.split("\t")[field]!="-") for field in (6,7,8)]
-    print("LaunchBox back slots [fanart, screenshot1, screenshot2]:",counts)
-    if min(counts)<100:
-        raise SystemExit(f"LaunchBox back artwork index empty: {counts}")
+if len(rows)<1001:
+    raise SystemExit(f"LaunchBox catalogue incomplete: {len(rows)-1} matches (minimum 1000)")
+if rows[0]!="# title\tOverview\tFront\tBack\tSpine\tLogo\tHero\tShot1\tShot2\tLaunchBoxID":
+    raise SystemExit("LaunchBox index schema changed: expected 10 columns")
+columns=[row.split("\t") for row in rows[1:]]
+if any(len(parts)!=10 or len(parts[0])!=9 for parts in columns):
+    raise SystemExit("LaunchBox index malformed: missing columns or invalid title ID")
+actual=sum(1 for parts in columns if parts[1]!="-")
+fronts=sum(1 for parts in columns if parts[2]!="-")
+backs=sum(1 for parts in columns if parts[3]!="-")
+spines=sum(1 for parts in columns if parts[4]!="-")
+if actual<50 or fronts<100 or backs<100 or spines<50:
+    raise SystemExit(f"LaunchBox missing real media: overviews={actual}, "
+                     f"fronts={fronts}, backs={backs}, spines={spines}")
+print(f"LaunchBox: {len(columns)} verified matches, "
+      f"{actual} overviews, {fronts} fronts, {backs} backs, {spines} spines")
+# The real public metadata feed must populate independent back sources.
+# Catch upstream type/field drift before distributing an unusable box back.
+counts=[sum(1 for parts in columns if parts[field]!="-") for field in (6,7,8)]
+print("LaunchBox back slots [fanart, screenshot1, screenshot2]:",counts)
+if min(counts)<100:
+    raise SystemExit(f"LaunchBox back artwork index empty: {counts}")
 PY
 # Sourced, human-checked FR text is available offline at first UI paint.
 python3 "$root/native/title/fr_source_index.py" --input "$root/native/title/fr_overviews.tsv" \
