@@ -1154,8 +1154,13 @@ extern "C" {
 #include "niak/broker_snapshot.h"
 #include "niak/local_inventory.h"
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 namespace hui::demo
@@ -1165,86 +1170,121 @@ Catalog::Catalog()
     reload();
 }
 
+// Worker-owned read-only scans; the renderer only compares prepared IDs.
+// New title/permission sources can appear after startup without blocking
+// DualSense navigation on directory walks, SQLite or broker connections.
+namespace {
+struct InventoryProbeResult {
+    std::vector<std::string> installed;
+    std::vector<std::string> applications;
+};
+struct InventoryProbeState {
+    std::mutex mutex;
+    InventoryProbeResult ready_data;
+    bool running=false;
+    bool ready=false;
+    std::chrono::steady_clock::time_point last_started{};
+};
+InventoryProbeState &inventory_probe_state() {
+    // Detached workers do not reference a particular Catalogue instance.
+    static InventoryProbeState *state=new InventoryProbeState;
+    return *state;
+}
+void collect_inventory_ids(std::vector<std::string> &ids,
+                           const std::vector<NiakGame> &buffer,int count) {
+    for(int n=0;n<count && n<static_cast<int>(buffer.size());++n) {
+        const char *id=buffer[static_cast<std::size_t>(n)].id;
+        if(id[0] && std::find(ids.begin(),ids.end(),id)==ids.end())
+            ids.emplace_back(id);
+    }
+}
+InventoryProbeResult scan_inventory_background() {
+    InventoryProbeResult result;
+    std::vector<NiakGame> records(NIAKPS5_MAX_GAMES);
+    int count=niak_scan_broker_games(records.data(),records.size());
+    if(count>0)collect_inventory_ids(result.installed,records,count);
+    count=niak_scan_installed_folders("",records.data(),records.size());
+    if(count>0)collect_inventory_ids(result.installed,records,count);
+    count=niak_scan_homebrews("",records.data(),records.size());
+    if(count>0)collect_inventory_ids(result.installed,records,count);
+    count=niak_scan_shadowmount(records.data(),records.size());
+    if(count>0)collect_inventory_ids(result.installed,records,count);
+    count=niak_scan_games("/system_data/priv/mms/app.db","",
+                          records.data(),records.size());
+    if(count>0)collect_inventory_ids(result.installed,records,count);
+    count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_FILE,
+                             records.data(),records.size());
+    if(count<0)count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_SOURCE,
+                                        records.data(),records.size());
+    if(count<0)count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_FILE,
+                                        records.data(),records.size());
+    if(count>0)collect_inventory_ids(result.applications,records,count);
+    return result;
+}
+void start_inventory_probe() {
+    std::thread([] {
+        auto result=scan_inventory_background();
+        auto &state=inventory_probe_state();
+        std::lock_guard<std::mutex> lock(state.mutex);
+        state.ready_data=std::move(result);
+        state.running=false;
+        state.ready=true;
+    }).detach();
+}
+} // namespace
+
 bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
                                      const ui::Fonts &fonts)
 {
-    const bool placeholder=items_.size()==1 && items_[0].title_id[0]==0;
-    // A partial but nonempty catalogue is NOT complete. PLDmgr may start
-    // after the UI, so allow an infrequent idle refresh when new installed
-    // IDs or newly verified application categories become available.
-    // The caller already gates this method to a navigation-idle frame.
-    if(!placeholder) {
-        static std::time_t last_checked=0;
-        const std::time_t now=std::time(nullptr);
-        if(last_checked && now>=last_checked && now-last_checked<30)
-            return false;
-        last_checked=now;
-    }
-    std::vector<NiakGame> probe(NIAKPS5_MAX_GAMES);
-    const auto new_installed_title=[&](int count) {
-        for(int n=0;n<count;++n) {
-            const char *id=probe[static_cast<std::size_t>(n)].id;
-            const auto item=std::find_if(items_.begin(),items_.end(),
-                [&](const Item &entry) {
-                    return std::strcmp(entry.title_id,id)==0;
-                });
-            // The historical FTP list is not proof of a live installation:
-            // replace it once the broker verifies a matching installed ID.
-            if(item==items_.end() ||
-               (item->studio &&
-                std::strcmp(item->studio,"Dernier inventaire local")==0))
-                return true;
-        }
-        return false;
-    };
-    const int broker_count=niak_scan_broker_games(probe.data(),probe.size());
-    bool available=broker_count>0;
-    bool changed=available && (placeholder||new_installed_title(broker_count));
-    // A blocked broker socket/snapshot must not suppress a subsequently
-    // mounted native app folder; only run these scans at the bounded cadence.
-    if(!changed) {
-        const int folders=niak_scan_installed_folders(
-            "",probe.data(),probe.size());
-        if(folders>0) {
-            available=true;
-            changed=placeholder||new_installed_title(folders);
+    InventoryProbeResult result;
+    bool ready=false;
+    bool schedule=false;
+    {
+        auto &state=inventory_probe_state();
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(state.ready) {
+            result=std::move(state.ready_data);
+            state.ready=false;
+            ready=true;
+        } else if(!state.running) {
+            const auto now=std::chrono::steady_clock::now();
+            if(state.last_started.time_since_epoch().count()==0 ||
+               now-state.last_started>=std::chrono::seconds(30)) {
+                state.last_started=now;
+                state.running=true;
+                schedule=true;
+            }
         }
     }
-    if(!changed) {
-        const int homebrews=niak_scan_homebrews("",probe.data(),probe.size());
-        if(homebrews>0) {
-            available=true;
-            changed=placeholder||new_installed_title(homebrews);
+    if(schedule)start_inventory_probe();
+    if(!ready)return false;
+
+    // A nonempty shelf can still be missing newly mounted applications.
+    // Avoid full rebuilds unless title identity or verified app type changed.
+    bool changed=false;
+    for(const std::string &id:result.installed) {
+        const auto existing=std::find_if(items_.begin(),items_.end(),
+            [&](const Item &entry) {
+                return std::strcmp(entry.title_id,id.c_str())==0;
+            });
+        if(existing==items_.end() ||
+           (existing->studio &&
+            std::strcmp(existing->studio,"Dernier inventaire local")==0)) {
+            changed=true;
+            break;
         }
     }
-    // A fresh application-category snapshot can correct an existing item
-    // without requiring the addition of a new title ID.
-    if(!changed && !placeholder) {
-        int apps=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_FILE,
-                                    probe.data(),probe.size());
-        if(apps<0)apps=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_SOURCE,
-                                          probe.data(),probe.size());
-        if(apps<0)apps=niak_snapshot_read(NIAK_APPS_SNAPSHOT_FILE,
-                                          probe.data(),probe.size());
-        for(int n=0;n<apps && !changed;++n)
-            for(const Item &entry:items_)
-                if(!entry.application &&
-                   std::strcmp(entry.title_id,
-                      probe[static_cast<std::size_t>(n)].id)==0) {
-                    changed=true;
-                    break;
-                }
+    if(!changed)for(const std::string &id:result.applications) {
+        for(const Item &entry:items_)
+            if(!entry.application &&
+               std::strcmp(entry.title_id,id.c_str())==0) {
+                changed=true;
+                break;
+            }
+        if(changed)break;
     }
-    // Keep the old no-library recovery route for ShadowMount/app.db.
-    if(!available && placeholder) {
-        NiakGame single{};
-        changed=niak_scan_shadowmount(&single,1)>0 ||
-                niak_scan_games("/system_data/priv/mms/app.db","",
-                                &single,1)>0;
-        available=changed;
-    }
-    if(!available && !changed)return false;
     if(!changed)return false;
+
     release_covers(renderer);
     items_.clear();
     owned_titles_.clear();
