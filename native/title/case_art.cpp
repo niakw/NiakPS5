@@ -84,6 +84,12 @@ static bool niak_prepare_case_pixels(
  // Native CDN WebP cache takes precedence over old PNG, if provenance is valid.
  std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.webp",id,side);
  paths.emplace_back(file);
+ // Some PS5 title sandboxes deny writes to /download0. The CDN worker can
+ // stage the exact same provenance-checked WebP in the title's private FTP
+ // assets directory without overwriting manual niak-cases artwork.
+ std::snprintf(file,sizeof(file),
+     "/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp",id,side);
+ paths.emplace_back(file);
  // A verified CDN replacement takes priority over older FTP artwork.
  // Without this ordering a downloaded PS5 back could stay invisible behind
  // the previously installed PS4/PC fallback after a successful upgrade.
@@ -111,7 +117,8 @@ static bool niak_prepare_case_pixels(
  for(const std::string& filename:paths) {
      // The FTP override and packaged scans have independent provenance.
      // Only worker-generated PNGs require the atomic .source sidecar.
-     if(filename.rfind("/download0/niak-case-",0)==0 &&
+     if((filename.rfind("/download0/niak-case-",0)==0 ||
+         filename.rfind("/data/homebrew/PPSA99386/assets/niak-cdn-case-",0)==0) &&
         !valid_download_source(filename))continue;
      FILE *fp=std::fopen(filename.c_str(),"rb");
      if(!fp)continue;
