@@ -16,6 +16,11 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends gcc libsqlite3-dev python3-pil
       - name: Require actual host WebP codec coverage
         run: python3 -c "from PIL import features; assert features.check('webp'), 'WebP codec required by NiakPS5 tests'"
+      - name: Compile PS5 broker source as C before expensive native build
+        run: |
+          # Syntax-only: proprietary symbols are linked by the native PS5
+          # toolchain later. Catch C++-only syntax in this C source early.
+          cc -std=gnu11 -D_GNU_SOURCE -Wall -Wextra -fsyntax-only -I native/title native/title/autostart.c
       - name: Compile catalogue and test with an isolated filesystem
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I native native/catalog.c native/tests/catalog_test.c -lsqlite3 -o /tmp/niak-catalog
