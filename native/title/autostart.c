@@ -278,9 +278,34 @@ static int current_avatar_asset_staged(int user) {
     else if(strcmp(marker+n,"dds\n")==0)
         image="/data/homebrew/PPSA99386/assets/niak-profile.dds";
     else return 0;
+    // A file of plausible length is not necessarily a decodable avatar.
+    // Older builds could stage an unsupported avatar440.dds and mark it
+    // valid forever. Recheck only this foreground owner's private asset
+    // on the existing bounded heartbeat, then retry the original profile
+    // cache selection if its stored format is incompatible.
+    const int avatar_fd=open(image,O_RDONLY|O_NOFOLLOW|O_NONBLOCK);
+    if(avatar_fd<0)return 0;
     struct stat st;
-    return lstat(image,&st)==0 && S_ISREG(st.st_mode) &&
-           st.st_size>=144 && st.st_size<=2*1024*1024;
+    int valid=fstat(avatar_fd,&st)==0 && S_ISREG(st.st_mode) &&
+              st.st_size>=144 && st.st_size<=2*1024*1024;
+    unsigned char header[128];
+    if(valid) {
+        size_t loaded=0;
+        while(loaded<sizeof(header)) {
+            const ssize_t n=read(avatar_fd,header+loaded,sizeof(header)-loaded);
+            if(n<0 && errno==EINTR)continue;
+            if(n<=0)break;
+            loaded+=(size_t)n;
+        }
+        valid=loaded==sizeof(header);
+    }
+    if(close(avatar_fd)!=0)valid=0;
+    if(!valid)return 0;
+    if(strcmp(marker+n,"dds\\n")==0)
+        return niak_avatar_dds_supported(header,(size_t)st.st_size);
+    static const unsigned char png[8]={137,80,78,71,13,10,26,10};
+    return memcmp(header,png,sizeof(png))==0 &&
+           memcmp(header+12,"IHDR",4)==0;
 }
 
 /* The user-authorized PLDmgr one-shot stays resident as a narrow, LOCAL-ONLY
