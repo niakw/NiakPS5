@@ -1168,28 +1168,95 @@ Catalog::Catalog()
 bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
                                      const ui::Fonts &fonts)
 {
-    // Only a synthetic placeholder can be refreshed here. Existing shelves
-    // and real installed game identities must never be replaced mid-session.
-    if(items_.size()!=1 || items_[0].title_id[0]!=0)return false;
-    NiakGame probe{};
-    // The PLDmgr socket may be blocked by the title sandbox even when
-    // ShadowMount or an installed game directory becomes readable later.
-    // Do not permanently require the broker as the ONLY recovery gate.
-    const bool available=
-        niak_scan_broker_games(&probe,1)>0 ||
-        niak_scan_installed_folders("",&probe,1)>0 ||
-        niak_scan_homebrews("",&probe,1)>0 ||
-        niak_scan_shadowmount(&probe,1)>0 ||
-        niak_scan_games("/system_data/priv/mms/app.db","",&probe,1)>0;
-    if(!available)return false;
+    const bool placeholder=items_.size()==1 && items_[0].title_id[0]==0;
+    // A partial but nonempty catalogue is NOT complete. PLDmgr may start
+    // after the UI, so allow an infrequent idle refresh when new installed
+    // IDs or newly verified application categories become available.
+    // The caller already gates this method to a navigation-idle frame.
+    if(!placeholder) {
+        static std::time_t last_checked=0;
+        const std::time_t now=std::time(nullptr);
+        if(last_checked && now>=last_checked && now-last_checked<30)
+            return false;
+        last_checked=now;
+    }
+    std::vector<NiakGame> probe(NIAKPS5_MAX_GAMES);
+    const auto new_installed_title=[&](int count) {
+        for(int n=0;n<count;++n) {
+            const char *id=probe[static_cast<std::size_t>(n)].id;
+            const auto item=std::find_if(items_.begin(),items_.end(),
+                [&](const Item &entry) {
+                    return std::strcmp(entry.title_id,id)==0;
+                });
+            // The historical FTP list is not proof of a live installation:
+            // replace it once the broker verifies a matching installed ID.
+            if(item==items_.end() ||
+               (item->studio &&
+                std::strcmp(item->studio,"Dernier inventaire local")==0))
+                return true;
+        }
+        return false;
+    };
+    const int broker_count=niak_scan_broker_games(probe.data(),probe.size());
+    bool available=broker_count>0;
+    bool changed=available && (placeholder||new_installed_title(broker_count));
+    // A blocked broker socket/snapshot must not suppress a subsequently
+    // mounted native app folder; only run these scans at the bounded cadence.
+    if(!changed) {
+        const int folders=niak_scan_installed_folders(
+            "",probe.data(),probe.size());
+        if(folders>0) {
+            available=true;
+            changed=placeholder||new_installed_title(folders);
+        }
+    }
+    if(!changed) {
+        const int homebrews=niak_scan_homebrews("",probe.data(),probe.size());
+        if(homebrews>0) {
+            available=true;
+            changed=placeholder||new_installed_title(homebrews);
+        }
+    }
+    // A fresh application-category snapshot can correct an existing item
+    // without requiring the addition of a new title ID.
+    if(!changed && !placeholder) {
+        int apps=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_FILE,
+                                    probe.data(),probe.size());
+        if(apps<0)apps=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_SOURCE,
+                                          probe.data(),probe.size());
+        if(apps<0)apps=niak_snapshot_read(NIAK_APPS_SNAPSHOT_FILE,
+                                          probe.data(),probe.size());
+        for(int n=0;n<apps && !changed;++n)
+            for(const Item &entry:items_)
+                if(!entry.application &&
+                   std::strcmp(entry.title_id,
+                      probe[static_cast<std::size_t>(n)].id)==0) {
+                    changed=true;
+                    break;
+                }
+    }
+    // Keep the old no-library recovery route for ShadowMount/app.db.
+    if(!available && placeholder) {
+        NiakGame single{};
+        changed=niak_scan_shadowmount(&single,1)>0 ||
+                niak_scan_games("/system_data/priv/mms/app.db","",
+                                &single,1)>0;
+        available=changed;
+    }
+    if(!available && !changed)return false;
+    if(!changed)return false;
     release_covers(renderer);
     items_.clear();
     owned_titles_.clear();
     owned_blurbs_.clear();
+    last_case_focus_=-1;
+    retained_case_focus_=-1;
+    case_hydration_step_=0;
+    last_case_completed_=0;
+    last_case_sides_={};
     reload();
     (void)build_covers(renderer,fonts);
     return !items_.empty() && items_[0].title_id[0]!=0;
-    // Only signal a view rebuild when real game identities were restored.
 }
 
 void Catalog::reload()
