@@ -915,7 +915,8 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("item.application",source)
         self.assertIn("Les entrées obsolètes restent masquées.",source)
         self.assertNotIn('games[count++]=observed[',source)
-        self.assertIn('item.application ? "Application installée"',source)
+        self.assertIn('item.studio=item.application ?',source)
+        self.assertIn('"Application installée" : "Jeu installé"',source)
         self.assertNotIn('game.is_homebrew ? "Application" : "Jeu installé"',source)
         # PS5 titles and homebrew origins remain independent from category.
         self.assertIn("item.application=niak_application_category(",source)
