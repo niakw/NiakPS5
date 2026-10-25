@@ -206,26 +206,37 @@ std::string niak_title_overview(const char *id) {
  // A missing/private file never triggers network requests on the PS5.
  static const auto french_loader=[]() {
    std::unordered_map<std::string,std::string> data;
-   FILE *f=std::fopen(
-       "/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv","rb");
-   if(!f)f=std::fopen("/app0/assets/niak-overviews-fr.tsv","rb");
-   if(!f)return data;
-   char line[2048];
-   while(std::fgets(line,sizeof(line),f)) {
-     char *first=std::strchr(line,'\t');
-     if(!first || first-line!=9)continue;
-     char *second=std::strchr(first+1,'\t');
-     if(!second || second-first!=65)continue; // SHA-256 provenance
-     *first=0;*second=0;
-     bool sha_ok=true;
-     for(char *p=first+1;p<second;++p)
-       if(!std::isxdigit(static_cast<unsigned char>(*p)))sha_ok=false;
-     if(!sha_ok)continue;
-     char *translation=second+1;
-     translation[std::strcspn(translation,"\r\n")]=0;
-     if(*translation)data.emplace(line,translation);
+   // The private FTP file is often an INCREMENTAL translation set.
+   // Read the complete packaged corpus first, then override only matching
+   // title IDs with newer, provenance-checked private French translations.
+   // A sparse overlay must not hide every other packaged description.
+   for(const char *source : {
+       "/app0/assets/niak-overviews-fr.tsv",
+       "/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"}) {
+     FILE *f=std::fopen(source,"rb");
+     if(!f)continue;
+     char line[2048];
+     while(std::fgets(line,sizeof(line),f)) {
+       if(!std::strchr(line,'\n') && !std::feof(f)) {
+         int c;while((c=std::fgetc(f))!=EOF && c!='\n'){}
+         continue; // Reject truncated lines instead of parsing fragments.
+       }
+       char *first=std::strchr(line,'\t');
+       if(!first || first-line!=9)continue;
+       char *second=std::strchr(first+1,'\t');
+       if(!second || second-first!=65)continue; // SHA-256 provenance
+       *first=0;*second=0;
+       bool sha_ok=true;
+       for(char *p=first+1;p<second;++p)
+         if(!std::isxdigit(static_cast<unsigned char>(*p)))sha_ok=false;
+       if(!sha_ok)continue;
+       char *translation=second+1;
+       translation[std::strcspn(translation,"\r\n")]=0;
+       if(*translation)data[std::string(line)]=translation;
+     }
+     std::fclose(f);
    }
-   std::fclose(f);return data;
+   return data;
  };
  static auto french=french_loader();
  static unsigned french_generation=niak_metadata_generation;
