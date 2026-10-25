@@ -65,6 +65,39 @@ std::array<SourceStamp,2> index_stamps(){
  return result;
 }
 using ArtSlots=std::array<std::vector<std::string>,7>;
+// Read only local, manually installed case art for the CURRENT game.
+// The CDN worker already reports its own completed downloads separately.
+// Four fixed FTP locations per side: private/package x WebP/PNG.
+bool valid_id(const char *id);
+using LocalFaceStamps=std::array<std::array<SourceStamp,4>,7>;
+LocalFaceStamps local_face_stamps(const std::string &title) {
+ LocalFaceStamps result{};
+ static const char *const sides[]={
+     "front","back","spine","logo","hero","shot1","shot2"};
+ static const char *const formats[]={
+     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.webp",
+     "/app0/assets/niak-cases/%s-%s.webp",
+     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",
+     "/app0/assets/niak-cases/%s-%s.png"};
+ if(!valid_id(title.c_str()))return result;
+ for(std::size_t side=0;side<result.size();++side) {
+   for(std::size_t source=0;source<result[side].size();++source) {
+     char filename[256];
+     const int n=std::snprintf(filename,sizeof(filename),formats[source],
+                               title.c_str(),sides[side]);
+     if(n<=0 || static_cast<std::size_t>(n)>=sizeof(filename))continue;
+     struct stat st{};
+     if(::stat(filename,&st)!=0 || !S_ISREG(st.st_mode))continue;
+     result[side][source]={
+         static_cast<std::uint64_t>(st.st_size),
+         static_cast<std::uint64_t>(st.st_mtime),
+         static_cast<std::uint64_t>(st.st_ctime),
+         static_cast<std::uint64_t>(st.st_ino),true};
+   }
+ }
+ return result;
+}
+
 struct Task {
  std::string id,side;
  unsigned generation=0,attempt=0,index_attempt=0,write_attempt=0;
@@ -375,6 +408,10 @@ void work(){
  std::array<SourceStamp,2> loaded_stamps{};
  bool index_loaded=false;
  unsigned indexed_attempt=0,media_generation=~0u;
+ // Fixed-cost local FTP watcher. No directory traversal, HTTP or PNG decode.
+ unsigned observed_ftp_generation=~0u;
+ LocalFaceStamps observed_ftp_files{};
+ std::chrono::steady_clock::time_point next_ftp_poll{};
  bool official_front_ready=false,official_back_ready=false;
  State &s=state();
  for(;;){
@@ -387,6 +424,37 @@ void work(){
          task=std::move(s.tasks.front());s.tasks.pop_front();
          s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
          break;
+       }
+       // FTP files can arrive after every initial hydration stage has run.
+       // Watch only the selected title. This runs on the existing worker,
+       // with the queue lock released during bounded stat() calls.
+       const unsigned observed_epoch=s.generation.load();
+       if(!s.selected.empty() &&
+          (observed_epoch!=observed_ftp_generation ||
+           std::chrono::steady_clock::now()>=next_ftp_poll)) {
+         const std::string watched_title=s.selected;
+         lock.unlock();
+         const auto current_files=local_face_stamps(watched_title);
+         lock.lock();
+         if(s.selected!=watched_title ||
+            s.generation.load()!=observed_epoch)continue;
+         if(observed_ftp_generation==observed_epoch)
+           for(std::size_t side=0;side<current_files.size();++side) {
+             if(current_files[side]==observed_ftp_files[side])continue;
+             // New or replaced art is useful; removals alone must not
+             // evict a still-visible GPU texture.
+             const bool present=std::any_of(
+                 current_files[side].begin(),current_files[side].end(),
+                 [](const SourceStamp &value){return value.present;});
+             if(present) {
+               ++s.side_completed[side];
+               ++s.completed;
+             }
+           }
+         observed_ftp_generation=observed_epoch;
+         observed_ftp_files=current_files;
+         next_ftp_poll=std::chrono::steady_clock::now()+
+                        std::chrono::seconds(30);
        }
        if(s.retries.empty()){
          if(s.selected.empty()){s.cv.wait(lock);continue;}
@@ -435,7 +503,9 @@ void work(){
          s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
          break;
        }
-       s.cv.wait_until(lock,due);
+       // Periodic local FTP checks also run while network/index retries
+       // are delayed; an absent CDN side must not block manual art updates.
+       s.cv.wait_until(lock,std::min(due,next_ftp_poll));
      }
    }
    {
