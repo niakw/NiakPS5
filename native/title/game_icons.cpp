@@ -680,3 +680,12 @@ std::uint32_t niak_load_local_png(hui::gfx::Renderer &renderer, const char *path
     std::fclose(f);
     return okay ? decode_upload(renderer,data) : 0;
 }
+
+// Pure CPU helper for the foreground user's explicitly selected PNG paths.
+// The caller is responsible for verifying the active profile/owner marker.
+bool niak_prepare_profile_png_file(const char *path,
+                                   std::vector<std::uint8_t> &pixels) {
+    if(!path)return false;
+    std::vector<unsigned char> encoded;
+    return read_local_png(path,encoded) && decode_icon_thumbnail(encoded,pixels);
+}

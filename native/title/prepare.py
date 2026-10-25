@@ -799,6 +799,9 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
             (void)catalog.refresh_pending_case_art(renderer);
             (void)catalog.refresh_pending_case_templates(renderer);
             (void)catalog.refresh_pending_case_background(renderer);
+            // Avatar PNG/DDS bytes are decoded by a CPU worker; only upload
+            // its completed RGBA on the GL-owning thread during idle.
+            niak_profile_poll_avatar(renderer);
         }
         // Missing icons can recover after ShadowMountPlus starts late.
         // Unlike initial streaming, retry does not re-read local files.

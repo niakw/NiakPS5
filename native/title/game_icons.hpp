@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include <cstdint>
+#include <vector>
 namespace hui::gfx { class Renderer; }
 std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer,const char *title_id);
 // Requeue a missing icon after an outage without touching disk, HTTP or GPU.
@@ -22,3 +23,7 @@ std::uint32_t niak_load_local_png(hui::gfx::Renderer &renderer,const char *path)
 
 // Best-effort current PS5 user cache read; no network or account upload.
 std::uint32_t niak_load_profile_cache_png(hui::gfx::Renderer &renderer,unsigned user);
+
+// CPU-only avatar PNG preparation. Call from profile worker, never the GL thread.
+bool niak_prepare_profile_png_file(const char *path,
+                                   std::vector<std::uint8_t> &pixels);
