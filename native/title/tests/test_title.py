@@ -803,7 +803,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("const int avatar_fd=open(image,O_RDONLY|O_NOFOLLOW|O_NONBLOCK)",broker)
         self.assertIn("fstat(avatar_fd,&st)==0 && S_ISREG(st.st_mode)",broker)
         self.assertIn("niak_avatar_dds_supported(header,(size_t)st.st_size)",broker)
-        self.assertIn('memcmp(header+12,"IHDR",4)==0',broker)
+        self.assertIn('memcmp(head+12,"IHDR",4)!=0',broker)
         self.assertIn("if(!valid)return 0;",broker)
         self.assertNotIn("return lstat(image,&st)==0 && S_ISREG(st.st_mode)",broker)
         self.assertIn("static int copy_current_avatar_png(int user)",broker)
