@@ -23,7 +23,12 @@ inline bool niak_application_category(const char *id,const char *name,
  int verified,int is_homebrew,bool catalog_app,bool catalog_game){
  if(id && std::string(id)=="PPSA99386")return true;
  if(niak_known_application(name))return true;
- if(verified==2||catalog_app)return true;
- if(verified==1||catalog_game)return false;
+ // A current installed title manifest outranks historical FTP and
+ // offline game-database classifications. Recognized launchers above
+ // remain applications even when a firmware omits their category field.
+ if(verified==2)return true;
+ if(verified==1)return false;
+ if(catalog_app)return true;
+ if(catalog_game)return false;
  return is_homebrew!=0;
 }
