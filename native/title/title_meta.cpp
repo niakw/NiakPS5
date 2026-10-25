@@ -10,6 +10,10 @@
 #include <cstdlib>
 #include <utility>
 using Index=std::unordered_map<std::string,NiakTitleMetadata>;
+// This cache is accessed by the catalogue/GUI owner thread only. The
+// background inventory probe never reads or mutates it.
+static unsigned niak_metadata_generation=0;
+void niak_invalidate_title_metadata() { ++niak_metadata_generation; }
 static Index read_titles(){
  Index index;
  for(const char *source : {"/app0/assets/niak-ps-titles.tsv",
@@ -58,7 +62,12 @@ static Index read_titles(){
 }
 bool niak_title_metadata(const char *id,NiakTitleMetadata &out){
  if(!id || std::strlen(id)!=9)return false;
- static const Index index=read_titles();
+ static Index index=read_titles();
+ static unsigned loaded_generation=niak_metadata_generation;
+ if(loaded_generation!=niak_metadata_generation) {
+   index=read_titles();
+   loaded_generation=niak_metadata_generation;
+ }
  const auto it=index.find(id);if(it==index.end())return false;
  out=it->second;return true;
 }
@@ -162,7 +171,7 @@ std::string niak_title_overview(const char *id) {
  // Sourced French descriptions ship offline, with a traceable URL for
  // editorial checking. No scraping or runtime browser access from the PS5.
  // This list is intentionally small: never invent descriptions for unknown IDs.
- static const auto sourced=[](){
+ static const auto sourced_loader=[](){
    std::unordered_map<std::string,std::string> data;
    for(const char *path : {"/app0/assets/niak-overviews-fr-sourced.tsv",
        "/data/homebrew/PPSA99386/assets/niak-overviews-fr-sourced.tsv"}) {
@@ -178,18 +187,24 @@ std::string niak_title_overview(const char *id) {
          continue;
        char *description=second+1;
        description[std::strcspn(description,"\r\n")]=0;
-       if(*description)data.emplace(line,description);
+       if(*description)data[std::string(line)]=description;
      }
      std::fclose(f);
    }
    return data;
- }();
+ };
+ static auto sourced=sourced_loader();
+ static unsigned sourced_generation=niak_metadata_generation;
+ if(sourced_generation!=niak_metadata_generation) {
+   sourced=sourced_loader();
+   sourced_generation=niak_metadata_generation;
+ }
  const auto fr_sourced=sourced.find(id);
  if(fr_sourced!=sourced.end())
    return niak_short_overview(fr_sourced->second);
  // Explicit local French translation has priority over LaunchBox original.
  // A missing/private file never triggers network requests on the PS5.
- static const auto french=[]() {
+ static const auto french_loader=[]() {
    std::unordered_map<std::string,std::string> data;
    FILE *f=std::fopen(
        "/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv","rb");
@@ -211,10 +226,16 @@ std::string niak_title_overview(const char *id) {
      if(*translation)data.emplace(line,translation);
    }
    std::fclose(f);return data;
- }();
+ };
+ static auto french=french_loader();
+ static unsigned french_generation=niak_metadata_generation;
+ if(french_generation!=niak_metadata_generation) {
+   french=french_loader();
+   french_generation=niak_metadata_generation;
+ }
  const auto localized=french.find(id);
  if(localized!=french.end())return niak_short_overview(localized->second);
- static const auto index=[]() {
+ static const auto index_loader=[]() {
    std::unordered_map<std::string,std::string> data;
    // Read bundled fresh LaunchBox descriptions first. An older FTP overlay
    // is allowed to improve them, but its "-" or missing Overview column
@@ -242,7 +263,13 @@ std::string niak_title_overview(const char *id) {
    std::fclose(f);
    }
    return data;
- }();
+ };
+ static auto index=index_loader();
+ static unsigned index_generation=niak_metadata_generation;
+ if(index_generation!=niak_metadata_generation) {
+   index=index_loader();
+   index_generation=niak_metadata_generation;
+ }
  const auto it=index.find(id);
  return it==index.end()?std::string{}:niak_short_overview(it->second);
 }
