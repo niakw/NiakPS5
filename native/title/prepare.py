@@ -1384,10 +1384,37 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
         }
     }
     // A sparse FTP update can change ONLY French copy or a LaunchBox
-    // overview. Rebuild once for changed file stamps even when the installed
-    // IDs, localized display names and categories are all unchanged.
-    if(!changed && result.description_stamps!=last_applied_description_stamps())
-        changed=true;
+    // overview. Never discard GPU textures or rescan all installed folders
+    // solely because an editorial description was edited over FTP.
+    const bool copy_changed=
+        result.description_stamps!=last_applied_description_stamps();
+    if(!changed && copy_changed) {
+        last_applied_description_stamps()=result.description_stamps;
+        if(items_.empty() || !items_[0].title_id[0])return false;
+        niak_invalidate_title_metadata();
+        // Items are sorted after loading; owned_blurbs_ is NOT indexed by
+        // sorted item position. Build new stable storage in display order,
+        // then atomically repoint every Item before the shell reloads views.
+        std::deque<std::string> refreshed_blurbs;
+        for(const Item &item:items_) {
+            NiakTitleMetadata meta;
+            const bool known=niak_title_metadata(item.title_id,meta);
+            std::string detail=known?niak_title_summary(meta):"";
+            const std::string overview=niak_title_overview(item.title_id);
+            if(!overview.empty()) {
+                if(!detail.empty())detail+=" — ";
+                detail+=overview;
+            }
+            if(detail.size()>900)detail.resize(900);
+            refreshed_blurbs.emplace_back(std::move(detail));
+        }
+        owned_blurbs_.swap(refreshed_blurbs);
+        for(std::size_t i=0;i<items_.size();++i)
+            items_[i].blurb=owned_blurbs_[i].c_str();
+        // Main immediately recreates shell views so no concept retains
+        // a stale borrowed description pointer. GPU textures stay resident.
+        return true;
+    }
     if(!changed)return false;
     last_applied_description_stamps()=result.description_stamps;
 
