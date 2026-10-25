@@ -346,6 +346,38 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("fopen(",worker[begin:end])
         self.assertNotIn("niak_fetch_launchbox_asset_ex(",worker[begin:end])
 
+    def test_newer_committed_launchbox_cache_overrides_stale_private_marker(self):
+        reader=(ROOT/"title"/"case_art.cpp").read_text()
+        worker=(ROOT/"title"/"case_auto_art.cpp").read_text()
+        start=reader.index("const std::size_t private_slot=paths.size()-1;")
+        end=reader.index("// A verified CDN replacement takes priority",start)
+        selection=reader[start:end]
+        self.assertIn('const std::string private_marker=paths[private_slot]+".source";',selection)
+        self.assertIn('const std::string download_marker=paths[download_slot]+".source";',selection)
+        self.assertIn("S_ISREG(private_info.st_mode)",selection)
+        self.assertIn("S_ISREG(download_info.st_mode)",selection)
+        self.assertIn("download_info.st_mtime>private_info.st_mtime",selection)
+        self.assertIn("std::swap(paths[private_slot],paths[download_slot]);",selection)
+        self.assertLess(reader.index("std::swap(paths[private_slot],paths[download_slot]);"),
+                        reader.index("for(const std::string& filename:paths)"))
+        self.assertIn("!valid_download_source(filename)",reader)
+        self.assertIn('std::remove((backup+".source").c_str())',worker)
+        # Timestamp probing and decoding are still in the PS5 CPU loader.
+        stage=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn("niak_load_case_art(",stage)
+
+    def test_failed_webp_write_never_reads_task_strings_after_move(self):
+        source=(ROOT/"title"/"case_auto_art.cpp").read_text()
+        step=source.index("task.pending_webp=std::move(webp);")
+        end=source.index("// Retry temporary HTTP failures",step)
+        after=source[step:end]
+        self.assertIn("queue_write_retry(s,std::move(task));",after)
+        moved=after[after.index("queue_write_retry(s,std::move(task));"):]
+        self.assertIn("if(field==0)official_front_ready=true;",moved)
+        self.assertIn("if(field==1)official_back_ready=true;",moved)
+        self.assertNotIn("task.side",moved)
+        self.assertNotIn("task.id",moved)
+
     def test_failed_launchbox_webp_write_retries_offline_without_another_http_get(self):
         source=(ROOT/"title"/"case_auto_art.cpp").read_text()
         self.assertIn("std::vector<unsigned char> pending_webp;",source)
