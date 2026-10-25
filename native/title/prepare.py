@@ -1423,9 +1423,12 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
         owned_blurbs_.swap(refreshed_blurbs);
         for(std::size_t i=0;i<items_.size();++i)
             items_[i].blurb=owned_blurbs_[i].c_str();
-        // Main immediately recreates shell views so no concept retains
-        // a stale borrowed description pointer. GPU textures stay resident.
-        return true;
+        // Aurora's shelves own catalogue INDICES, not borrowed blurb
+        // pointers. Every draw retrieves Item::blurb from the same Catalog.
+        // The catalogue IDs and order are unchanged on this path; rebuilding
+        // the shell would unnecessarily reset its active tab, selected game
+        // and open detail sheet. Keep those UI states intact.
+        return false;
     }
     if(!changed)return false;
     last_applied_description_stamps()=result.description_stamps;
