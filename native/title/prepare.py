@@ -337,7 +337,7 @@ audio::SoundSet Shell::sound_set() const''')
         item.case_template_back=0;
         item.case_template_spine=0;''')
     replace_once(art_file, '#include "gfx/renderer.hpp"',
-                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/case_auto_art.hpp"\n#include "niak/asset_stats.hpp"\n#include <algorithm>')
+                 '#include "gfx/renderer.hpp"\n#include "niak/game_icons.hpp"\n#include "niak/case_art.hpp"\n#include "niak/case_auto_art.hpp"\n#include "niak/asset_stats.hpp"\n#include <algorithm>\n#include <cstring>')
     replace_once(art_file, '    release_covers(renderer);\n    constexpr float kSize',
                  '    release_covers(renderer);\n    niak::case_media_stats={};\n    constexpr float kSize')
     replace_once(art_file, '    for (Item &item : items_)\n    {\n        gfx::BackdropSpec spec;',

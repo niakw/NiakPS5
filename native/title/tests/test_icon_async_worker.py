@@ -35,6 +35,7 @@ class IconAsyncWorkerTests(unittest.TestCase):
         self.assertIn("if(it->cover)renderer.destroy_texture(it->cover);",PATCH)
         self.assertIn("it->cover_is_image=true;",PATCH)
         self.assertIn("catalog.refresh_pending_game_icons(renderer);",PATCH)
+        self.assertIn("#include <cstring>",PATCH)
         self.assertIn("if(navigation_idle)",PATCH)
 
 if __name__=="__main__":
