@@ -1347,6 +1347,9 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
 
 void Catalog::reload()
 {
+    // Names, app categories, French copy and LaunchBox overviews must all
+    // observe the same latest packaged/private metadata during a rebuild.
+    niak_invalidate_title_metadata();
     std::vector<NiakGame> games(NIAKPS5_MAX_GAMES);
     const int db_count = niak_scan_games("/system_data/priv/mms/app.db", "",
                                          games.data(), games.size());
