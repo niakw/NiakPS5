@@ -30,9 +30,9 @@ On the PS5 13.60 test console, the local service discovered **48 titles**, the l
 
 1. Download **`NiakPS5-PPSA99386`** from a [successful `main` workflow run](https://github.com/niakw/NiakPS5/actions/workflows/native-title.yml).
 2. Extract it once and **merge** the top-level **`data/`** folder into the PS5 FTP root **`/`**. **Do not delete** existing folders.
-3. Open the registered title **`PPSA99386`**. The companion PLDmgr payload is already included in the same tree.
+3. Open the title through an existing compatible PS5 homebrew registration/launcher (such as configured ShadowMountPlus): **`PPSA99386`**. The companion PLDmgr payload is already included in the same tree.
 
-The package does **not** edit `autoload.txt`, PLDmgr settings, or Sony system files. Keep an existing working autoload configuration; a basic FTP folder copy cannot activate a missing one.
+The package does **not** edit `autoload.txt`, PLDmgr settings, or Sony system files. Keep an existing working autoload configuration; FTP copying alone cannot register a new PS5 title or activate a missing autoload entry.
 
 Artwork refresh is built into the title. Separate FTP scripts are documented **only as troubleshooting tools** in the [technical notes](native/title/README.md), not as a normal setup requirement.
 
