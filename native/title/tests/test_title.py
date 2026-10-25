@@ -483,6 +483,20 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("--translate-fr",script)
         self.assertIn("NIAK_DEEPL_API_KEY",(ROOT/"title"/"translate_overviews.py").read_text())
 
+    def test_sparse_private_french_overview_preserves_packaged_titles(self):
+        source=(ROOT/"title"/"title_meta.cpp").read_text()
+        start=source.index("static const auto french_loader=[]()")
+        end=source.index("static auto french=french_loader();",start)
+        loader=source[start:end]
+        self.assertIn('"/app0/assets/niak-overviews-fr.tsv"',loader)
+        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"',loader)
+        self.assertLess(loader.index('"/app0/assets/niak-overviews-fr.tsv"'),
+                        loader.index('"/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"'))
+        self.assertIn("for(const char *source :",loader)
+        self.assertIn("data[std::string(line)]=translation;",loader)
+        self.assertNotIn("data.emplace(line,translation)",loader)
+        self.assertIn("if(!std::strchr(line,'\\n') && !std::feof(f))",loader)
+
     def test_long_launchbox_media_lines_keep_the_overview(self):
         meta=(ROOT/"title"/"title_meta.cpp").read_text()
         self.assertIn("char line[8192]",meta)
