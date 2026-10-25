@@ -486,8 +486,11 @@ class Aurora final : public app::Concept""")
                 if(shelves_.size()>1) {
                     if(row_==1)active_tab_=2;
                     else if(active_tab_==2)active_tab_=1;
-                } else if(active_tab_==2)active_tab_=0;
+                }
             }
+            // The secondary shelf may disappear when its last item is
+            // reclassified or uninstalled. Never reopen an empty tab.
+            if(active_tab_==2 && shelves_.size()<2)active_tab_=0;
             selected_tab_=active_tab_;
         }
         row_position_.snap(float(row_));
