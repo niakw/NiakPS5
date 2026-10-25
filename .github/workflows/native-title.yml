@@ -105,6 +105,20 @@ jobs:
                     payload/'niakps5.elf.json'):
               assert f.is_file() and f.stat().st_size>0,f
           assert json.loads((title/'sce_sys/param.json').read_text())['titleId']=='PPSA99386'
+          # Gate the exact FTP deliverable, not only the ephemeral staging
+          # checkout: a release with a header-only index has no LaunchBox art.
+          index=title/'assets/niak-launchbox-cases.tsv'
+          assert index.is_file(), 'LaunchBox index absent du paquet FTP'
+          with index.open(encoding='utf8') as stream:
+              heading=stream.readline().rstrip('\r\n')
+              assert heading=='# title\tOverview\tFront\tBack\tSpine\tLogo\tHero\tShot1\tShot2\tLaunchBoxID',heading
+              rows=[line.rstrip('\r\n').split('\t') for line in stream]
+          assert len(rows)>=1000, f'LaunchBox index only {len(rows)} entries'
+          assert all(len(parts)==10 for parts in rows), 'LaunchBox malformed columns'
+          assert sum(row[2]!='-' for row in rows)>=100, 'LaunchBox fronts absent'
+          assert sum(row[3]!='-' for row in rows)>=100, 'LaunchBox backs absent'
+          assert sum(row[4]!='-' for row in rows)>=50, 'LaunchBox spines absent'
+          print(f'FTP LaunchBox catalogue verified: {len(rows)} rows')
           elf=(payload/'niakps5.elf').read_bytes()
           assert elf==(title/'tools/niakps5/niakps5.elf').read_bytes()
           assert json.loads((payload/'niakps5.elf.json').read_text())['checksum']==hashlib.sha256(elf).hexdigest()
