@@ -323,6 +323,34 @@ class TestRetailCases(unittest.TestCase):
   self.assertEqual(len(set(row[7].split(";")) & set(row[8].split(";"))),0)
   self.assertIn("000000000600",row[2])
 
+ def test_reconstructed_back_fallbacks_never_duplicate_across_slots(self):
+  # LaunchBox can classify the same PC screenshot as Game Title and Gameplay.
+  # A failed PS5 CDN image must not show that identical backup in both boxes.
+  xml=b"""<LaunchBox>
+   <Game><DatabaseID>901</DatabaseID><Platform>Sony Playstation 5</Platform>
+    <Name>Example Title</Name></Game>
+   <Game><DatabaseID>902</DatabaseID><Platform>Windows</Platform>
+    <Name>Example Title</Name></Game>
+   <GameImage><DatabaseID>901</DatabaseID><Type>Box - Front</Type>
+    <FileName>00000000-0000-0000-0000-000000000900.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>901</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000910.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>901</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000920.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>902</DatabaseID><Type>Screenshot - Gameplay</Type>
+    <FileName>00000000-0000-0000-0000-000000000911.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>902</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000911.jpg</FileName></GameImage>
+   <GameImage><DatabaseID>902</DatabaseID><Type>Screenshot - Game Title</Type>
+    <FileName>00000000-0000-0000-0000-000000000921.jpg</FileName></GameImage>
+  </LaunchBox>"""
+  row=mod.parse(io.BytesIO(xml),{("ps5","example title"):["PPSA12345"]})[0]
+  first={x.split(":",1)[1] for x in row[7].split(";") if ":" in x}
+  second={x.split(":",1)[1] for x in row[8].split(";") if ":" in x}
+  self.assertIn("00000000-0000-0000-0000-000000000911.jpg",first)
+  self.assertIn("00000000-0000-0000-0000-000000000921.jpg",second)
+  self.assertFalse(first & second)
+
  def test_box_back_ps5_then_ps4_then_pc_and_front_stays_ps5(self):
   xml=b"""<LaunchBox>
    <Game><DatabaseID>810</DatabaseID><Platform>Sony Playstation 5</Platform><Name>Priority Game</Name></Game>
