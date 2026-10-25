@@ -41,7 +41,7 @@ contenant directement l'arborescence suivante (aucun ZIP imbriqué) :
 
 ```text
 data/homebrew/PPSA99386/eboot.bin
-data/homebrew/PPSA99386/assets/niak-templates/{ps4,ps5}-{front,back,spine}.png
+data/homebrew/PPSA99386/assets/niak-templates/{ps4,ps5}-{front,back,spine}.webp
 data/pldmgr/payloads/niakps5/niakps5.elf
 data/pldmgr/payloads/niakps5/niakps5.elf.json
 ```
@@ -88,7 +88,7 @@ La redirection immédiate au bouton PS comme NiakTV nécessiterait une instrumen
 
 ## Authentique avatar PS5
 
-Le payload ne lit que le profil utilisateur actuellement en avant-plan via `sceUserServiceGetForegroundUser`. Il copie, lorsqu'ils sont disponibles, `/system_data/priv/cache/profile/0x%08X/avatar.png` ou à défaut `avatar128.dds`, `avatar260.dds` ou `avatar64.dds` dans le dossier d'assets de NiakPS5. Le titre lit uniquement cette copie `/app0/assets/niak-profile.png` ou `niak-profile.dds` et décode localement le DDS DXT5. Aucun fichier de profil n'est ajouté au dépôt, expédié à Steam ou transféré sur Internet. **La compatibilité du chemin, des permissions et de l'affichage de l'avatar doit encore être validée sur console.**
+Le payload ne lit que le profil utilisateur actuellement en avant-plan via `sceUserServiceGetForegroundUser`. Il copie, lorsqu'ils sont disponibles, `/system_data/priv/cache/profile/0x%08X/avatar.png` ou à défaut `avatar128.dds`, `avatar260.dds` ou `avatar64.dds` dans le dossier d'assets de NiakPS5. Le titre lit uniquement cette copie `/app0/assets/niak-profile.png` ou `niak-profile.dds` et décode localement les DDS BC1/DXT1 et BC3/DXT5. Aucun fichier de profil n'est ajouté au dépôt, expédié à Steam ou transféré sur Internet. **La compatibilité du chemin, des permissions et de l'affichage de l'avatar doit encore être validée sur console.**
 
 
 ## Installation manuelle PLDmgr (sans script FTP)
