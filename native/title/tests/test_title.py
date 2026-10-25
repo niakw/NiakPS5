@@ -5,6 +5,23 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class NativeTitleTests(unittest.TestCase):
+    def test_native_release_must_contain_real_launchbox_index(self):
+        build=(ROOT/"title"/"build.sh").read_text()
+        workflow=(ROOT.parent/".github/workflows/native-title.yml").read_text()
+        self.assertIn('if ! python3 "$root/native/title/launchbox_index.py" --download',build)
+        self.assertIn("refusing incomplete PS5 package",build)
+        self.assertIn("exit 1",build.split("refusing incomplete PS5 package",1)[1][:80])
+        self.assertNotIn("LaunchBox index unavailable; keeping public",build)
+        self.assertIn("if len(rows)<1001:",build)
+        self.assertIn("LaunchBox index schema changed",build)
+        self.assertIn("LaunchBox missing real media:",build)
+        self.assertIn("if min(counts)<100:",build)
+        self.assertIn("LaunchBox index absent du paquet FTP",workflow)
+        self.assertIn("LaunchBox index only",workflow)
+        self.assertIn("LaunchBox fronts absent",workflow)
+        self.assertIn("LaunchBox backs absent",workflow)
+        self.assertIn("LaunchBox spines absent",workflow)
+
     def test_staged_native_manifest_locale_parser_headers(self):
         stage=(ROOT/"title"/"prepare.py").read_text()
         source=(ROOT.parent/"native/catalog.c").read_text()
