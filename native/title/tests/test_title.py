@@ -488,6 +488,22 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("char line[8192]",meta)
         self.assertIn("niak_title_overview",meta)
 
+    def test_refreshed_catalogue_invalidates_sourced_overview_caches(self):
+        meta=(ROOT/"title"/"title_meta.cpp").read_text()
+        header=(ROOT/"title"/"title_meta.hpp").read_text()
+        catalog=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn("void niak_invalidate_title_metadata();",header)
+        self.assertIn("void niak_invalidate_title_metadata() { ++niak_metadata_generation; }",meta)
+        self.assertIn("niak_invalidate_title_metadata();",catalog)
+        self.assertIn("static unsigned loaded_generation=niak_metadata_generation;",meta)
+        self.assertIn("index=read_titles();",meta)
+        self.assertIn("sourced=sourced_loader();",meta)
+        self.assertIn("french=french_loader();",meta)
+        self.assertIn("index=index_loader();",meta)
+        self.assertIn("if(sourced_generation!=niak_metadata_generation)",meta)
+        self.assertIn("if(index_generation!=niak_metadata_generation)",meta)
+        self.assertIn("if(*description)data[std::string(line)]=description;",meta)
+
     def test_actual_native_home_screenshot_is_rendered_in_ci(self):
         workflow=(ROOT.parent/".github/workflows/native-title.yml").read_text()
         preview=(ROOT/"title"/"host_preview.py").read_text()
