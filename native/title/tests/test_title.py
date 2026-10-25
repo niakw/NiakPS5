@@ -712,6 +712,31 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("std::thread",gpu_source)
         self.assertNotIn("scan_inventory_background()",gpu_source)
 
+    def test_avatar_ftp_updates_recheck_on_cpu_and_keep_existing_gpu_texture(self):
+        profile=(ROOT/"title"/"profile.cpp").read_text()
+        self.assertIn("using AvatarFileStamps=std::array<AvatarFileStamp,11>;",profile)
+        self.assertIn("AvatarFileStamps read_avatar_source_stamps(int current)",profile)
+        self.assertIn("stamps[i]=avatar_file_stamp(private_files[i]);",profile)
+        self.assertIn("stamps[i+6]=avatar_file_stamp(path);",profile)
+        worker=profile[profile.index("void avatar_reader()"):
+                       profile.index("void request_avatar_for(")]
+        self.assertIn("const AvatarFileStamps stamps=read_avatar_source_stamps(user);",worker)
+        self.assertIn("state.texture_live && state.have_stamps",worker)
+        self.assertIn("stamps==state.observed_stamps",worker)
+        self.assertLess(worker.index("stamps==state.observed_stamps"),
+                        worker.index("prepare_current_avatar(user,width,height,pixels)"))
+        self.assertIn("state.observed_stamps=stamps;",worker)
+        self.assertNotIn("renderer.",worker)
+        refresh=profile[profile.index("void niak_profile_refresh_avatar("):]
+        self.assertIn("if(niak_user_avatar && current==niak_avatar_owner)",refresh)
+        self.assertIn("request_avatar_for(current);",refresh)
+        self.assertIn("niak_profile_load_avatar(renderer);",refresh)
+        self.assertNotIn("::stat(",refresh)
+        poll=profile[profile.index("void niak_profile_poll_avatar("):
+                     profile.index("// Broker files may arrive AFTER startup.")]
+        self.assertIn("if(state.selected_user==user)state.texture_live=true;",poll)
+        self.assertIn("if(niak_user_avatar)renderer.destroy_texture(niak_user_avatar);",poll)
+
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
         for name in ("case_front","case_back","case_spine","PS4","PS5","yaw_at",
