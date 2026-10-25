@@ -1408,6 +1408,18 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
             if(detail.size()>900)detail.resize(900);
             refreshed_blurbs.emplace_back(std::move(detail));
         }
+        // A replaced FTP file can have a new inode/time without changing
+        // any displayed sentence. Do not recreate Aurora concepts or reset
+        // focus unless a visible description actually changed.
+        bool texts_changed=false;
+        for(std::size_t i=0;i<items_.size();++i) {
+            const char *current=items_[i].blurb?items_[i].blurb:"";
+            if(refreshed_blurbs[i]!=current) {
+                texts_changed=true;
+                break;
+            }
+        }
+        if(!texts_changed)return false;
         owned_blurbs_.swap(refreshed_blurbs);
         for(std::size_t i=0;i<items_.size();++i)
             items_[i].blurb=owned_blurbs_[i].c_str();
