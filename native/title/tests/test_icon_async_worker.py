@@ -26,13 +26,32 @@ class IconAsyncWorkerTests(unittest.TestCase):
         self.assertIn("std::thread([] {icon_reader_worker();}).detach();",SOURCE)
         self.assertIn("state.seen.size()>=4096",SOURCE)
         self.assertNotIn("renderer.",worker)
-        self.assertIn("state.completed_bytes=std::move(bytes);",worker)
+        self.assertIn("decode_icon_thumbnail(bytes,pixels)",worker)
+        self.assertIn("state.completed_pixels=std::move(pixels);",worker)
         self.assertIn("state.seen.erase(id);",worker)
         self.assertIn("state.seen.erase(id);",SOURCE[SOURCE.index("std::uint32_t niak_take_downloaded_game_icon("):])
 
+    def test_network_worker_releases_raw_images_before_gpu_upload(self):
+        worker=SOURCE[SOURCE.index("void icon_reader_worker() {"):
+                      SOURCE.index("void request_missing_icon(")]
+        self.assertIn("std::vector<unsigned char> pixels;",worker)
+        self.assertIn("if(!complete || !decode_icon_thumbnail(bytes,pixels))",worker)
+        self.assertIn("state.completed_pixels=std::move(pixels);",worker)
+        self.assertIn("one 256x256 RGBA buffer: 256 KiB",SOURCE)
+        self.assertNotIn("completed_bytes",SOURCE)
+        self.assertIn("return renderer.create_texture(kTarget,kTarget,pixels.data());",SOURCE)
+        self.assertIn("return renderer.create_texture(kTarget,kTarget,bytes.data());",SOURCE)
+
     def test_renderer_consumes_and_replaces_fallback(self):
         self.assertIn("niak_take_downloaded_game_icon",HEADER)
-        self.assertIn("return decode_upload(renderer,bytes);",SOURCE)
+        self.assertIn("return renderer.create_texture(kTarget,kTarget,bytes.data());",SOURCE)
+        poll=SOURCE[SOURCE.index("std::uint32_t niak_take_downloaded_game_icon("):
+                    SOURCE.index("std::uint32_t niak_load_game_background(")]
+        self.assertNotIn("decode_upload(",poll)
+        self.assertNotIn("decode_icon_thumbnail(",poll)
+        self.assertIn("if(bytes.size()!=std::size_t(kTarget)*kTarget*4u)return 0;",poll)
+        self.assertIn("scaled=std::move(rgba);",SOURCE)
+        self.assertIn("if(!decode_icon_thumbnail(image,pixels))return 0;",SOURCE)
         self.assertIn("renderer.destroy_texture(handle);",PATCH)
         self.assertIn("if(it->cover)renderer.destroy_texture(it->cover);",PATCH)
         self.assertIn("it->cover_is_image=true;",PATCH)

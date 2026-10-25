@@ -199,35 +199,45 @@ bool decode_installed_art(const std::vector<unsigned char> &bytes,
     if(lodepng::decode(rgba,w,h,bytes)!=0||w!=iw||h!=ih)return false;
     return rgba.size()==std::size_t(w)*h*4u;
 }
-std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
-                             const std::vector<unsigned char> &png)
+// CPU-only and reentrant: usable by the HTTP worker or by the local-art
+// reader. Network completions carry only 256x256 RGBA, never compressed
+// multi-megabyte input or large decoded 2048x2048 image buffers.
+bool decode_icon_thumbnail(const std::vector<unsigned char> &image,
+                           std::vector<unsigned char> &scaled)
 {
     std::vector<unsigned char> rgba;
     unsigned w=0,h=0;
-    if(!decode_installed_art(png,rgba,w,h))return 0;
-    // Most installed icon0.png files are already 512x512. Upload these
-    // directly: avoid another 1 MiB buffer and 262,144 CPU pixel copies
-    // per game during the initial catalogue render.
-    if(w==kTarget && h==kTarget)
-        return renderer.create_texture(kTarget,kTarget,rgba.data());
-    // Other dimensions are still scaled to a predictable GPU allocation.
-    std::vector<unsigned char> scaled(static_cast<std::size_t>(kTarget)*kTarget*4);
-    for (int y=0;y<kTarget;++y)
-    {
-        const unsigned sy=std::min(h-1,static_cast<unsigned>((static_cast<std::uint64_t>(y)*h)/kTarget));
-        for (int x=0;x<kTarget;++x)
-        {
-            const unsigned sx=std::min(w-1,static_cast<unsigned>((static_cast<std::uint64_t>(x)*w)/kTarget));
-            const std::size_t a=(static_cast<std::size_t>(sy)*w+sx)*4;
-            const std::size_t b=(static_cast<std::size_t>(y)*kTarget+x)*4;
-            for(int c=0;c<4;++c) scaled[b+c]=rgba[a+c];
+    if(!decode_installed_art(image,rgba,w,h))return false;
+    if(w==kTarget && h==kTarget) {
+        scaled=std::move(rgba);
+        return true;
+    }
+    scaled.resize(static_cast<std::size_t>(kTarget)*kTarget*4u);
+    for(int y=0;y<kTarget;++y) {
+        const unsigned sy=std::min(h-1,static_cast<unsigned>(
+            (static_cast<std::uint64_t>(y)*h)/kTarget));
+        for(int x=0;x<kTarget;++x) {
+            const unsigned sx=std::min(w-1,static_cast<unsigned>(
+                (static_cast<std::uint64_t>(x)*w)/kTarget));
+            const std::size_t a=(static_cast<std::size_t>(sy)*w+sx)*4u;
+            const std::size_t b=(static_cast<std::size_t>(y)*kTarget+x)*4u;
+            for(int c=0;c<4;++c)scaled[b+c]=rgba[a+c];
         }
     }
-    return renderer.create_texture(kTarget,kTarget,scaled.data());
+    return true;
+}
+std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
+                             const std::vector<unsigned char> &image)
+{
+    // Locally installed artwork still uses this synchronous path; only
+    // network icons are decoded and resized by the dedicated HTTP worker.
+    std::vector<unsigned char> pixels;
+    if(!decode_icon_thumbnail(image,pixels))return 0;
+    return renderer.create_texture(kTarget,kTarget,pixels.data());
 }
 // One background reader for missing installed icons. The GPU renderer never
 // calls a socket API: it only consumes a completed byte vector. One completion
-// slot applies backpressure (at most one 4 MiB response waiting for upload).
+// slot applies backpressure (one 256x256 RGBA buffer: 256 KiB).
 // This process-lifetime object is intentional: the detached reader must not
 // reference destroyed static mutexes or catalogue-owned Item pointers.
 #if defined(__PROSPERO__)
@@ -237,7 +247,7 @@ struct AsyncIconDownloads {
     std::deque<std::string> queue;
     std::unordered_set<std::string> seen;
     std::string completed_title;
-    std::vector<unsigned char> completed_bytes;
+    std::vector<unsigned char> completed_pixels;
     bool completed=false;
     bool started=false;
 };
@@ -266,10 +276,12 @@ void icon_reader_worker() {
             bytes.clear();
             complete=download(url+"&size=thumb",bytes);
         }
-        if(!complete) {
-            // A transient outage or 404 must not blacklist this title for
-            // the whole process lifetime. Periodic idle retry is throttled
-            // on the render thread and has no GPU or network operations.
+        // Decode PNG/WebP and reduce to 256x256 on the CPU worker. It must
+        // never access OpenGL, and the renderer only uploads ready RGBA.
+        std::vector<unsigned char> pixels;
+        if(!complete || !decode_icon_thumbnail(bytes,pixels)) {
+            // Transient transport failure, HTTP refusal or malformed art.
+            // Keep periodic retry possible without permanent blacklisting.
             std::lock_guard<std::mutex> lock(state.mutex);
             state.seen.erase(id);
             continue;
@@ -277,7 +289,7 @@ void icon_reader_worker() {
         {
             std::lock_guard<std::mutex> lock(state.mutex);
             state.completed_title=std::move(id);
-            state.completed_bytes=std::move(bytes);
+            state.completed_pixels=std::move(pixels);
             state.completed=true;
         }
         // The reader cannot get ahead of the renderer and accumulate raw
@@ -385,7 +397,7 @@ std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
         std::lock_guard<std::mutex> lock(state.mutex);
         if(!state.completed)return 0;
         id=std::move(state.completed_title);
-        bytes=std::move(state.completed_bytes);
+        bytes=std::move(state.completed_pixels);
         state.completed=false;
         // A future catalogue rebuild may need the same title again; no
         // permanent "already downloaded" blacklist is permitted.
@@ -395,8 +407,10 @@ std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
     if(id.size()>=sizeof(title_id))return 0;
     std::memcpy(title_id,id.data(),id.size());
     title_id[id.size()]=0;
-    // PNG/WebP decode and renderer.create_texture remain on the GL thread.
-    return decode_upload(renderer,bytes);
+    // The worker already decoded/resampled this image; only the GPU texture
+    // allocation remains on its owning thread. Never decode here.
+    if(bytes.size()!=std::size_t(kTarget)*kTarget*4u)return 0;
+    return renderer.create_texture(kTarget,kTarget,bytes.data());
 #else
     (void)renderer;
     return 0;
