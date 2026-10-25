@@ -36,6 +36,8 @@ class CaseTextureLifecycleTests(unittest.TestCase):
         self.assertIn("item.case_reload_mask=0;",SOURCE)
         self.assertIn("niak_release_case_templates(renderer);",SOURCE)
         self.assertIn("selected.case_template_front=0;",SOURCE)
+        self.assertIn("std::deque<std::uint32_t> retiring_case_textures_;",SOURCE)
+        self.assertIn("release_one_retired_case_texture",SOURCE)
 
 if __name__=="__main__":
     unittest.main()

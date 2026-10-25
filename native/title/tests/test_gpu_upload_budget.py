@@ -7,7 +7,8 @@ class GpuUploadBudgetTests(unittest.TestCase):
         start=SOURCE.index("// Limit successful asynchronous GPU uploads")
         end=SOURCE.index("#else\n        // Host fixtures remain eager",start)
         native=SOURCE[start:end]
-        self.assertIn("bool gpu_budget_used=false;",native)
+        self.assertIn("bool gpu_budget_used=navigation_idle &&",native)
+        self.assertIn("catalog.release_one_retired_case_texture(renderer);",native)
         self.assertIn("catalog.has_pending_covers()",native)
         self.assertIn("gpu_budget_used=true;",native)
         for loader in ("refresh_pending_game_icons","refresh_pending_case_art",

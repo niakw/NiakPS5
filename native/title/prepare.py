@@ -263,7 +263,7 @@ audio::SoundSet Shell::sound_set() const''')
                  '    float case_shot2_aspect = 16.0f/9.0f;\n'
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    unsigned case_reload_mask = 0;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::size_t icon_retry_cursor_ = 0;\n    unsigned case_hydration_step_ = 0;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::size_t icon_retry_cursor_ = 0;\n    unsigned case_hydration_step_ = 0;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::deque<std::uint32_t> retiring_case_textures_;\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
                  '#include "gfx/draw_list.hpp"\n#include "niak/cover_stream_state.hpp"')
     replace_once(catalog_h,
@@ -279,6 +279,7 @@ audio::SoundSet Shell::sound_set() const''')
         '    bool refresh_pending_case_background(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_case_art(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_case_templates(gfx::Renderer &renderer);\n'
+        '    bool release_one_retired_case_texture(gfx::Renderer &renderer);\n'
         '    void retry_missing_game_icons();')
     replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
@@ -334,6 +335,12 @@ audio::SoundSet Shell::sound_set() const''')
     replace_once(art_file, 'void Catalog::release_covers(gfx::Renderer &renderer)\n{\n    for (Item &item : items_)',
                  '''void Catalog::release_covers(gfx::Renderer &renderer)
 {
+    // A catalogue rebuild flushes detached handles before discarding Items.
+    while(!retiring_case_textures_.empty()) {
+        auto texture=retiring_case_textures_.front();
+        retiring_case_textures_.pop_front();
+        niak_destroy_case_texture(renderer,texture);
+    }
     // Six platform templates are SHARED by every title. Destroy only once.
     niak_release_case_templates(renderer);
     for (Item &item : items_)''')
@@ -526,6 +533,15 @@ bool Catalog::refresh_pending_game_icons(gfx::Renderer &renderer) {
 
 // One local CPU-decoded pic1 texture may arrive after a selection change.
 // Only the current game without an official front may own that GPU handle.
+// Deferred GPU-owned textures are no longer referenced by their old Items.
+bool Catalog::release_one_retired_case_texture(gfx::Renderer &renderer) {
+    if(retiring_case_textures_.empty())return false;
+    auto texture=retiring_case_textures_.front();
+    retiring_case_textures_.pop_front();
+    niak_destroy_case_texture(renderer,texture);
+    return true;
+}
+
 bool Catalog::refresh_pending_case_background(gfx::Renderer &renderer) {
     char title_id[16]{};
     float aspect=16.0f/9.0f;
@@ -721,12 +737,20 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
             for(std::uint32_t *texture : {&old.case_front,&old.case_back,
                  &old.case_spine,&old.case_scene,&old.logo_art,
                  &old.case_poster,&old.case_hero,&old.case_shot1,
-                 &old.case_shot2})
-                niak_destroy_case_texture(renderer,*texture);
+                 &old.case_shot2}) {
+                if(!*texture)continue;
+                retiring_case_textures_.push_back(*texture);
+                *texture=0;
+            }
+            // Bound the queue during repeated rapid transitions. In normal
+            // operation, release just one retired GPU handle per idle tick.
+            while(retiring_case_textures_.size()>27u)
+                release_one_retired_case_texture(renderer);
             // Shared templates have their own lifecycle.
             old.case_template_front=0;
             old.case_template_back=0;
             old.case_template_spine=0;
+            old.case_reload_mask=0;
         }
         retained_case_focus_=last_case_focus_;
     }
@@ -881,8 +905,11 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         // A completed download is left in its single-result worker slot
         // until a later tick; do not decode or wait here.
 #if defined(__PROSPERO__)
-        bool gpu_budget_used=false;
-        if(navigation_idle && (frames%4u==0 || first_idle_focus) &&
+        // One retired case texture consumes the idle frame's GPU budget.
+        bool gpu_budget_used=navigation_idle &&
+            catalog.release_one_retired_case_texture(renderer);
+        if(navigation_idle && !gpu_budget_used &&
+           (frames%4u==0 || first_idle_focus) &&
            catalog.has_pending_covers()) {
             (void)catalog.stream_next_covers(renderer,fonts,1);
             gpu_budget_used=true;
@@ -898,7 +925,9 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         if(navigation_idle && !gpu_budget_used)
             niak_profile_poll_avatar(renderer);
 #else
-        // Host fixtures remain eager and deterministic for six-way 3D QA.
+        // Host preview remains eager, but detached GPU handles still drain.
+        if(navigation_idle)
+            (void)catalog.release_one_retired_case_texture(renderer);
         if(navigation_idle && (frames%4u==0 || first_idle_focus))
             (void)catalog.stream_next_covers(renderer,fonts,1);
         if(navigation_idle) {
