@@ -301,7 +301,7 @@ static int current_avatar_asset_staged(int user) {
     }
     if(close(avatar_fd)!=0)valid=0;
     if(!valid)return 0;
-    if(strcmp(marker+n,"dds\\n")==0)
+    if(strcmp(marker+n,"dds\n")==0)
         return niak_avatar_dds_supported(header,(size_t)st.st_size);
     static const unsigned char png[8]={137,80,78,71,13,10,26,10};
     return memcmp(header,png,sizeof(png))==0 &&
