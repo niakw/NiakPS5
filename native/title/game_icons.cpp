@@ -235,6 +235,33 @@ std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
     if(!decode_icon_thumbnail(image,pixels))return 0;
     return renderer.create_texture(kTarget,kTarget,pixels.data());
 }
+// Preserve installed-art priority on BOTH PS5 and host. Only the worker
+// opens local files on PS5; the host preview retains its existing eager path.
+constexpr const char *kInstalledIconPaths[] = {
+        "/app0/assets/niak-installed/%s-icon.webp",
+        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.webp",
+        "/app0/assets/niak-installed/%s-icon.png",
+        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.png",
+        "/data/homebrew/%s/sce_sys/icon0.png",
+        "/user/app/%s/sce_sys/icon0.png",
+        "/user/appmeta/%s/icon0.png",
+        "/system_ex/app/%s/sce_sys/icon0.png",
+        "/mnt/ext0/user/app/%s/sce_sys/icon0.png",
+        "/mnt/ext1/user/app/%s/sce_sys/icon0.png",
+        "/mnt/ext0/user/appmeta/%s/icon0.png",
+        "/mnt/ext1/user/appmeta/%s/icon0.png"};
+bool load_installed_icon_pixels(const char *id,
+                                std::vector<unsigned char> &pixels) {
+    for(const char *format : kInstalledIconPaths) {
+        char path[160]{};
+        const int n=std::snprintf(path,sizeof(path),format,id);
+        if(n<=0 || n>=int(sizeof(path)))continue;
+        std::vector<unsigned char> encoded;
+        if(read_local_png(path,encoded) &&
+           decode_icon_thumbnail(encoded,pixels))return true;
+    }
+    return false;
+}
 // One background reader for missing installed icons. The GPU renderer never
 // calls a socket API: it only consumes a completed byte vector. One completion
 // slot applies backpressure (one 256x256 RGBA buffer: 256 KiB).
@@ -267,24 +294,26 @@ void icon_reader_worker() {
             id=std::move(state.queue.front());
             state.queue.pop_front();
         }
-        std::vector<unsigned char> bytes;
-        const std::string url="/api/v1/games/icon?title_id="+id;
-        bool complete=download(url,bytes);
-        // A socket fault must not trigger a second timeout. HTTP 404 is
-        // per-title, not a transport fault: its thumbnail may still exist.
-        if(!complete && !icon_endpoint.consecutive_failures) {
-            bytes.clear();
-            complete=download(url+"&size=thumb",bytes);
-        }
-        // Decode PNG/WebP and reduce to 256x256 on the CPU worker. It must
-        // never access OpenGL, and the renderer only uploads ready RGBA.
+        // Installed art is authoritative. Reading, PNG/WebP decoding and
+        // downsampling all happen here, never on the PS5 render thread.
         std::vector<unsigned char> pixels;
-        if(!complete || !decode_icon_thumbnail(bytes,pixels)) {
-            // Transient transport failure, HTTP refusal or malformed art.
-            // Keep periodic retry possible without permanent blacklisting.
-            std::lock_guard<std::mutex> lock(state.mutex);
-            state.seen.erase(id);
-            continue;
+        if(!load_installed_icon_pixels(id.c_str(),pixels)) {
+            std::vector<unsigned char> bytes;
+            const std::string url="/api/v1/games/icon?title_id="+id;
+            bool complete=download(url,bytes);
+            // A 404 applies only to the full-size image. Do not repeat a
+            // failed transport request for its thumbnail.
+            if(!complete && !icon_endpoint.consecutive_failures) {
+                bytes.clear();
+                complete=download(url+"&size=thumb",bytes);
+            }
+            if(!complete || !decode_icon_thumbnail(bytes,pixels)) {
+                // Temporary outage, denied media or corrupt response:
+                // allow the throttled idle retry to revisit this title.
+                std::lock_guard<std::mutex> lock(state.mutex);
+                state.seen.erase(id);
+                continue;
+            }
         }
         {
             std::lock_guard<std::mutex> lock(state.mutex);
@@ -320,6 +349,12 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     if(media)for(int i=4;i<9;++i)
         if(id[i]<'0'||id[i]>'9')media=false;
     if(!niak_valid_title_id(id) && !media)return 0;
+#if defined(__PROSPERO__)
+    // No local disk access, decompression, HTTP or GPU upload during initial
+    // shelf streaming. The sole CPU worker tries installed art before HTTP.
+    request_missing_icon(id);
+    return 0;
+#else
     std::vector<unsigned char> png;
 #if defined(__linux__)
     // Host-only art is original QA artwork; not packaged or consulted on PS5.
@@ -334,30 +369,13 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
 #endif
     // Try the actual installed icon first. This also works for homebrews
     // when ShadowMountPlus does not expose their icon endpoint.
-    for(const char *format : {
-        "/app0/assets/niak-installed/%s-icon.webp",
-        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.webp",
-        "/app0/assets/niak-installed/%s-icon.png",
-        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.png",
-        "/data/homebrew/%s/sce_sys/icon0.png",
-        "/user/app/%s/sce_sys/icon0.png",
-        "/user/appmeta/%s/icon0.png",
-        "/system_ex/app/%s/sce_sys/icon0.png",
-        "/mnt/ext0/user/app/%s/sce_sys/icon0.png",
-        "/mnt/ext1/user/app/%s/sce_sys/icon0.png",
-        "/mnt/ext0/user/appmeta/%s/icon0.png",
-        "/mnt/ext1/user/appmeta/%s/icon0.png"}) {
+    for(const char *format : kInstalledIconPaths) {
         char path[160]{};
         std::snprintf(path,sizeof(path),format,id);
         png.clear();
         if(read_local_png(path,png))
             if(const auto handle=decode_upload(renderer,png)) return handle;
     }
-#if defined(__PROSPERO__)
-    // No HTTP calls, waits, or decoded network buffers on the GL thread.
-    // The single worker fetches bytes; the catalogue polls their completion.
-    request_missing_icon(id);
-#else
     png.clear();
     const std::string url=std::string("/api/v1/games/icon?title_id=")+id;
     if(download(url,png)) {

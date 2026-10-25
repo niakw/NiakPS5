@@ -14,6 +14,8 @@ class IconAsyncWorkerTests(unittest.TestCase):
         ps5=loader[loader.index("#if defined(__PROSPERO__)"):
                     loader.index("#else")]
         self.assertIn("request_missing_icon(id)",ps5)
+        self.assertNotIn("read_local_png(",ps5)
+        self.assertNotIn("decode_icon_thumbnail(",ps5)
         self.assertNotIn("download(",ps5)
         self.assertNotIn("renderer.create_texture(",ps5)
 
@@ -21,6 +23,9 @@ class IconAsyncWorkerTests(unittest.TestCase):
         worker=SOURCE[SOURCE.index("void icon_reader_worker() {"):
                       SOURCE.index("void request_missing_icon(")]
         self.assertIn("download(url,bytes)",worker)
+        self.assertIn("if(!load_installed_icon_pixels(id.c_str(),pixels))",worker)
+        self.assertLess(worker.index("load_installed_icon_pixels("),
+                        worker.index("download(url,bytes)"))
         self.assertIn("state.wake.wait(",worker)
         self.assertIn("!state.completed && !state.queue.empty()",worker)
         self.assertIn("std::thread([] {icon_reader_worker();}).detach();",SOURCE)
@@ -30,6 +35,22 @@ class IconAsyncWorkerTests(unittest.TestCase):
         self.assertIn("state.completed_pixels=std::move(pixels);",worker)
         self.assertIn("state.seen.erase(id);",worker)
         self.assertIn("state.seen.erase(id);",SOURCE[SOURCE.index("std::uint32_t niak_take_downloaded_game_icon("):])
+
+    def test_installed_local_art_decodes_off_render_thread(self):
+        helper=SOURCE[SOURCE.index("bool load_installed_icon_pixels("):
+                      SOURCE.index("// One background reader for missing installed icons.")]
+        self.assertIn("kInstalledIconPaths",helper)
+        self.assertIn("read_local_png(path,encoded)",helper)
+        self.assertIn("decode_icon_thumbnail(encoded,pixels)",helper)
+        self.assertNotIn("renderer.",helper)
+        loader=SOURCE[SOURCE.index("std::uint32_t niak_load_game_icon("):
+                      SOURCE.index("void niak_request_missing_game_icon(")]
+        ps5=loader[loader.index("#if defined(__PROSPERO__)"):
+                    loader.index("#else")]
+        self.assertNotIn("std::fopen",ps5)
+        self.assertNotIn("read_local_png",ps5)
+        self.assertIn("for(const char *format : kInstalledIconPaths)",loader)
+        self.assertIn("state.completed_pixels=std::move(pixels);",SOURCE)
 
     def test_network_worker_releases_raw_images_before_gpu_upload(self):
         worker=SOURCE[SOURCE.index("void icon_reader_worker() {"):
