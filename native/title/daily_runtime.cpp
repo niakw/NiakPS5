@@ -160,7 +160,7 @@ bool launchbox_filename(const std::string &name) {
   const auto ext=name.substr(start+36);
   return ext==".png" || ext==".jpg" || ext==".jpeg";
 }
-bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &result,
+bool get_system(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &result,
          int *failure=nullptr,int *stage=nullptr,
          const std::atomic<unsigned> *selection_epoch=nullptr,
          unsigned expected_epoch=0) {
@@ -242,6 +242,35 @@ bool get(const std::string &url,std::size_t limit,std::vector<std::uint8_t> &res
   (void)sceHttpDeleteConnection(conn);
   (void)sceHttpDeleteTemplate(tmpl);
   if(ok){result=std::move(bytes);return true;}
+  return false;
+}
+// A sandboxed title can reject sceHttp TLS even when OpenSSL/curl works.
+// Retry only a genuine transport error, after validating the host in
+// get_system(). HTTP 4xx/5xx, oversized bodies, malformed URLs and cancelled
+// selections are not retried through another network client.
+bool get(const std::string &url,std::size_t limit,
+         std::vector<std::uint8_t> &result,int *failure=nullptr,
+         int *stage=nullptr,
+         const std::atomic<unsigned> *selection_epoch=nullptr,
+         unsigned expected_epoch=0) {
+  int primary_failure=0,primary_stage=0;
+  if(get_system(url,limit,result,&primary_failure,&primary_stage,
+                selection_epoch,expected_epoch)) {
+    if(failure)*failure=0;
+    if(stage)*stage=0;
+    return true;
+  }
+  const bool same_selection=!selection_epoch ||
+      selection_epoch->load(std::memory_order_relaxed)==expected_epoch;
+  if(!niak::payload_process_elevated && same_selection &&
+     primary_failure<0 && primary_stage>=1 && primary_stage<=7) {
+    // Both transports enforce HTTPS, certificate/host validation, strict
+    // response limits and bounded timeouts. This is a worker-thread path.
+    return get_curl(url,limit,result,failure,stage,
+                    selection_epoch,expected_epoch);
+  }
+  if(failure)*failure=primary_failure;
+  if(stage)*stage=primary_stage;
   return false;
 }
 std::string value_string(const picojson::object &row,const char *key) {
