@@ -800,17 +800,21 @@ class NativeTitleTests(unittest.TestCase):
     def test_late_broker_catalogue_recovery(self):
         source=(ROOT/"title"/"prepare.py").read_text()
         self.assertIn("Catalog::refresh_if_unavailable(",source)
-        self.assertIn("const bool placeholder=items_.size()==1",source)
-        self.assertIn("last_checked && now>=last_checked",source)
-        self.assertIn("niak_scan_broker_games(probe.data(),probe.size())",source)
+        self.assertIn("InventoryProbeState",source)
+        self.assertIn("scan_inventory_background()",source)
+        self.assertIn("niak_scan_broker_games(records.data(),records.size())",source)
         self.assertIn("niak_scan_installed_folders(",source)
-        self.assertIn("niak_scan_homebrews(\"\",probe.data(),probe.size())",source)
-        self.assertIn("niak_scan_shadowmount(&single,1)>0",source)
-        self.assertIn("niak_scan_games(\"/system_data/priv/mms/app.db\"",source)
-        self.assertIn("new_installed_title(broker_count)",source)
-        self.assertIn('std::strcmp(item->studio,"Dernier inventaire local")',source)
+        self.assertIn('niak_scan_homebrews("",records.data(),records.size())',source)
+        self.assertIn("niak_scan_shadowmount(records.data(),records.size())",source)
+        self.assertIn('niak_scan_games("/system_data/priv/mms/app.db"',source)
         self.assertIn("NIAK_APPS_SNAPSHOT_APP_FILE",source)
+        self.assertIn("std::chrono::seconds(30)",source)
+        self.assertIn("if(!state.running)",source)
+        self.assertIn("std::thread([] {",source)
+        self.assertIn("state.ready_data=std::move(result);",source)
+        self.assertIn("if(!ready)return false;",source)
         self.assertIn("if(!changed)return false;",source)
+        self.assertIn('std::strcmp(existing->studio,"Dernier inventaire local")',source)
         self.assertIn("release_covers(renderer);",source)
         self.assertIn("owned_titles_.clear();",source)
         self.assertIn("last_case_focus_=-1;",source)
@@ -821,6 +825,30 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("void Shell::reload_catalog_views()",source)
         self.assertIn("concepts_.clear();",source)
         self.assertIn("catalog.refresh_if_unavailable(renderer,fonts)",source)
+
+    def test_catalog_inventory_probe_never_blocks_renderer(self):
+        source=(ROOT/"title"/"prepare.py").read_text()
+        begin=source.index("bool Catalog::refresh_if_unavailable(")
+        end=source.index("void Catalog::reload()",begin)
+        ui=source[begin:end]
+        for blocking_call in (
+            "niak_scan_broker_games(", "niak_scan_installed_folders(",
+            "niak_scan_homebrews(", "niak_scan_shadowmount(",
+            "niak_scan_games(", "niak_snapshot_read(",
+            "std::thread("):
+            self.assertNotIn(blocking_call,ui)
+        self.assertIn("if(schedule)start_inventory_probe();",ui)
+        self.assertIn("if(!ready)return false;",ui)
+        self.assertIn("if(!changed)return false;",ui)
+        self.assertIn("state.running=true;",ui)
+        self.assertIn("state.ready=false;",ui)
+        worker=source[source.index("InventoryProbeResult scan_inventory_background()"):
+                      source.index("void start_inventory_probe()")]
+        for required in (
+            "niak_scan_broker_games(", "niak_scan_installed_folders(",
+            "niak_scan_homebrews(", "niak_scan_shadowmount(",
+            "niak_scan_games(", "niak_snapshot_read("):
+            self.assertIn(required,worker)
 
     def test_real_catalog_only(self):
         source = (ROOT / "title" / "prepare.py").read_text()
