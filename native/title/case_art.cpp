@@ -258,6 +258,30 @@ static void queue_prepared_case_art(const char *id,const char *side) {
 }
 #endif
 
+void niak_select_prepared_case_focus(const char *id) {
+#if defined(__PROSPERO__)
+    // Never keep a pending decoded face belonging to a previous focus.
+    // This is CPU-only: no file I/O, GPU operation or network call.
+    const char *next=niak_valid_title_id(id)?id:"";
+    auto &state=prepared_case_state();
+    {
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(state.selected_id==next)return;
+        state.selected_id=next;
+        ++state.generation;
+        state.queued_sides.clear();
+        state.in_flight.clear();
+        state.completed=false;
+        state.completed_id.clear();
+        state.completed_side.clear();
+        state.completed_pixels.clear();
+    }
+    state.wake.notify_one();
+#else
+    (void)id;
+#endif
+}
+
 void niak_invalidate_prepared_case_art(const char *id) {
 #if defined(__PROSPERO__)
     if(!id)return;

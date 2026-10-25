@@ -15,6 +15,9 @@ class FocusIdentityTests(unittest.TestCase):
         self.assertIn("std::strcmp(last_art_title_,art_id)!=0",block)
         self.assertIn("std::snprintf(last_art_title_,sizeof(last_art_title_),",block)
         self.assertIn("niak_select_case_art(art_id[0]?art_id:nullptr);",block)
+        self.assertIn("niak_select_prepared_case_focus(art_id[0]?art_id:nullptr);",block)
+        self.assertLess(block.index("niak_select_prepared_case_focus("),
+                        block.index("niak_select_case_art("))
         self.assertNotIn("index!=last_art_selection_",block)
         self.assertIn("char last_art_title_[16] = {};",BUILDER)
 

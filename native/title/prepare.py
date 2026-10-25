@@ -75,7 +75,7 @@ def prepare(kit: Path, project: Path, revision: str):
         }'''
     replace_once(aurora, old, new)
     replace_once(aurora, '#include "niak/launch_bridge.hpp"',
-                 '#include "niak/launch_bridge.hpp"\n#include "niak/case_auto_art.hpp"\n#include "niak/asset_stats.hpp"')
+                 '#include "niak/launch_bridge.hpp"\n#include "niak/case_auto_art.hpp"\n#include "niak/case_art.hpp"\n#include "niak/asset_stats.hpp"')
     replace_once(aurora,
         '        // ---- animation state ----',
         '''        // Only the focused GAME triggers remote LaunchBox artwork.
@@ -91,6 +91,9 @@ def prepare(kit: Path, project: Path, revision: str):
             "" : selected.title_id;
         if(std::strcmp(last_art_title_,art_id)!=0) {
             std::snprintf(last_art_title_,sizeof(last_art_title_),"%s",art_id);
+            // Cancel old CPU scan work immediately on focus change,
+            // including while the user is still holding navigation.
+            niak_select_prepared_case_focus(art_id[0]?art_id:nullptr);
             niak_select_case_art(art_id[0]?art_id:nullptr);
         }
         // ---- animation state ----''')

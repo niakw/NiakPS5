@@ -8,6 +8,9 @@ std::uint32_t niak_take_prepared_case_art(
     hui::gfx::Renderer &renderer,const char *expected_id,
     char (&side)[16],float *aspect=nullptr,
     bool (*accept)(const char *,void *)=nullptr,void *opaque=nullptr);
+// Cancel CPU-side scans for the previous game immediately on focus changes.
+// Safe to call during navigation; performs no decoding or GPU operations.
+void niak_select_prepared_case_focus(const char *title_id);
 // Called when a new CDN face is committed; obsolete pixels must not win.
 void niak_invalidate_prepared_case_art(const char *title_id);
 
