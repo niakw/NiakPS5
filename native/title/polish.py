@@ -13,8 +13,8 @@ def exactly(text, old, new, count=1):
 def patch(kit):
     p=kit/"src/concepts/aurora.cpp"
     s=p.read_text("utf-8")
-    s=exactly(s,'const char *tabs[] = {"NIAK", "Jeux", "Multimédia", "Réglages"};',
-                 'const char *tabs[] = {"NiakPS5", "Jeux", "Multimédia", "Réglages"};')
+    s=exactly(s,'const char *tabs[] = {"NIAK", "Jeux", "Applications", "Réglages"};',
+                 'const char *tabs[] = {"NiakPS5", "Jeux", "Applications", "Réglages"};')
     # Up only selects the top bar from the FIRST row. From Homebrew row 1 it
     # must move back to row 0, working with both D-pad and left joystick.
     s=exactly(s,'else if (input.nav == Direction::up || input.is_pressed(Action::menu))',
