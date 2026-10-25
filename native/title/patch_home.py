@@ -260,7 +260,7 @@ def patch(kit):
             ? "elfldr ou élévation indisponible (port 9021)."
             : install_status==-2
             ? "Installation refusée : fichiers ou droits invalides."
-            : "Pas de tentative (aperçu hôte).";
+            : "Payload livré par FTP ; pas d’élévation du processus graphique.";
         ui::paragraph(list,fonts.regular,install_label,
                       1430,691,16,398,21,kWhite.with_alpha(0.78f),2);
         const char *labels[] = {"Resolution d'affichage (redemarrage)",
