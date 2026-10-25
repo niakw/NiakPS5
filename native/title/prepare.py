@@ -1424,14 +1424,34 @@ void Catalog::reload()
     }
     sys::log("[NiakPS5] verified apps: %d; inventory=%zu",
              verified_count,count);
-    // Local FTP metadata enriches ONLY live IDs: never resurrect stale apps.
+    // An immutable /app0 snapshot may still exist after a newer FTP overlay
+    // is installed under /data. Reading only the first available file hid
+    // newer French names and app categories. Merge both by EXACT title ID;
+    // the owner's private installed overlay takes precedence for duplicates.
+    // Neither input independently proves a title is still installed.
     std::vector<NiakGame> observed(games.size());
+    std::vector<NiakGame> private_titles(games.size());
     int cached_count=niak_scan_local_inventory(
         "/app0/assets/niak-local-titles.tsv",observed.data(),observed.size());
-    if(cached_count<0)
-        cached_count=niak_scan_local_inventory(
-            "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
-            observed.data(),observed.size());
+    const int packaged_count=cached_count;
+    const int private_count=niak_scan_local_inventory(
+        "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+        private_titles.data(),private_titles.size());
+    if(cached_count<0)cached_count=0;
+    if(private_count>0) {
+        for(int j=0;j<private_count;++j) {
+            const NiakGame &record=private_titles[static_cast<std::size_t>(j)];
+            std::size_t at=0;
+            for(;at<static_cast<std::size_t>(cached_count);++at)
+                if(std::strcmp(observed[at].id,record.id)==0)break;
+            if(at<static_cast<std::size_t>(cached_count))
+                observed[at]=record;
+            else if(static_cast<std::size_t>(cached_count)<observed.size())
+                observed[static_cast<std::size_t>(cached_count++)]=record;
+        }
+    }
+    sys::log("[NiakPS5] title overlays: packaged/private/merged=%d/%d/%d",
+             packaged_count,private_count,cached_count);
     if(count>0 && cached_count>0) {
         for(int j=0;j<cached_count;++j) {
             const auto &record=observed[static_cast<std::size_t>(j)];
