@@ -67,8 +67,12 @@ std::array<SourceStamp,2> index_stamps(){
 using ArtSlots=std::array<std::vector<std::string>,7>;
 struct Task {
  std::string id,side;
- unsigned generation=0,attempt=0,index_attempt=0;
+ unsigned generation=0,attempt=0,index_attempt=0,write_attempt=0;
  std::chrono::steady_clock::time_point retry_at{};
+ // Persist an already converted WebP during temporary local permission or
+ // mount failures. Never make a second HTTP request for the same bytes.
+ std::string pending_source;
+ std::vector<unsigned char> pending_webp;
 };
 bool transient_network_failure(int error){
  return (error<0 && error!=-100 && error!=-103 && error!=-200) ||
@@ -351,6 +355,21 @@ void queue_retry(State &s,Task task,bool waiting_for_index=false){
  s.retries.push_back(std::move(task));
  s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
 }
+void queue_write_retry(State &s,Task task){
+ // Keep this retry entirely local and bounded. A focused game has at most
+ // six requested faces; navigation immediately releases pending buffers.
+ if(task.write_attempt>=3u){++s.exhausted;return;}
+ ++task.write_attempt;
+ const unsigned seconds=task.write_attempt==1u?20u:
+                        task.write_attempt==2u?60u:120u;
+ task.retry_at=std::chrono::steady_clock::now()+
+     std::chrono::seconds(seconds);
+ std::lock_guard<std::mutex> guard(s.mutex);
+ if(task.generation!=s.generation || task.id!=s.selected)return;
+ s.retries.push_back(std::move(task));
+ s.queued.store(static_cast<unsigned>(s.tasks.size()+s.retries.size()));
+ s.cv.notify_one();
+}
 void work(){
  std::unordered_map<std::string,ArtSlots> index;
  std::array<SourceStamp,2> loaded_stamps{};
@@ -429,6 +448,24 @@ void work(){
      official_front_ready=false;
      official_back_ready=false;
    }
+   // Retrying a failed LOCAL write consumes no CDN request or decoder time.
+   // It runs on this worker, never on the renderer or input thread.
+   if(!task.pending_webp.empty()) {
+     const bool stored=save(task,task.pending_source,task.pending_webp);
+     {
+       std::lock_guard<std::mutex> guard(s.mutex);
+       if(task.generation!=s.generation || task.id!=s.selected)continue;
+       if(stored) {
+         const int side=side_index(task.side);
+         if(side>=0)++s.side_completed[static_cast<std::size_t>(side)];
+         ++s.completed;
+         if(task.side=="front")official_front_ready=true;
+         if(task.side=="back")official_back_ready=true;
+       } else ++s.write_failed;
+     }
+     if(!stored)queue_write_retry(s,std::move(task));
+     continue;
+   }
    // The screenshots are unused with an official BACK. A missing FRONT
    // can still use the hero artwork even when the BACK is already present.
    // Skip hero only once both official faces are ready.
@@ -486,7 +523,7 @@ void work(){
    // Fronts remain native console retail scans only.
    const unsigned candidate_limit=3u;
    unsigned examined=0;
-   bool transient_failure=false,downloaded=false;
+   bool transient_failure=false,downloaded=false,deferred_write=false;
    for(const std::string &source:candidates) {
      {
        std::lock_guard<std::mutex> guard(s.mutex);
@@ -538,7 +575,13 @@ void work(){
        }
      }
      if(saved)break;
-     std::this_thread::sleep_for(std::chrono::milliseconds(150));
+     // HTTPS and decoding succeeded. Keep this compressed WebP for a
+     // bounded LOCAL write retry, rather than issuing another CDN request.
+     task.pending_source=source;
+     task.pending_webp=std::move(webp);
+     queue_write_retry(s,std::move(task));
+     deferred_write=true;
+     break;
    }
    // Retain a valid lower-priority back while online promotion fails.
    // Never discard an existing PC/PS4 fallback just because the PS5 CDN
@@ -549,7 +592,7 @@ void work(){
    }
    // Retry temporary HTTP failures without changing selection. Navigation
    // cancels both pending and delayed work for the previous title.
-   if(!downloaded && transient_failure)
+   if(!downloaded && transient_failure && !deferred_write)
      queue_retry(s,std::move(task));
  }
 }
