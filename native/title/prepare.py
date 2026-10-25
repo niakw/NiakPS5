@@ -1354,10 +1354,25 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
             break;
         }
     }
+    // Both directions matter: a game can become an application after its
+    // live manifest mounts, but a previously misclassified application must
+    // also return to Games when a verified installed Game manifest arrives.
+    // A fresh verified application/known launcher always wins conflicts.
     if(!changed)for(const std::string &id:result.applications) {
         for(const Item &entry:items_)
-            if(!entry.application &&
-               std::strcmp(entry.title_id,id.c_str())==0) {
+            if(std::strcmp(entry.title_id,id.c_str())==0 &&
+               niak_category_needs_refresh(entry.application,true,false)) {
+                changed=true;
+                break;
+            }
+        if(changed)break;
+    }
+    if(!changed)for(const std::string &id:result.verified_games) {
+        if(std::find(result.applications.begin(),result.applications.end(),id)
+             !=result.applications.end())continue;
+        for(const Item &entry:items_)
+            if(std::strcmp(entry.title_id,id.c_str())==0 &&
+               niak_category_needs_refresh(entry.application,false,true)) {
                 changed=true;
                 break;
             }
