@@ -513,11 +513,13 @@ class AutoloadTests(unittest.TestCase):
     def test_avatar_broker_checks_png_dimensions_and_terminal_iend(self):
         broker=(SCRIPT.parent/"autostart.c").read_text()
         self.assertIn("static int niak_avatar_png_supported(",broker)
-        self.assertIn("niak_avatar_png_u32(head+16)",broker)
-        self.assertIn("memcmp(end12,trailer,sizeof(trailer))!=0",broker)
-        self.assertIn("ok=niak_avatar_png_supported(data,data+size-12u,size);",broker)
-        self.assertIn("lseek(avatar_fd,-(off_t)sizeof(trailer),SEEK_END)",broker)
-        self.assertIn("return niak_avatar_png_supported(header,trailer,(size_t)st.st_size);",broker)
+        self.assertIn("static unsigned niak_avatar_png_crc32(",broker)
+        self.assertIn("niak_avatar_png_u32(payload+4u)",broker)
+        self.assertIn("niak_avatar_png_crc32(type,(size_t)length+4u)!=expected",broker)
+        self.assertIn("ok=niak_avatar_png_supported(data,size);",broker)
+        self.assertIn("const size_t needed=is_png?(size_t)st.st_size:128u;",broker)
+        self.assertIn("is_png?niak_avatar_png_supported(bytes,needed)",broker)
+        self.assertIn("return length==0u && idat && at==size;",broker)
 
     def test_staged_dds_identifies_format_and_foreground_owner(self):
         user="0xA0B0C0D0"
