@@ -37,6 +37,15 @@ jobs:
           bash -n native/title/build.sh
       - name: Build native title using pinned GPU renderer
         run: bash native/title/build.sh
+      - name: Upload native crash-symbolization map
+        uses: actions/upload-artifact@v7
+        with:
+          name: NiakPS5-Crash-Map
+          path: |
+            .build/ps5-title-kit/build/llvm-pie.elf
+            .build/ps5-title-kit/build/niakps5-link.map
+          if-no-files-found: error
+          compression-level: 6
       - name: Capture real NiakPS5 UI using Mesa OpenGL
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
