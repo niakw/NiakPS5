@@ -266,7 +266,14 @@ void icon_reader_worker() {
             bytes.clear();
             complete=download(url+"&size=thumb",bytes);
         }
-        if(!complete)continue;
+        if(!complete) {
+            // A transient outage or 404 must not blacklist this title for
+            // the whole process lifetime. Periodic idle retry is throttled
+            // on the render thread and has no GPU or network operations.
+            std::lock_guard<std::mutex> lock(state.mutex);
+            state.seen.erase(id);
+            continue;
+        }
         {
             std::lock_guard<std::mutex> lock(state.mutex);
             state.completed_title=std::move(id);
@@ -280,7 +287,8 @@ void icon_reader_worker() {
 void request_missing_icon(const char *id) {
     auto &state=async_icons();
     std::lock_guard<std::mutex> lock(state.mutex);
-    // Bounded IDs/queue, never unbounded jobs or duplicate game requests.
+    // "seen" tracks QUEUED/in-flight/unconsumed responses, not permanent
+    // success or failure. Cleared at worker failure or renderer consumption.
     if(state.seen.size()>=4096 || !state.seen.emplace(id).second)return;
     state.queue.emplace_back(id);
     if(!state.started) {
@@ -352,6 +360,20 @@ std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer, const char *id)
     return 0;
 }
 
+void niak_request_missing_game_icon(const char *id) {
+#if defined(__PROSPERO__)
+    if(!id || !*id || std::strlen(id)>=16)return;
+    bool media=std::strlen(id)==9 && std::strncmp(id,"NPXS",4)==0;
+    if(media)for(int i=4;i<9;++i)
+        if(id[i]<'0'||id[i]>'9')media=false;
+    if(!niak_valid_title_id(id) && !media)return;
+    // Pure queue management; no filesystem read, socket call or GPU upload.
+    request_missing_icon(id);
+#else
+    (void)id;
+#endif
+}
+
 std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
                                              char (&title_id)[16]) {
     title_id[0]=0;
@@ -365,6 +387,9 @@ std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
         id=std::move(state.completed_title);
         bytes=std::move(state.completed_bytes);
         state.completed=false;
+        // A future catalogue rebuild may need the same title again; no
+        // permanent "already downloaded" blacklist is permitted.
+        state.seen.erase(id);
     }
     state.wake.notify_one();
     if(id.size()>=sizeof(title_id))return 0;

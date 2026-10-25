@@ -3,6 +3,9 @@
 #include <cstdint>
 namespace hui::gfx { class Renderer; }
 std::uint32_t niak_load_game_icon(hui::gfx::Renderer &renderer,const char *title_id);
+// Requeue a missing icon after an outage without touching disk, HTTP or GPU.
+// Safe to invoke periodically while navigation is idle.
+void niak_request_missing_game_icon(const char *title_id);
 // Renderer-thread poll: completes one queued icon, without network waits.
 // Returns texture and writes its title ID; caller owns and must release GPU handle.
 std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,

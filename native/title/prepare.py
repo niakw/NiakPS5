@@ -253,7 +253,7 @@ audio::SoundSet Shell::sound_set() const''')
                  '    float case_shot2_aspect = 16.0f/9.0f;\n'
                  '    char title_id[16] = {};\n    bool homebrew = false;\n    bool application = false;\n    char recently_used[48] = {};\n    bool cover_is_image = false;\n    std::uint32_t case_front = 0;\n    std::uint32_t case_back = 0;\n    std::uint32_t case_spine = 0;\n    std::uint32_t case_scene = 0;\n    std::uint32_t case_template_front = 0;\n    std::uint32_t case_template_back = 0;\n    std::uint32_t case_template_spine = 0;\n    std::uint32_t logo_art = 0;\n    std::uint32_t case_poster = 0;\n    std::uint32_t case_hero = 0;\n    std::uint32_t case_shot1 = 0;\n    std::uint32_t case_shot2 = 0;\n    std::uint32_t cover = 0;')
     replace_once(catalog_h, '    std::vector<Item> items_;',
-                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    unsigned case_hydration_step_ = 0;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::vector<Item> items_;')
+                 '    std::deque<std::string> owned_titles_;\n    std::deque<std::string> owned_blurbs_;\n    niak::CoverStreamState cover_stream_;\n    std::size_t icon_retry_cursor_ = 0;\n    unsigned case_hydration_step_ = 0;\n    int last_case_focus_ = -1;\n    int retained_case_focus_ = -1;\n    unsigned last_case_completed_ = 0;\n    std::array<unsigned,7> last_case_sides_{};\n    std::vector<Item> items_;')
     replace_once(catalog_h, '#include "gfx/draw_list.hpp"',
                  '#include "gfx/draw_list.hpp"\n#include "niak/cover_stream_state.hpp"')
     replace_once(catalog_h,
@@ -264,7 +264,8 @@ audio::SoundSet Shell::sound_set() const''')
         '    bool stream_next_covers(gfx::Renderer &renderer, const ui::Fonts &fonts,\n'
         '                            std::size_t budget);\n'
         '    bool refresh_selected_case_art(gfx::Renderer &renderer);\n'
-        '    bool refresh_pending_game_icons(gfx::Renderer &renderer);')
+        '    bool refresh_pending_game_icons(gfx::Renderer &renderer);\n'
+        '    void retry_missing_game_icons();')
     replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
     src_niak = kit / "src/niak"
@@ -419,6 +420,7 @@ audio::SoundSet Shell::sound_set() const''')
         '''    release_covers(renderer);
     niak::case_media_stats={};
     cover_stream_.reset(items_.size());
+    icon_retry_cursor_=0;
     case_hydration_step_=0;
     last_case_focus_=-1;
     retained_case_focus_=-1;
@@ -452,6 +454,30 @@ bool Catalog::stream_next_covers(gfx::Renderer &renderer,
     # and those GPU uploads run on the renderer thread (not the HTTP worker).
     replace_once(art_file, '\n} // namespace hui::demo',
     """
+// Enqueue at most two missing title IDs per ~600 idle frames. Never repeat
+// local file decoding just to retry a temporarily unavailable HTTP endpoint.
+// Focus gets priority; one round-robin entry also recovers the rest of the
+// library when the local service starts after NiakPS5.
+void Catalog::retry_missing_game_icons() {
+#if defined(__PROSPERO__)
+    const int focused=niak::case_media_stats.preferred_index;
+    if(focused>=0 && static_cast<std::size_t>(focused)<items_.size()) {
+        const Item &item=items_[static_cast<std::size_t>(focused)];
+        if(item.title_id[0] && !item.cover_is_image)
+            niak_request_missing_game_icon(item.title_id);
+    }
+    if(items_.empty())return;
+    for(std::size_t n=0;n<items_.size();++n) {
+        const auto index=(icon_retry_cursor_+n)%items_.size();
+        const Item &item=items_[index];
+        if(!item.title_id[0] || item.cover_is_image)continue;
+        niak_request_missing_game_icon(item.title_id);
+        icon_retry_cursor_=(index+1)%items_.size();
+        break;
+    }
+#endif
+}
+
 // The single HTTP worker never holds a GPU texture or Item pointer. Consume
 // one response after navigation settles, replacing a generated tile in place.
 bool Catalog::refresh_pending_game_icons(gfx::Renderer &renderer) {
@@ -645,6 +671,10 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         // Consume async icon responses only on the GL-owning render thread.
         if(navigation_idle)
             (void)catalog.refresh_pending_game_icons(renderer);
+        // Missing icons can recover after ShadowMountPlus starts late.
+        // Unlike initial streaming, retry does not re-read local files.
+        if(navigation_idle && frames>0 && frames%600u==0)
+            catalog.retry_missing_game_icons();
         if(frames>0 && frames%600u==0 && input.nav==Direction::none &&
             input.pressed==0 && input.held==0 && !input.focus_lost)
             niak_profile_refresh_avatar(renderer);

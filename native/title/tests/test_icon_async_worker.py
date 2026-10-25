@@ -27,6 +27,8 @@ class IconAsyncWorkerTests(unittest.TestCase):
         self.assertIn("state.seen.size()>=4096",SOURCE)
         self.assertNotIn("renderer.",worker)
         self.assertIn("state.completed_bytes=std::move(bytes);",worker)
+        self.assertIn("state.seen.erase(id);",worker)
+        self.assertIn("state.seen.erase(id);",SOURCE[SOURCE.index("std::uint32_t niak_take_downloaded_game_icon("):])
 
     def test_renderer_consumes_and_replaces_fallback(self):
         self.assertIn("niak_take_downloaded_game_icon",HEADER)
@@ -37,6 +39,13 @@ class IconAsyncWorkerTests(unittest.TestCase):
         self.assertIn("catalog.refresh_pending_game_icons(renderer);",PATCH)
         self.assertIn("#include <cstring>",PATCH)
         self.assertIn("if(navigation_idle)",PATCH)
+        self.assertIn("void niak_request_missing_game_icon(const char *title_id);",HEADER)
+        self.assertIn("request_missing_icon(id);",SOURCE)
+        self.assertIn("void Catalog::retry_missing_game_icons()",PATCH)
+        self.assertIn("catalog.retry_missing_game_icons();",PATCH)
+        self.assertIn("if(navigation_idle && frames>0 && frames%600u==0)",PATCH)
+        self.assertIn("icon_retry_cursor_=(index+1)%items_.size();",PATCH)
+        self.assertIn("icon_retry_cursor_=0;",PATCH)
 
 if __name__=="__main__":
     unittest.main()
