@@ -1283,9 +1283,7 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
             [&](const Item &entry) {
                 return std::strcmp(entry.title_id,id.c_str())==0;
             });
-        if(existing==items_.end() ||
-           (existing->studio &&
-            std::strcmp(existing->studio,"Dernier inventaire local")==0)) {
+        if(existing==items_.end()) {
             changed=true;
             break;
         }
@@ -1454,11 +1452,10 @@ void Catalog::reload()
                     break;
                 }
         }
-    } else if(count==0 && cached_count>0) {
-        // Last-known FTP list is fallback only, not a live inventory.
-        for(int j=0;j<cached_count && count<games.size();++j)
-            games[count++]=observed[static_cast<std::size_t>(j)];
     }
+    // If every live source is unavailable/empty, do NOT display historical
+    // FTP entries as installed applications. Keep a truthful placeholder
+    // and let the asynchronous broker recovery repopulate verified IDs.
     sys::log("[NiakPS5] cached FTP fallback: %d titles (historical snapshot)",
              cached_count);
     sys::log("[NiakPS5] catalog: db=%d, broker=%d, folders=%d, homebrew=%d, api=%d, unique=%zu",
@@ -1478,8 +1475,6 @@ void Catalog::reload()
             // Keep factual metadata visible even when LaunchBox also has a
             // full editorial overview; show verified facts FIRST.
             std::string detail=summary;
-            if(game.discovered_from_homebrew==3)
-                detail="Dernier inventaire FTP : présence actuelle non vérifiée.";
             if(!description.empty()) {
                 if(!detail.empty())detail+=" — ";
                 detail+=description;
@@ -1500,9 +1495,8 @@ void Catalog::reload()
                 game.id,owned_titles_.back().c_str(),game.application_category,
                 game.is_homebrew,known && meta.category=="Application",
                 known && meta.category=="Jeu");
-            item.studio=game.discovered_from_homebrew==3
-                ? "Dernier inventaire local" :
-                item.application ? "Application installée" : "Jeu installé";
+            item.studio=item.application ?
+                "Application installée" : "Jeu installé";
             const char *last=game.last_access;
             const char *installed=game.installed_at;
             const char *recent=std::strcmp(last,installed)>=0?last:installed;
@@ -1531,7 +1525,9 @@ void Catalog::reload()
         item.genre = "VERIFICATION";
         // The catalog can be empty for three fundamentally different
         // reasons; avoid blaming app.db when PLDmgr DID answer successfully.
-        item.blurb = broker_count==0
+        item.blurb = cached_count>0 && count==0
+            ? "Ancien inventaire FTP disponible, mais aucun titre installé n'est actuellement vérifié. Les entrées obsolètes restent masquées."
+            : broker_count==0
             ? "Inventaire local disponible, mais aucun titre valide n'est visible. Vérifier les droits et les chemins des jeux."
             : broker_count>0
                 ? "Titres renvoyés par PLDmgr, mais aucun titre valide n'a été intégré. Consulter le journal NiakPS5."
