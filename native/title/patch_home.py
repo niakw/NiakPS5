@@ -38,7 +38,7 @@ def patch(kit):
             update_sheet(input, feedback);
         else if (top_focus_)
             update_tabs(input, feedback);
-        else if (active_tab_ == 3 || (active_tab_ == 2 && shelves_.size() < 2))
+        else if (active_tab_ == 3 || (active_tab_ == 2 && !has_app_shelf()))
             update_page(input, feedback);
         else if (input.nav == Direction::up || input.is_pressed(Action::menu))
         {
@@ -63,7 +63,7 @@ def patch(kit):
         }''')
     text = once(text, "        draw_top_bar(list);\n        draw_hero(list);\n        draw_shelves(list);",
     """        draw_top_bar(list);
-        if (active_tab_ < 2 || (active_tab_ == 2 && shelves_.size() > 1))
+        if (active_tab_ < 2 || (active_tab_ == 2 && has_app_shelf()))
         {
             draw_hero(list);
             draw_shelves(list);
@@ -160,15 +160,15 @@ def patch(kit):
     {
         const auto &fonts = context_.fonts;
         const bool settings = active_tab_ == 3;
-        ui::text(list, fonts.display, settings ? "Réglages" : "Multimédia",
+        ui::text(list, fonts.display, settings ? "Réglages" : "Applications",
                  96, 232, 78, kWhite);
         if (!settings)
         {
-            ui::text(list, fonts.semibold, "Galerie de captures", 100, 333, 36,
+            ui::text(list, fonts.semibold, "Aucune application détectée", 100, 333, 36,
                      palette_[3].value());
             ui::paragraph(list, fonts.regular,
-                          "Acces aux captures PS5 non encore autorise depuis ce titre. "
-                          "Aucune photo ou video personnelle n'est ouverte automatiquement.",
+                          "La bibliothèque ne contient aucune application actuellement vérifiée. "
+                          "Les titres homebrew et multimédia apparaîtront ici après leur détection.",
                           102, 407, 26, 1120, 40, kWhite.with_alpha(0.85f), 3);
             ui::text(list, fonts.regular, "Rond : revenir aux onglets", 102, 560, 22,
                      kWhite.with_alpha(0.55f));
@@ -400,6 +400,12 @@ def patch(kit):
                       104, 990, 20, 1450, 30, kWhite.with_alpha(0.55f), 2);
     }
 
+    bool has_app_shelf() const {
+        return shelves_.size()>1 ||
+               (shelves_.size()==1 &&
+                std::strcmp(shelves_[0].title,"Applications")==0);
+    }
+
     void update_shelves(const InputFrame &input, app::Feedback &feedback)
 """)
     text = once(text, "            const bool active = i == 0;", "            const bool active = i == active_tab_;")
@@ -407,9 +413,9 @@ def patch(kit):
     # A subtle dark band and stronger inactive text keep their contrast
     # without hiding the dynamic wallpaper or adding a second UI layer.
     text = once(text,
-        '        const char *tabs[] = {"NIAK", "Jeux", "Multimédia", "Réglages"};',
+        '        const char *tabs[] = {"NIAK", "Jeux", "Applications", "Réglages"};',
         '        list.rounded_rect({70, 45, 655, 75}, 22, Color::rgb(0x06101c, 0.28f));\n'
-        '        const char *tabs[] = {"NIAK", "Jeux", "Multimédia", "Réglages"};')
+        '        const char *tabs[] = {"NIAK", "Jeux", "Applications", "Réglages"};')
     text = once(text,
         'kWhite.with_alpha(active ? 1.0f : 0.55f)',
         'kWhite.with_alpha(active ? 1.0f : 0.88f)')
@@ -490,7 +496,7 @@ class Aurora final : public app::Concept""")
             }
             // The secondary shelf may disappear when its last item is
             // reclassified or uninstalled. Never reopen an empty tab.
-            if(active_tab_==2 && shelves_.size()<2)active_tab_=0;
+            if(active_tab_==2 && !has_app_shelf())active_tab_=0;
             selected_tab_=active_tab_;
         }
         row_position_.snap(float(row_));
