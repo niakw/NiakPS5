@@ -114,8 +114,8 @@ bool prepare_current_avatar(int current,int &width,int &height,
     // Probe ONLY the foreground account's cache. The DDS reader is offline
     // and bounded to 2 MiB input and a maximum 512x512 RGBA result.
     char dds_path[240]{};
-    for(const char *filename : {"avatar128.dds","avatar260.dds",
-                                "avatar64.dds"}) {
+    for(const char *filename : {"avatar440.dds","avatar260.dds",
+                                "avatar128.dds","avatar64.dds"}) {
         const int n=std::snprintf(dds_path,sizeof(dds_path),
             "/system_data/priv/cache/profile/0x%08X/%s",
             static_cast<unsigned>(current),filename);
