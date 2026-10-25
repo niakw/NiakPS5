@@ -605,13 +605,16 @@ class NativeTitleTests(unittest.TestCase):
         self.assertLess(fast.index("if(!texts_changed)return false;"),
                         fast.index("owned_blurbs_.swap(refreshed_blurbs);"))
         self.assertIn("items_[i].blurb=owned_blurbs_[i].c_str();",fast)
-        self.assertIn("return true;",fast)
+        self.assertIn("return false;",fast)
+        self.assertNotIn("return true;",fast)
+        self.assertIn("Aurora's shelves own catalogue INDICES",fast)
         self.assertNotIn("release_covers(renderer)",fast)
         self.assertNotIn("items_.clear()",fast)
         self.assertNotIn("reload();",fast)
         self.assertNotIn("build_covers(",fast)
-        # The owner shell is recreated immediately after the returned true,
-        # before a concept can dereference any replaced description pointer.
+        # Only genuine inventory changes rebuild Aurora. Blurb-only updates
+        # keep the focus, current tab and detail sheet while the draw path
+        # reads each Item's updated pointer on the next frame.
         self.assertIn("if(!tour && frames>0 && frames%600u==0",source)
         self.assertIn("catalog.refresh_if_unavailable(renderer,fonts))",source)
         self.assertIn("shell.reload_catalog_views();",source)
