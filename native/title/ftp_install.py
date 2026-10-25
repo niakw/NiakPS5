@@ -79,6 +79,25 @@ def _bounded_retrieve(ftp,path,limit=MAX_AVATAR):
         raise
     return out.getvalue()
 
+def valid_avatar_dds(blob):
+    """Match native avatar_dds.cpp: ordinary 124-byte DDS, DXT5/BC3 only.
+
+    A highest-resolution file with an unsupported DDS variant must not
+    shadow a smaller compatible profile avatar when staged by FTP.
+    """
+    if not blob or not 144 <= len(blob) <= 2*1024*1024:
+        return False
+    def u32(offset):
+        return int.from_bytes(blob[offset:offset+4],"little")
+    if (blob[:4]!=b"DDS " or u32(4)!=124 or
+            u32(76)!=32 or blob[84:88]!=b"DXT5"):
+        return False
+    width,height=u32(16),u32(12)
+    if not (16<=width<=512 and 16<=height<=512):
+        return False
+    blocks=((width+3)//4)*((height+3)//4)
+    return blocks <= (len(blob)-128)//16
+
 def copy_avatar_for_ftp(ftp, user_id=None):
     """Opt-in source: only read user's current profile cache over FTP.
 
@@ -109,6 +128,8 @@ def copy_avatar_for_ftp(ftp, user_id=None):
         try: blob=_bounded_retrieve(ftp,f"{PROFILE_ROOT}/{user}/{name}")
         except (ValueError,OSError):continue
         if not blob or len(blob)<144 or blob[:len(signature)]!=signature:
+            continue
+        if name.endswith(".dds") and not valid_avatar_dds(blob):
             continue
         suffix=".png" if name.endswith(".png") else ".dds"
         # The owner marker is intentionally cleared FIRST. An interrupted
