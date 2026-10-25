@@ -29,17 +29,11 @@ static int valid_media_id(const char *id) {
  for(int i=4;i<9;i++)if(id[i]<'0'||id[i]>'9')return 0;
  return 1;
 }
-static int category_of(const char *text) {
- if(!text)return 0;
- const char *p=strstr(text,"applicationCategoryType");
- if(!p || !(p=strchr(p,':')))return 0;
- const char *value=p+1;
- while(*value==' ' || *value=='\t' || *value=='\r')++value;
- if(*value=='"')++value;
- char *end=NULL;long v=strtol(value,&end,10);
- if(end==value)return 0;
- if(v==0)return 1;
- return v==65536||v==65792||v==66048 ? 2 : 0;
+/* Installed title category is a unique TOP-LEVEL manifest field.
+ * A substring in a description or nested localizedParameters must never
+ * promote a game into an application (or authorize a system NPXS title). */
+static int category_of(const char *text,const char *title_id) {
+ return niak_installed_category_for_title(text,title_id);
 }
 static int category_from_param(const char *root,const char *id) {
  static const char *paths[]={"/user/app/","/system_ex/app/",
@@ -56,7 +50,7 @@ static int category_from_param(const char *root,const char *id) {
   int eof=feof(fp);fclose(fp);
   if(!eof || size<15)continue;
   content[size]=0;
-  int category=category_of(content);
+  int category=category_of(content,id);
   if(category)return category;
  }
  return 0;
@@ -110,7 +104,7 @@ static int gather(sqlite3 *db,const char *sql,const char *root,NiakGame *games,s
     const int columns=sqlite3_column_count(st);
     const char *details=columns>4?(const char*)sqlite3_column_text(st,4):NULL;
     int category=category_from_param(root,id);
-    if(!category)category=category_of(details);
+    if(!category)category=category_of(details,id);
     if(valid_media_id(id) && category!=2)continue;
     NiakGame *game=&games[(*count)++];
     memset(game,0,sizeof(*game));
@@ -209,7 +203,8 @@ int niak_scan_homebrews(const char *filesystem_root,NiakGame *games,size_t capac
       const size_t size=fread(json,1,sizeof(json)-1,name_file);
       const int complete=feof(name_file);fclose(name_file);
       if(complete && size>10 && size<sizeof(json)) {
-        read_json_value(json,"titleName",game->title,sizeof(game->title));
+        const char *native_name=niak_json_direct(json,"titleName");
+        (void)niak_json_title_value(native_name,game->title,sizeof(game->title));
         (void)niak_manifest_localized_title(json,game->title,sizeof(game->title));
       }
     }
@@ -271,7 +266,8 @@ int niak_scan_installed_folders(const char *root,NiakGame *games,size_t capacity
     size_t len=fread(content,1,sizeof(content)-1,f);
     fclose(f);
     if(len>10 && len<sizeof(content)-1) {
-      read_json_value(content,"titleName",game->title,sizeof(game->title));
+      const char *native_name=niak_json_direct(content,"titleName");
+      (void)niak_json_title_value(native_name,game->title,sizeof(game->title));
       (void)niak_manifest_localized_title(content,game->title,sizeof(game->title));
     }
    }
