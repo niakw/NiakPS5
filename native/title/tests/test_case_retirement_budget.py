@@ -23,7 +23,7 @@ class CaseRetirementTests(unittest.TestCase):
         self.assertIn("catalog.release_one_retired_case_texture(renderer);",native)
         self.assertIn("if(navigation_idle && !gpu_budget_used",native)
     def test_rebuild_drains_all_detached_gpu_handles(self):
-        begin=SOURCE.index("void Catalog::release_covers(gfx::Renderer &renderer)")
+        begin=SOURCE.index("// A catalogue rebuild flushes detached handles")
         end=SOURCE.index("for (Item &item : items_)",begin)
         method=SOURCE[begin:end]
         self.assertIn("while(!retiring_case_textures_.empty())",method)

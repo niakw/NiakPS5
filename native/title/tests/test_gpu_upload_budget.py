@@ -5,7 +5,7 @@ SOURCE=(Path(__file__).resolve().parents[1]/"prepare.py").read_text()
 class GpuUploadBudgetTests(unittest.TestCase):
     def test_single_gl_upload_budget_is_shared_across_media(self):
         start=SOURCE.index("// Limit successful asynchronous GPU uploads")
-        end=SOURCE.index("#else\n        // Host fixtures remain eager",start)
+        end=SOURCE.index("#else\n        // Host preview remains eager",start)
         native=SOURCE[start:end]
         self.assertIn("bool gpu_budget_used=navigation_idle &&",native)
         self.assertIn("catalog.release_one_retired_case_texture(renderer);",native)
@@ -26,7 +26,7 @@ class GpuUploadBudgetTests(unittest.TestCase):
         order.append(native.index("niak_profile_poll_avatar(renderer)"))
         self.assertEqual(order,sorted(order))
     def test_host_preview_keeps_existing_eager_path(self):
-        start=SOURCE.index("#else\n        // Host fixtures remain eager")
+        start=SOURCE.index("#else\n        // Host preview remains eager")
         end=SOURCE.index("#endif",start)
         host=SOURCE[start:end]
         self.assertIn("catalog.stream_next_covers(renderer,fonts,1)",host)
