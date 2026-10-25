@@ -20,7 +20,10 @@ class NavigationRestorePolicy(unittest.TestCase):
         self.assertIn("if(active_tab_!=3 && found)", SOURCE)
         self.assertIn("if(row_==1)active_tab_=2;", SOURCE)
         self.assertIn("row_position_.snap(float(row_));", SOURCE)
-        self.assertIn("if(active_tab_==2 && shelves_.size()<2)active_tab_=0;", SOURCE)
+        self.assertIn("if(active_tab_==2 && !has_app_shelf())active_tab_=0;", SOURCE)
+        self.assertIn('std::strcmp(shelves_[0].title,"Applications")==0', SOURCE)
+        self.assertIn("Aucune application détectée", SOURCE)
+        self.assertNotIn("Galerie de captures", SOURCE)
 
     def test_settings_retained_and_stale_catalogue_never_read_from_destructor(self):
         self.assertIn("nav.settings_cursor=settings_cursor_;", SOURCE)
