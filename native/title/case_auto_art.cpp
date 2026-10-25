@@ -35,6 +35,10 @@
 
 namespace {
 constexpr const char *ROOT="/download0/niak-case-";
+// The FTP-installed title already owns this directory. A distinct basename
+// avoids overwriting existing manually supplied niak-cases artwork.
+constexpr const char *FALLBACK_ROOT=
+    "/data/homebrew/PPSA99386/assets/niak-cdn-case-";
 constexpr const char *INDEX_SOURCES[]={
     "/app0/assets/niak-launchbox-cases.tsv",
     "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
@@ -112,6 +116,9 @@ bool valid_filename(const std::string& name){
 }
 std::string cache_path(const Task& task){
  return std::string(ROOT)+task.id+"-"+task.side+".webp";
+}
+std::string fallback_cache_path(const Task& task){
+ return std::string(FALLBACK_ROOT)+task.id+"-"+task.side+".webp";
 }
 bool existing(const std::string& path,const std::string& source){
  const std::string marker=path+".source";
@@ -278,9 +285,8 @@ bool write_atomic(const std::string &path,
  }
  return true;
 }
-bool save(const Task& task,const std::string& name,
-          const std::vector<unsigned char>& webp){
- const std::string path=cache_path(task);
+bool save_to(const std::string &path,const std::string& name,
+             const std::vector<unsigned char>& webp){
  const std::string marker=path+".source";
  // Stage both files BEFORE invalidating the current cache entry.
  // A new PNG must never be advertised by an obsolete .source marker.
@@ -305,6 +311,13 @@ bool save(const Task& task,const std::string& name,
    return false;
  }
  return true;
+}
+bool save(const Task& task,const std::string& name,
+          const std::vector<unsigned char>& webp){
+ // A denied /download0 sandbox mount must not discard a valid CDN image.
+ // Both locations retain identical WebP + atomic provenance checks.
+ return save_to(cache_path(task),name,webp) ||
+        save_to(fallback_cache_path(task),name,webp);
 }
 void queue_retry(State &s,Task task,bool waiting_for_index=false){
  // Keep HTTPS failures tightly bounded. Delayed /app0 or FTP metadata may
@@ -440,12 +453,14 @@ void work(){
      continue;
    }
    const std::string target=cache_path(task);
+   const std::string fallback_target=fallback_cache_path(task);
    // The fallback image can remain usable offline, but must not permanently
    // mask a newly available higher-priority PS5/PS4 Box - Back. Upgrade it
    // when possible, only trying entries BEFORE its cached source.
    std::size_t reusable_rank=candidates.size();
    for(std::size_t i=0;i<candidates.size();++i)
-     if(existing(target,candidates[i])){reusable_rank=i;break;}
+     if(existing(target,candidates[i]) ||
+        existing(fallback_target,candidates[i])){reusable_rank=i;break;}
    if(reusable_rank==0){
      if(task.side=="front")official_front_ready=true;
      if(task.side=="back")official_back_ready=true;
