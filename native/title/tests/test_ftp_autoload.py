@@ -473,8 +473,10 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(f.files[root+"niak-profile.dds"],dds)
         self.assertEqual(f.files[root+"niak-profile-source.txt"],b"0xA0B0C0D0 dds\n")
         native=(SCRIPT.parent/"profile.cpp").read_text()
-        self.assertIn("const bool staged_dds=identified",native)
-        self.assertIn("std::strncmp(marker,identity,10)",native)
+        self.assertIn("const bool data_dds=matching_avatar_marker(",native)
+        self.assertIn("const bool app_dds=matching_avatar_marker(",native)
+        self.assertIn("std::memcmp(observed,expected,read)==0",native)
+        self.assertIn('current,"dds"',native)
         self.assertNotIn('niak_load_local_png(renderer, "/app0/assets/niak-profile.png")',native)
 
     def test_launchbox_reports_download_and_write_failures_without_secrets(self):
