@@ -35,6 +35,19 @@ def make_bc3_avatar_dds(width=128,height=128):
     data[84:88]=b"DXT5"
     return bytes(data)
 
+def make_bc1_avatar_dds(width=128,height=128):
+    """Minimal DXT1/BC1 DDS accepted by the native renderer and FTP preflight."""
+    import struct
+    blocks=((width+3)//4)*((height+3)//4)
+    data=bytearray(128+blocks*8)
+    data[:4]=b"DDS "
+    struct.pack_into("<I",data,4,124)
+    struct.pack_into("<I",data,12,height)
+    struct.pack_into("<I",data,16,width)
+    struct.pack_into("<I",data,76,32)
+    data[84:88]=b"DXT1"
+    return bytes(data)
+
 class FakeFTP:
     def __init__(self,files=None):
         self.files=dict(files or {})
@@ -548,6 +561,19 @@ class AutoloadTests(unittest.TestCase):
         self.assertEqual(f.files[output+"niak-profile-source.txt"],
                          b"0xA0B0C0D0 dds\n")
 
+    def test_bc1_dds_is_accepted_and_truncated_sources_are_rejected(self):
+        user="0xA0B0C0D0"
+        high=make_bc1_avatar_dds(440)
+        low=make_bc3_avatar_dds(128)
+        root="/system_data/priv/cache/profile/"+user+"/"
+        ftp=FakeFTP({root+"avatar440.dds":high,root+"avatar128.dds":low})
+        ftpmod.install(ftp,self.root,False,avatar_user_id=user)
+        output="/data/homebrew/PPSA99386/assets/"
+        self.assertTrue(ftpmod.valid_avatar_dds(high))
+        self.assertEqual(ftp.files[output+"niak-profile.dds"],high)
+        self.assertFalse(ftpmod.valid_avatar_dds(high[:-1]))
+        self.assertFalse(ftpmod.valid_avatar_dds(make_bc1_avatar_dds(16,16)[:135]))
+
     def test_incompatible_440_dds_falls_back_to_decodable_128(self):
         user="0xA0B0C0D0"
         high=bytearray(make_bc3_avatar_dds(440))
@@ -573,7 +599,8 @@ class AutoloadTests(unittest.TestCase):
     def test_broker_validates_avatar_dds_before_staging(self):
         broker=(SCRIPT.parent/"autostart.c").read_text()
         self.assertIn("static int niak_avatar_dds_supported(",broker)
-        self.assertIn('memcmp(data+84,"DXT5",4)!=0',broker)
+        self.assertIn('memcmp(data+84,"DXT1",4)==0',broker)
+        self.assertIn('memcmp(data+84,"DXT5",4)==0',broker)
         self.assertIn("niak_avatar_dds_u32(data+76)!=32u",broker)
         self.assertIn("ok=niak_avatar_dds_supported(data,size);",broker)
 
