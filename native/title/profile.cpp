@@ -63,32 +63,45 @@ bool prepare_dds_avatar(const char *path,int &width,int &height,
         encoded.data(),encoded.size(),width,height,pixels);
 }
 
+/* A marker only authorizes an image from the SAME source directory.
+ * Never combine a new foreground user's marker with an older /app0 image
+ * from another installation or account.
+ */
+bool matching_avatar_marker(const char *path,int current,const char *format) {
+    char expected[32]{};
+    const int length=std::snprintf(expected,sizeof(expected),
+                        "0x%08X %s\n",static_cast<unsigned>(current),format);
+    if(length<=0||length>=static_cast<int>(sizeof(expected)))return false;
+    std::FILE *file=std::fopen(path,"rb");
+    if(!file)return false;
+    char observed[32]{};
+    const std::size_t read=std::fread(observed,1,sizeof(observed),file);
+    const bool complete=std::feof(file)!=0;
+    std::fclose(file);
+    return complete && read==static_cast<std::size_t>(length) &&
+           std::memcmp(observed,expected,read)==0;
+}
+
 bool prepare_current_avatar(int current,int &width,int &height,
                             std::vector<std::uint8_t> &pixels) {
-    // Owner marker is checked before trying any staged (potentially stale)
-    // user assets. The current account's private read-only cache is separate.
-    char identity[16]{};
-    std::snprintf(identity,sizeof(identity),"0x%08X",
-                  static_cast<unsigned>(current));
-    char marker[32]{};
-    std::FILE *owner=std::fopen("/app0/assets/niak-profile-source.txt","rb");
-    if(!owner)owner=std::fopen(
-        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt","rb");
-    if(owner) {
-        (void)std::fgets(marker,sizeof(marker),owner);
-        std::fclose(owner);
-    }
-    const bool identified=std::strncmp(marker,identity,10)==0 && marker[10]==' ';
-    const bool staged_png=identified && std::strcmp(marker+11,"png\n")==0;
-    const bool staged_dds=identified && std::strcmp(marker+11,"dds\n")==0;
-    if(staged_png) {
-        if(niak_prepare_profile_png_file(
-                "/app0/assets/niak-profile.png",pixels) ||
-           niak_prepare_profile_png_file(
-                "/data/homebrew/PPSA99386/assets/niak-profile.png",pixels)) {
-            width=height=256;
-            return true;
-        }
+    const bool data_png=matching_avatar_marker(
+        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt",
+        current,"png");
+    const bool app_png=matching_avatar_marker(
+        "/app0/assets/niak-profile-source.txt",current,"png");
+    const bool data_dds=matching_avatar_marker(
+        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt",
+        current,"dds");
+    const bool app_dds=matching_avatar_marker(
+        "/app0/assets/niak-profile-source.txt",current,"dds");
+    // The broker's current private staging takes precedence. A fallback
+    // package image is allowed only with its OWN matching owner/type marker.
+    if((data_png && niak_prepare_profile_png_file(
+           "/data/homebrew/PPSA99386/assets/niak-profile.png",pixels)) ||
+       (app_png && niak_prepare_profile_png_file(
+           "/app0/assets/niak-profile.png",pixels))) {
+        width=height=256;
+        return true;
     }
     char cache[200]{};
     std::snprintf(cache,sizeof(cache),
@@ -109,13 +122,12 @@ bool prepare_current_avatar(int current,int &width,int &height,
         if(n<=0 || n>=static_cast<int>(sizeof(dds_path)))continue;
         if(prepare_dds_avatar(dds_path,width,height,pixels))return true;
     }
-    if(staged_dds) {
-        if(prepare_dds_avatar("/app0/assets/niak-profile.dds",
-                              width,height,pixels) ||
-           prepare_dds_avatar(
-                "/data/homebrew/PPSA99386/assets/niak-profile.dds",
-                width,height,pixels))return true;
-    }
+    if((data_dds && prepare_dds_avatar(
+           "/data/homebrew/PPSA99386/assets/niak-profile.dds",
+           width,height,pixels)) ||
+       (app_dds && prepare_dds_avatar(
+           "/app0/assets/niak-profile.dds",width,height,pixels)))
+        return true;
     return false;
 }
 
