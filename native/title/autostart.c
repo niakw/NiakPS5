@@ -141,25 +141,61 @@ static unsigned niak_avatar_png_u32(const unsigned char *p) {
     return ((unsigned)p[0]<<24)|((unsigned)p[1]<<16)|
            ((unsigned)p[2]<<8)|(unsigned)p[3];
 }
-static int niak_avatar_png_supported(const unsigned char *head,
-                                     const unsigned char *end12,size_t size) {
+/* Full bounded PNG CRC validation: signature/IHDR/IEND alone cannot
+ * detect a damaged IDAT chunk. A corrupt cached PNG must not permanently
+ * suppress the smaller, valid DDS avatar of the same foreground user.
+ * No PNG pixels are decoded or exported by the local-only broker. */
+static unsigned niak_avatar_png_crc32(const unsigned char *p,size_t len) {
+    unsigned crc=0xffffffffu;
+    for(size_t i=0;i<len;++i) {
+        crc^=(unsigned)p[i];
+        for(unsigned bit=0;bit<8;++bit)
+            crc=(crc>>1)^(0xedb88320u & (0u-(crc&1u)));
+    }
+    return ~crc;
+}
+static int niak_avatar_png_supported(const unsigned char *data,size_t size) {
     static const unsigned char signature[8]={137,80,78,71,13,10,26,10};
-    static const unsigned char trailer[12]={
-        0,0,0,0,'I','E','N','D',174,66,96,130};
-    if(!head||!end12||size<57||size>2*1024*1024||
-       memcmp(head,signature,sizeof(signature))!=0||
-       niak_avatar_png_u32(head+8)!=13u||
-       memcmp(head+12,"IHDR",4)!=0||
-       memcmp(end12,trailer,sizeof(trailer))!=0)return 0;
-    const unsigned width=niak_avatar_png_u32(head+16);
-    const unsigned height=niak_avatar_png_u32(head+20);
-    if(width<32u||height<32u||width>2048u||height>2048u||
-       head[26]!=0||head[27]!=0||head[28]>1)return 0;
-    const unsigned depth=head[24],color=head[25];
-    if(color==0)return depth==1||depth==2||depth==4||
-                        depth==8||depth==16;
-    if(color==2||color==4||color==6)return depth==8||depth==16;
-    if(color==3)return depth==1||depth==2||depth==4||depth==8;
+    if(!data || size<57 || size>2*1024*1024 ||
+       memcmp(data,signature,sizeof(signature))!=0)return 0;
+    size_t at=8;
+    unsigned chunks=0;
+    int ihdr=0,idat=0;
+    while(at<=size && size-at>=12 && chunks<4096u) {
+        const unsigned length=niak_avatar_png_u32(data+at);
+        if((size_t)length>size-at-12u)return 0;
+        const unsigned char *type=data+at+4u;
+        const unsigned char *payload=data+at+8u;
+        const unsigned expected=niak_avatar_png_u32(payload+length);
+        if(niak_avatar_png_crc32(type,(size_t)length+4u)!=expected)
+            return 0;
+        if(!ihdr) {
+            if(memcmp(type,"IHDR",4)!=0 || length!=13u)return 0;
+            const unsigned width=niak_avatar_png_u32(payload);
+            const unsigned height=niak_avatar_png_u32(payload+4u);
+            if(width<32u||height<32u||width>2048u||height>2048u||
+               payload[10]!=0 || payload[11]!=0 || payload[12]>1)
+                return 0;
+            const unsigned depth=payload[8],color=payload[9];
+            int depth_ok=0;
+            if(color==0u)
+                depth_ok=depth==1u||depth==2u||depth==4u||
+                         depth==8u||depth==16u;
+            else if(color==2u||color==4u||color==6u)
+                depth_ok=depth==8u||depth==16u;
+            else if(color==3u)
+                depth_ok=depth==1u||depth==2u||depth==4u||depth==8u;
+            if(!depth_ok)return 0;
+            ihdr=1;
+        } else if(memcmp(type,"IHDR",4)==0) {
+            return 0;
+        }
+        if(memcmp(type,"IDAT",4)==0)idat=1;
+        at+=(size_t)length+12u;
+        if(memcmp(type,"IEND",4)==0)
+            return length==0u && idat && at==size;
+        ++chunks;
+    }
     return 0;
 }
 static int copy_profile_image(const char *source,const char *dest,
@@ -177,7 +213,7 @@ static int copy_profile_image(const char *source,const char *dest,
     if(ok && signature_size==4 && memcmp(magic,"DDS ",4)==0)
         ok=niak_avatar_dds_supported(data,size);
     if(ok && signature_size==8 && data[0]==137u)
-        ok=niak_avatar_png_supported(data,data+size-12u,size);
+        ok=niak_avatar_png_supported(data,size);
     if(ok) {
         struct stat folder;
         if(lstat("/data/homebrew/PPSA99386/assets",&folder)==0 &&
@@ -316,40 +352,27 @@ static int current_avatar_asset_staged(int user) {
     const int avatar_fd=open(image,O_RDONLY|O_NOFOLLOW|O_NONBLOCK);
     if(avatar_fd<0)return 0;
     struct stat st;
-    int valid=fstat(avatar_fd,&st)==0 && S_ISREG(st.st_mode) &&
-              st.st_size>=144 && st.st_size<=2*1024*1024;
-    unsigned char header[128];
-    if(valid) {
-        size_t loaded=0;
-        while(loaded<sizeof(header)) {
-            const ssize_t n=read(avatar_fd,header+loaded,sizeof(header)-loaded);
-            if(n<0 && errno==EINTR)continue;
-            if(n<=0)break;
-            loaded+=(size_t)n;
-        }
-        valid=loaded==sizeof(header);
+    if(fstat(avatar_fd,&st)!=0 || !S_ISREG(st.st_mode) ||
+       st.st_size<144 || st.st_size>2*1024*1024) {
+        close(avatar_fd);return 0;
     }
-    unsigned char trailer[12]={0};
-    if(valid && strcmp(marker+n,"png\n")==0) {
-        if(lseek(avatar_fd,-(off_t)sizeof(trailer),SEEK_END)<0)
-            valid=0;
-        else {
-            size_t tail_loaded=0;
-            while(tail_loaded<sizeof(trailer)) {
-                const ssize_t n=read(avatar_fd,trailer+tail_loaded,
-                                     sizeof(trailer)-tail_loaded);
-                if(n<0 && errno==EINTR)continue;
-                if(n<=0)break;
-                tail_loaded+=(size_t)n;
-            }
-            valid=tail_loaded==sizeof(trailer);
-        }
+    const int is_png=strcmp(marker+n,"png\n")==0;
+    const size_t needed=is_png?(size_t)st.st_size:128u;
+    unsigned char *bytes=(unsigned char*)malloc(needed);
+    if(!bytes){close(avatar_fd);return 0;}
+    size_t loaded=0;
+    while(loaded<needed) {
+        const ssize_t count=read(avatar_fd,bytes+loaded,needed-loaded);
+        if(count<0 && errno==EINTR)continue;
+        if(count<=0)break;
+        loaded+=(size_t)count;
     }
-    if(close(avatar_fd)!=0)valid=0;
-    if(!valid)return 0;
-    if(strcmp(marker+n,"dds\n")==0)
-        return niak_avatar_dds_supported(header,(size_t)st.st_size);
-    return niak_avatar_png_supported(header,trailer,(size_t)st.st_size);
+    const int valid=loaded==needed &&
+        (is_png?niak_avatar_png_supported(bytes,needed):
+                niak_avatar_dds_supported(bytes,(size_t)st.st_size));
+    free(bytes);
+    if(close(avatar_fd)!=0)return 0;
+    return valid;
 }
 
 /* The user-authorized PLDmgr one-shot stays resident as a narrow, LOCAL-ONLY
