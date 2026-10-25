@@ -102,8 +102,9 @@ def copy_avatar_for_ftp(ftp, user_id=None):
             return False
     user=candidates[0]
     for name,signature in (("avatar.png",b"\x89PNG\r\n\x1a\n"),
-                           ("avatar128.dds",b"DDS "),
+                           ("avatar440.dds",b"DDS "),
                            ("avatar260.dds",b"DDS "),
+                           ("avatar128.dds",b"DDS "),
                            ("avatar64.dds",b"DDS ")):
         try: blob=_bounded_retrieve(ftp,f"{PROFILE_ROOT}/{user}/{name}")
         except (ValueError,OSError):continue
