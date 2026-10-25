@@ -479,6 +479,18 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn('current,"dds"',native)
         self.assertNotIn('niak_load_local_png(renderer, "/app0/assets/niak-profile.png")',native)
 
+    def test_avatar_440_dds_preferred_over_smaller_fallback(self):
+        user="0xA0B0C0D0"
+        high=b"DDS "+b"H"*220
+        low=b"DDS "+b"L"*220
+        root="/system_data/priv/cache/profile/"+user+"/"
+        f=FakeFTP({root+"avatar440.dds":high,root+"avatar128.dds":low})
+        ftpmod.install(f,self.root,False,avatar_user_id=user)
+        output="/data/homebrew/PPSA99386/assets/"
+        self.assertEqual(f.files[output+"niak-profile.dds"],high)
+        self.assertEqual(f.files[output+"niak-profile-source.txt"],
+                         b"0xA0B0C0D0 dds\n")
+
     def test_launchbox_reports_download_and_write_failures_without_secrets(self):
         from unittest.mock import patch
         from urllib.error import HTTPError
