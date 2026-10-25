@@ -970,14 +970,41 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         }''')
     replace_once(kit / "src/main.cpp", '#include "demo/catalog.hpp"',
                  '#include "demo/catalog.hpp"\n#include "niak/daily_backdrop.hpp"\n#include "niak/profile.hpp"\n#include "niak/one_shot_install.hpp"\n#include "niak/asset_stats.hpp"')
+    # Do not elevate the long-lived OpenGL GUI through elfldr.
+    # Credentials cannot be restored reliably after the helper grant, and
+    # the published FTP ZIP already carries the standalone PLDmgr payload.
     replace_once(kit / "src/main.cpp",
         '    sys::log("[HUI] entry");',
         '    sys::log("[HUI] entry");\n'
-        '    const int payload_install = niak::bootstrap_own_payload();\n'
-        '    niak::payload_install_status = payload_install;\n'
-        '    sys::log("[NiakPS5] one-shot own payload install status=%d", payload_install);')
+        '    niak::payload_install_status = -99;\n'
+        '    sys::log("[NiakPS5] BOOT 01: sandbox GUI; payload delivered by FTP");')
+    # Kernel/debug log milestones delimit an early native crash when there is
+    # no drawable UI yet. They are emitted before optional assets are touched.
+    replace_once(kit / "src/main.cpp",
+        '    ps5::Display display;',
+        '    sys::log("[NiakPS5] BOOT 02: open display");\n'
+        '    ps5::Display display;')
+    replace_once(kit / "src/main.cpp",
+        '    gfx::GlRenderer renderer;',
+        '    sys::log("[NiakPS5] BOOT 03: initialize renderer/fonts");\n'
+        '    gfx::GlRenderer renderer;')
     replace_once(kit / "src/main.cpp", '    demo::Catalog catalog;',
-                 '    niak_load_daily_backdrops(renderer);\n    niak_profile_load_avatar(renderer);\n    demo::Catalog catalog;')
+        '    sys::log("[NiakPS5] BOOT 04: renderer/fonts ready");\n'
+        '    niak_load_daily_backdrops(renderer);\n'
+        '    sys::log("[NiakPS5] BOOT 05: backdrops indexed");\n'
+        '    niak_profile_load_avatar(renderer);\n'
+        '    sys::log("[NiakPS5] BOOT 06: avatar requested");\n'
+        '    demo::Catalog catalog;\n'
+        '    sys::log("[NiakPS5] BOOT 07: catalog constructed");')
+    replace_once(kit / "src/main.cpp",
+        '    if (!catalog.build_covers(renderer, fonts))',
+        '    sys::log("[NiakPS5] BOOT 08: build covers");\n'
+        '    if (!catalog.build_covers(renderer, fonts))')
+    replace_once(kit / "src/main.cpp",
+        '    app::Shell shell(fonts, catalog, kDataRoot, renderer.glass_texture());',
+        '    sys::log("[NiakPS5] BOOT 09: construct shell");\n'
+        '    app::Shell shell(fonts, catalog, kDataRoot, renderer.glass_texture());\n'
+        '    sys::log("[NiakPS5] BOOT 10: shell constructed");')
     replace_once(aurora, '#include "ui/glyphs.hpp"',
                  '#include "ui/glyphs.hpp"\n#include "niak/daily_backdrop.hpp"')
     # The PacBrew SQLite build references localtime_r, not exported by the
