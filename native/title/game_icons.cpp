@@ -338,6 +338,99 @@ void request_missing_icon(const char *id) {
     }
     state.wake.notify_one();
 }
+// This SECOND bounded CPU worker is dedicated to installed pic1 / scene art.
+// It never touches OpenGL, remote services or catalogue-owned Item pointers.
+// Results are one 768x320..560 RGBA buffer (~1.7 MiB maximum) pending upload.
+struct AsyncCaseBackground {
+    std::mutex mutex;
+    std::condition_variable wake;
+    std::deque<std::string> queue;
+    std::unordered_set<std::string> queued;
+    std::string completed_title;
+    std::vector<unsigned char> completed_pixels;
+    unsigned completed_width=0,completed_height=0;
+    bool completed=false,started=false;
+};
+AsyncCaseBackground &case_background_state() {
+    static auto *state=new AsyncCaseBackground;
+    return *state;
+}
+void case_background_worker() {
+    auto &state=case_background_state();
+    for(;;) {
+        std::string id;
+        {
+            std::unique_lock<std::mutex> lock(state.mutex);
+            state.wake.wait(lock,[&] {
+                return !state.completed && !state.queue.empty();
+            });
+            id=std::move(state.queue.front());
+            state.queue.pop_front();
+        }
+        std::vector<unsigned char> pixels;
+        unsigned target_w=0,target_h=0;
+        // Priority matches the production path: WebP cache, installed
+        // scene, then pic1.png on internal and external storage.
+        for(const char *format : {
+            "/app0/assets/niak-installed/%s-scene.webp",
+            "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.webp",
+            "/app0/assets/niak-installed/%s-scene.png",
+            "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.png",
+            "/data/homebrew/%s/sce_sys/pic1.png",
+            "/user/app/%s/sce_sys/pic1.png",
+            "/user/appmeta/%s/pic1.png",
+            "/system_ex/app/%s/sce_sys/pic1.png",
+            "/mnt/ext0/user/app/%s/sce_sys/pic1.png",
+            "/mnt/ext1/user/app/%s/sce_sys/pic1.png"
+        }) {
+            char path[200]{};
+            const int n=std::snprintf(path,sizeof(path),format,id.c_str());
+            if(n<=0 || n>=int(sizeof(path)))continue;
+            std::vector<unsigned char> image,rgba;
+            unsigned width=0,height=0;
+            if(!read_local_png(path,image))continue;
+            if(!decode_installed_art(image,rgba,width,height,true))continue;
+            target_w=768;
+            target_h=std::max(320u,std::min(560u,
+                unsigned((std::uint64_t(target_w)*height)/width)));
+            pixels.resize(std::size_t(target_w)*target_h*4u);
+            for(unsigned y=0;y<target_h;++y) {
+                const unsigned sy=std::min(height-1,unsigned(
+                    (std::uint64_t(y)*height)/target_h));
+                for(unsigned x=0;x<target_w;++x) {
+                    const unsigned sx=std::min(width-1,unsigned(
+                        (std::uint64_t(x)*width)/target_w));
+                    const auto src=(std::size_t(sy)*width+sx)*4u;
+                    const auto dst=(std::size_t(y)*target_w+x)*4u;
+                    for(int k=0;k<4;++k)pixels[dst+k]=rgba[src+k];
+                }
+            }
+            break;
+        }
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(pixels.empty()) {
+            state.queued.erase(id);
+            continue;
+        }
+        state.completed_title=std::move(id);
+        state.completed_width=target_w;
+        state.completed_height=target_h;
+        state.completed_pixels=std::move(pixels);
+        state.completed=true;
+    }
+}
+void enqueue_missing_scene(const char *id) {
+    auto &state=case_background_state();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    // A duplicate selected scene is not decoded more than once in flight.
+    if(state.queued.size()>=256 || !state.queued.emplace(id).second)return;
+    state.queue.emplace_back(id);
+    if(!state.started) {
+        state.started=true;
+        std::thread([] {case_background_worker();}).detach();
+    }
+    state.wake.notify_one();
+}
 #endif
 } // namespace
 
@@ -440,6 +533,13 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
     if(media)for(int i=4;i<9;++i)
         if(id[i]<'0'||id[i]>'9')media=false;
     if(!niak_valid_title_id(id) && !media)return 0;
+#if defined(__PROSPERO__)
+    // Stage-4 loader now schedules CPU-only work and returns immediately.
+    // Result is installed later by refresh_pending_case_background().
+    enqueue_missing_scene(id);
+    (void)renderer;(void)aspect;
+    return 0;
+#else
     std::vector<unsigned char> png;
     std::vector<std::string> locations;
 #if defined(__linux__)
@@ -495,6 +595,43 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
         return texture;
     }
     return 0;
+#endif
+}
+
+std::uint32_t niak_take_downloaded_game_background(
+        hui::gfx::Renderer &renderer,char (&title_id)[16],float *aspect) {
+    title_id[0]=0;
+#if defined(__PROSPERO__)
+    auto &state=case_background_state();
+    std::string id;
+    std::vector<unsigned char> pixels;
+    unsigned width=0,height=0;
+    {
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(!state.completed)return 0;
+        id=std::move(state.completed_title);
+        pixels=std::move(state.completed_pixels);
+        width=state.completed_width;
+        height=state.completed_height;
+        state.completed=false;
+        state.queued.erase(id);
+    }
+    state.wake.notify_one();
+    if(id.size()>=sizeof(title_id)||width!=768u||height<320u ||
+       height>560u||pixels.size()!=std::size_t(width)*height*4u)
+        return 0;
+    std::memcpy(title_id,id.c_str(),id.size()+1u);
+    // Never upload GL textures on the CPU worker.
+    const auto texture=renderer.create_texture(int(width),int(height),pixels.data());
+    if(texture) {
+        niak_track_case_texture(texture,width,height);
+        if(aspect)*aspect=float(width)/float(height);
+    }
+    return texture;
+#else
+    (void)renderer;(void)aspect;
+    return 0;
+#endif
 }
 
 std::uint32_t niak_load_profile_cache_png(hui::gfx::Renderer &renderer,unsigned user) {

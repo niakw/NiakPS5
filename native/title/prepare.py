@@ -265,6 +265,7 @@ audio::SoundSet Shell::sound_set() const''')
         '                            std::size_t budget);\n'
         '    bool refresh_selected_case_art(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_game_icons(gfx::Renderer &renderer);\n'
+        '    bool refresh_pending_case_background(gfx::Renderer &renderer);\n'
         '    void retry_missing_game_icons();')
     replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
@@ -499,6 +500,31 @@ bool Catalog::refresh_pending_game_icons(gfx::Renderer &renderer) {
     return true;
 }
 
+// One local CPU-decoded pic1 texture may arrive after a selection change.
+// Only the current game without an official front may own that GPU handle.
+bool Catalog::refresh_pending_case_background(gfx::Renderer &renderer) {
+    char title_id[16]{};
+    float aspect=16.0f/9.0f;
+    const auto texture=niak_take_downloaded_game_background(
+        renderer,title_id,&aspect);
+    if(!texture)return false;
+    const int focus=niak::case_media_stats.preferred_index;
+    if(focus<0 || static_cast<std::size_t>(focus)>=items_.size()) {
+        niak_destroy_case_texture(renderer,texture);
+        return false;
+    }
+    Item &item=items_[static_cast<std::size_t>(focus)];
+    if(std::strcmp(item.title_id,title_id)!=0 || item.application ||
+       item.case_front || item.case_scene) {
+        niak_destroy_case_texture(renderer,texture);
+        return false;
+    }
+    item.case_scene=texture;
+    item.case_scene_aspect=aspect;
+    ++niak::case_media_stats.scenes;
+    return true;
+}
+
 bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
 {
     const int index=niak::case_media_stats.preferred_index;
@@ -669,8 +695,10 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         if(navigation_idle && (frames%4u==0 || first_idle_focus))
             (void)catalog.stream_next_covers(renderer,fonts,1);
         // Consume async icon responses only on the GL-owning render thread.
-        if(navigation_idle)
+        if(navigation_idle) {
             (void)catalog.refresh_pending_game_icons(renderer);
+            (void)catalog.refresh_pending_case_background(renderer);
+        }
         // Missing icons can recover after ShadowMountPlus starts late.
         // Unlike initial streaming, retry does not re-read local files.
         if(navigation_idle && frames>0 && frames%600u==0)

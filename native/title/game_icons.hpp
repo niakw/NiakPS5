@@ -14,6 +14,9 @@ std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
 // Optional locally installed wide pic1.png for the outer 3D case.
 // Never crop/replace the application's existing 2D library icon.
 std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char *title_id,float *aspect=nullptr);
+// Poll a locally decoded pic1 / scene result on the graphics thread.
+std::uint32_t niak_take_downloaded_game_background(
+    hui::gfx::Renderer &renderer,char (&title_id)[16],float *aspect=nullptr);
 
 std::uint32_t niak_load_local_png(hui::gfx::Renderer &renderer,const char *path);
 
