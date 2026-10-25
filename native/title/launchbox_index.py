@@ -254,9 +254,13 @@ def parse(xml,installed,diagnostics=None):
         for kind in ("gameplay","game_title"):
             if len(shots)>=2:break
             add_first(kind)
-        # Each of the TWO distinct screenshot slots may fall back to its
-        # matching PC image when a console CDN candidate is unavailable.
-        # Never use the same primary frame as another slot or any hero image.
+        # A LaunchBox image can be tagged BOTH Gameplay and Game Title.
+        # Reserve each fallback filename across both screenshot slots, not
+        # just the two primary frames, to avoid duplicate paper images when
+        # one or more CDN candidates fail.
+        reserved_fallbacks=set()
+        # Each screenshot slot may fall back to a different PS4/PC image.
+        # Never reuse a hero, either primary, or another slot's fallback.
         def screenshot_sources(slot):
             if slot>=len(shots):return "-"
             primary=shots[slot]
@@ -266,7 +270,8 @@ def parse(xml,installed,diagnostics=None):
                              if i!=slot)
             options=layered_media(*(
                 [(area,filename) for area,filename in group.get(shot_kinds[slot],[])
-                 if filename not in forbidden]
+                 if filename not in forbidden and
+                   filename not in reserved_fallbacks]
                 for group in (ps5,ps4,pc)
             ))
             result=[primary]
@@ -274,8 +279,9 @@ def parse(xml,installed,diagnostics=None):
             for choice in options.split(";"):
                 if ":" not in choice:continue
                 filename=choice.split(":",1)[1]
-                if filename not in seen:
+                if filename not in seen and filename not in reserved_fallbacks:
                     seen.add(filename)
+                    reserved_fallbacks.add(filename)
                     result.append(choice)
                 if len(result)>=4:break
             return ";".join(result)
