@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <sys/stat.h>
 #include "title_category.h"
+#include "localized_name.h"
 static inline int niak_broker_id(const char *id) {
  if(!id||strlen(id)!=9)return 0;
  if(strncmp(id,"PPSA",4)&&strncmp(id,"CUSA",4)&&
@@ -86,6 +87,52 @@ static inline int niak_broker_inventory(char *out,size_t cap,const char *root) {
  }
  return accessible?total:-1;
 }
+/* Recognize launcher identities ONLY from an actual manifest title field.
+ * Previously searching the entire JSON could match a game description or
+ * an unrelated nested key and incorrectly classify it as an application.
+ */
+static inline int niak_broker_known_app_name(const char *name) {
+ if(!name||!*name)return 0;
+ static const char *const names[]={
+   "ShadowMountPlus","ShadowMount","shadowmount",
+   "Eden Encore","Eden-Encore","NiakTV","CleanMyPS5",
+   "PS5 Game Updater","PS5-Xplorer","PS5 Xplorer",
+   "My Videos","Media Gallery"
+ };
+ for(size_t i=0;i<sizeof(names)/sizeof(names[0]);++i) {
+  const size_t n=strlen(names[i]);
+  if(strncmp(name,names[i],n)==0 &&
+     (name[n]=='\0'||name[n]==' '||name[n]=='('))return 1;
+ }
+ // French PS5 UI varies the accent/Unicode spelling of the media title.
+ return strncmp(name,"Mes vid",7)==0;
+}
+static inline int niak_broker_named_application(const char *json,
+                                                const char *id) {
+ if(!json||!id)return 0;
+ const char *identity=niak_json_direct(json,"titleId");
+ if(identity) {
+  char actual[16]{0};
+  if(!niak_json_title_value(identity,actual,sizeof(actual)) ||
+     strcmp(actual,id)!=0)return 0;
+ }
+ char name[192]{0};
+ const char *title=niak_json_direct(json,"titleName");
+ if(niak_json_title_value(title,name,sizeof(name)) &&
+    niak_broker_known_app_name(name))return 1;
+ const char *langs=niak_json_direct(json,"localizedParameters");
+ static const char *const codes[]={
+   "fr-FR","fr-CA","fr","en-US","en-GB","de-DE","es-ES",
+   "it-IT","pt-PT",NULL
+ };
+ for(size_t i=0;codes[i];++i) {
+  const char *localized=niak_json_direct(langs,codes[i]);
+  const char *localized_title=niak_json_direct(localized,"titleName");
+  if(niak_json_title_value(localized_title,name,sizeof(name)) &&
+     niak_broker_known_app_name(name))return 1;
+ }
+ return 0;
+}
 /* A second, bounded inventory records only application IDs from the
  * already-validated live GAMES list. Homebrew param.json often uses native
  * game category 0 even for utility launchers. A verified media category or
@@ -122,11 +169,7 @@ static inline int niak_broker_apps_from_inventory(const char *ids,
    // Only apply these named launchers to non-NPXS *installed* titles.
    // Strings here classify shelf presentation, not execution rights.
    if(strncmp(id,"NPXS",4)!=0 &&
-      (strstr(json,"ShadowMount")||strstr(json,"shadowmount")||
-       strstr(json,"Eden Encore")||strstr(json,"Eden-Encore")||
-       strstr(json,"Mes vid")||strstr(json,"My Videos")||
-       strstr(json,"NiakTV")||strstr(json,"CleanMyPS5")||
-       strstr(json,"PS5 Game Updater")||strstr(json,"PS5-Xplorer"))) {
+      niak_broker_named_application(json,id)) {
        is_app=1;break;
    }
   }
