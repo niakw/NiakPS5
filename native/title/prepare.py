@@ -1220,6 +1220,7 @@ namespace {
 struct InventoryProbeResult {
     std::vector<std::string> installed;
     std::vector<std::string> applications;
+    std::vector<std::string> verified_games;
     // Owner-local FTP overlays are facts about names/categories, NOT proof
     // of installation. They can arrive after Catalog construction.
     std::vector<NiakGame> metadata;
@@ -1239,7 +1240,8 @@ InventoryProbeState &inventory_probe_state() {
 }
 void collect_inventory_ids(std::vector<std::string> &ids,
                            const std::vector<NiakGame> &buffer,int count,
-                           std::vector<std::string> *apps=nullptr) {
+                           std::vector<std::string> *apps=nullptr,
+                           std::vector<std::string> *verified_games=nullptr) {
     for(int n=0;n<count && n<static_cast<int>(buffer.size());++n) {
         const NiakGame &game=buffer[static_cast<std::size_t>(n)];
         const char *id=game.id;
@@ -1250,10 +1252,16 @@ void collect_inventory_ids(std::vector<std::string> &ids,
         // already on the shelf as generic games. Media manifests and actual
         // installed launcher names are stronger evidence than the stale
         // initial category. Do not infer applications from their description.
-        if(apps && (game.application_category==2 ||
-                    niak_known_application(game.title)) &&
+        const bool known_app=niak_known_application(game.title);
+        if(apps && (game.application_category==2 || known_app) &&
            std::find(apps->begin(),apps->end(),id)==apps->end())
             apps->emplace_back(id);
+        // A stale FTP "Application" cannot reclassify a game with an
+        // explicit installed-manifest Game category every 30 seconds.
+        if(verified_games && game.application_category==1 && !known_app &&
+           std::find(verified_games->begin(),verified_games->end(),id)
+             ==verified_games->end())
+            verified_games->emplace_back(id);
     }
 }
 InventoryProbeResult scan_inventory_background() {
@@ -1263,17 +1271,17 @@ InventoryProbeResult scan_inventory_background() {
     if(count>0)collect_inventory_ids(result.installed,records,count);
     count=niak_scan_installed_folders("",records.data(),records.size());
     if(count>0)collect_inventory_ids(result.installed,records,count,
-                                      &result.applications);
+                                      &result.applications,&result.verified_games);
     count=niak_scan_homebrews("",records.data(),records.size());
     if(count>0)collect_inventory_ids(result.installed,records,count,
-                                      &result.applications);
+                                      &result.applications,&result.verified_games);
     count=niak_scan_shadowmount(records.data(),records.size());
     if(count>0)collect_inventory_ids(result.installed,records,count,
-                                      &result.applications);
+                                      &result.applications,&result.verified_games);
     count=niak_scan_games("/system_data/priv/mms/app.db","",
                           records.data(),records.size());
     if(count>0)collect_inventory_ids(result.installed,records,count,
-                                      &result.applications);
+                                      &result.applications,&result.verified_games);
     count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_FILE,
                              records.data(),records.size());
     if(count<0)count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_APP_SOURCE,
@@ -1368,7 +1376,9 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
         if(existing==items_.end())continue;
         if((record.title[0] &&
             std::strcmp(existing->title,record.title)!=0) ||
-           (record.application_category==2 && !existing->application)) {
+           (record.application_category==2 && !existing->application &&
+            std::find(result.verified_games.begin(),result.verified_games.end(),
+                      record.id)==result.verified_games.end())) {
             changed=true;
             break;
         }
@@ -1526,7 +1536,7 @@ void Catalog::reload()
                     // Fresh, broker-verified applications cannot be
                     // downgraded by a historical FTP "Jeu" label.
                     if(record.application_category &&
-                       games[i].application_category!=2)
+                       games[i].application_category==0)
                         games[i].application_category=record.application_category;
                     // The FTP overlay is sourced from THIS installed ID's
                     // signed/validated param.json. Its fr-FR title overrides
