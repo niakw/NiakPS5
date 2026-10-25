@@ -316,8 +316,21 @@ bool save(const Task& task,const std::string& name,
           const std::vector<unsigned char>& webp){
  // A denied /download0 sandbox mount must not discard a valid CDN image.
  // Both locations retain identical WebP + atomic provenance checks.
- return save_to(cache_path(task),name,webp) ||
-        save_to(fallback_cache_path(task),name,webp);
+ const std::string primary=cache_path(task);
+ const std::string backup=fallback_cache_path(task);
+ if(save_to(primary,name,webp)) {
+   // A previously staged private fallback must not shadow the newly
+   // committed /download0 image when the mount becomes writable again.
+   (void)std::remove((backup+".source").c_str());
+   return true;
+ }
+ if(save_to(backup,name,webp)) {
+   // Conversely an older primary cache can survive read-only mounts.
+   // Invalidate ONLY our own provenance marker, never a manual FTP cover.
+   (void)std::remove((primary+".source").c_str());
+   return true;
+ }
+ return false;
 }
 void queue_retry(State &s,Task task,bool waiting_for_index=false){
  // Keep HTTPS failures tightly bounded. Delayed /app0 or FTP metadata may
