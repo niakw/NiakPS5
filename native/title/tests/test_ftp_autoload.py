@@ -9,6 +9,19 @@ spec=importlib.util.spec_from_file_location("niak_ftp_install",SCRIPT)
 ftpmod=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ftpmod)
 
+def make_png_avatar(width=128,height=128):
+    import struct
+    import zlib
+    def chunk(kind,payload):
+        return (struct.pack(">I",len(payload))+kind+payload+
+                struct.pack(">I",zlib.crc32(kind+payload)&0xffffffff))
+    ihdr=struct.pack(">IIBBBBB",width,height,8,6,0,0,0)
+    scanlines=b"".join(b"\\x00"+b"\\x18\\x28\\x38\\xff"*width
+                       for _ in range(height))
+    return (b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",ihdr)+
+            chunk(b"IDAT",zlib.compress(scanlines))+
+            chunk(b"IEND",b""))
+
 def make_bc3_avatar_dds(width=128,height=128):
     """Minimal decodable BC3 DDS: matches the native 512px bounded reader."""
     import struct
@@ -439,7 +452,7 @@ class AutoloadTests(unittest.TestCase):
     def test_single_profile_avatar_is_locally_staged(self):
         user="0x12345678"
         source="/system_data/priv/cache/profile/"+user+"/avatar.png"
-        sample=b"\x89PNG\r\n\x1a\n"+bytes(200)
+        sample=make_png_avatar()
         f=FakeFTP({source:sample})
         ftpmod.install(f,self.root,False)
         self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
@@ -448,7 +461,7 @@ class AutoloadTests(unittest.TestCase):
 
     def test_multiple_profiles_are_not_guessed(self):
         root="/system_data/priv/cache/profile/"
-        sample=b"\x89PNG\r\n\x1a\n"+bytes(200)
+        sample=make_png_avatar()
         f=FakeFTP({root+"0x11111111/avatar.png":sample,root+"0x22222222/avatar.png":sample})
         ftpmod.install(f,self.root,False)
         self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-profile.png",f.files)
@@ -468,7 +481,7 @@ class AutoloadTests(unittest.TestCase):
                     raise error_perm("550 write refused")
                 return super().storbinary(command,buf)
         f=BrokenFTP({
-            source:b"\x89PNG\r\n\x1a\n"+bytes(200),
+            source:make_png_avatar(),
             marker:b"0x87654321 png\n",
             destination:b"old-avatar",
         })
@@ -476,6 +489,35 @@ class AutoloadTests(unittest.TestCase):
             ftpmod.copy_avatar_for_ftp(f)
         self.assertEqual(f.files[marker],b"")
         self.assertEqual(f.files[destination],b"old-avatar")
+
+    def test_corrupt_png_falls_back_to_supported_dds(self):
+        user="0xA0B0C0D0"
+        root="/system_data/priv/cache/profile/"+user+"/"
+        good=make_png_avatar()
+        corrupt=bytearray(good)
+        corrupt[45]^=1  # Break the IDAT chunk's CRC, preserve PNG signature.
+        dds=make_bc3_avatar_dds(128)
+        ftp=FakeFTP({root+"avatar.png":bytes(corrupt),
+                     root+"avatar128.dds":dds})
+        self.assertTrue(ftpmod.valid_avatar_png(good))
+        self.assertFalse(ftpmod.valid_avatar_png(bytes(corrupt)))
+        self.assertFalse(ftpmod.valid_avatar_png(good[:-12]))
+        self.assertFalse(ftpmod.valid_avatar_png(b"\\x89PNG\\r\\n\\x1a\\n"+bytes(200)))
+        ftpmod.install(ftp,self.root,False,avatar_user_id=user)
+        dest="/data/homebrew/PPSA99386/assets/"
+        self.assertEqual(ftp.files[dest+"niak-profile.dds"],dds)
+        self.assertEqual(ftp.files[dest+"niak-profile-source.txt"],
+                         b"0xA0B0C0D0 dds\\n")
+        self.assertNotIn(dest+"niak-profile.png",ftp.files)
+
+    def test_avatar_broker_checks_png_dimensions_and_terminal_iend(self):
+        broker=(SCRIPT.parent/"autostart.c").read_text()
+        self.assertIn("static int niak_avatar_png_supported(",broker)
+        self.assertIn("niak_avatar_png_u32(head+16)",broker)
+        self.assertIn("memcmp(end12,trailer,sizeof(trailer))!=0",broker)
+        self.assertIn("ok=niak_avatar_png_supported(data,data+size-12u,size);",broker)
+        self.assertIn("lseek(avatar_fd,-(off_t)sizeof(trailer),SEEK_END)",broker)
+        self.assertIn("return niak_avatar_png_supported(header,trailer,(size_t)st.st_size);",broker)
 
     def test_staged_dds_identifies_format_and_foreground_owner(self):
         user="0xA0B0C0D0"
