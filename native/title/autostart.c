@@ -159,12 +159,12 @@ static int copy_profile_image(const char *source,const char *dest,
 }
 /* Bind each cached avatar to the actual local foreground account and image
  * type. No PSN identifier or personal image leaves this console. */
-static void mark_profile_asset(int user,const char *format) {
-    if(user<0 || !format)return;
+static int mark_profile_asset(int user,const char *format) {
+    if(user<0 || !format)return 0;
     const char *dst="/data/homebrew/PPSA99386/assets/niak-profile-source.txt";
     char temp[]="/data/homebrew/PPSA99386/assets/.niak-profile-source-XXXXXX";
     int fd=mkstemp(temp);
-    if(fd<0)return;
+    if(fd<0)return 0;
     char identity[32];
     const int n=snprintf(identity,sizeof(identity),"0x%08X %s\n",
                          (unsigned)user,format);
@@ -172,7 +172,9 @@ static void mark_profile_asset(int user,const char *format) {
            write(fd,identity,(size_t)n)==n &&
            fchmod(fd,0644)==0 && fsync(fd)==0;
     if(close(fd)!=0)ok=0;
-    if(!ok || rename(temp,dst)!=0)unlink(temp);
+    if(ok)ok=rename(temp,dst)==0;
+    if(!ok)unlink(temp);
+    return ok;
 }
 /* Invalidate the generic file's owner BEFORE replacing its bytes.
  * If permissions prevent invalidation, do not overwrite the old image:
@@ -197,17 +199,23 @@ static int copy_current_avatar_png(int user) {
     static const unsigned char dds[4]={'D','D','S',' '};
     snprintf(source,sizeof(source),"%s/avatar.png",profile);
     if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.png",png,8)) {
-        mark_profile_asset(user,"png");
-        report("Current user PNG avatar staged",0);
-        return 1;
+        if(mark_profile_asset(user,"png")) {
+            report("Current user PNG avatar staged",0);
+            return 1;
+        }
+        report("Avatar PNG owner marker refused",-1);
+        return 0;
     }
     for(int i=0;i<3;++i) {
         const char *name=i==0?"avatar128.dds":i==1?"avatar260.dds":"avatar64.dds";
         snprintf(source,sizeof(source),"%s/%s",profile,name);
         if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.dds",dds,4)) {
-            mark_profile_asset(user,"dds");
-            report("Current user DDS avatar staged",0);
-            return 1;
+            if(mark_profile_asset(user,"dds")) {
+                report("Current user DDS avatar staged",0);
+                return 1;
+            }
+            report("Avatar DDS owner marker refused",-1);
+            return 0;
         }
     }
     report("Current user avatar inaccessible: no image staged",0);
