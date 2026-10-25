@@ -505,7 +505,7 @@ bool Catalog::refresh_pending_game_icons(gfx::Renderer &renderer) {
 bool Catalog::refresh_pending_case_background(gfx::Renderer &renderer) {
     char title_id[16]{};
     float aspect=16.0f/9.0f;
-    const auto texture=niak_take_downloaded_game_background(
+    auto texture=niak_take_downloaded_game_background(
         renderer,title_id,&aspect);
     if(!texture)return false;
     const int focus=niak::case_media_stats.preferred_index;
