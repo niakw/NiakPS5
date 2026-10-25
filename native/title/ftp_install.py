@@ -132,23 +132,25 @@ def valid_avatar_png(blob):
     return False
 
 def valid_avatar_dds(blob):
-    """Match native avatar_dds.cpp: ordinary 124-byte DDS, DXT5/BC3 only.
+    """Match native avatar_dds.cpp: bounded DDS in DXT1/BC1 or DXT5/BC3.
 
-    A highest-resolution file with an unsupported DDS variant must not
-    shadow a smaller compatible profile avatar when staged by FTP.
+    Never stage a high-resolution unsupported source ahead of a valid
+    smaller fallback for the same foreground profile.
     """
-    if not blob or not 144 <= len(blob) <= 2*1024*1024:
+    if not blob or not 128 <= len(blob) <= 2*1024*1024:
         return False
     def u32(offset):
         return int.from_bytes(blob[offset:offset+4],"little")
-    if (blob[:4]!=b"DDS " or u32(4)!=124 or
-            u32(76)!=32 or blob[84:88]!=b"DXT5"):
+    if blob[:4]!=b"DDS " or u32(4)!=124 or u32(76)!=32:
+        return False
+    stride={b"DXT1":8,b"DXT5":16}.get(blob[84:88])
+    if stride is None:
         return False
     width,height=u32(16),u32(12)
     if not (16<=width<=512 and 16<=height<=512):
         return False
     blocks=((width+3)//4)*((height+3)//4)
-    return blocks <= (len(blob)-128)//16
+    return blocks <= (len(blob)-128)//stride
 
 def copy_avatar_for_ftp(ftp, user_id=None):
     """Opt-in source: only read user's current profile cache over FTP.
