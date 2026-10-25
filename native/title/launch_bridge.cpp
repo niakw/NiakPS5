@@ -269,38 +269,46 @@ int niak_open_system_settings() {
     // First ask the existing, opt-in PLDmgr broker. Its system context
     // may launch ShellUI even where this application's sandbox is denied.
     const int broker_rc=niak_open_system_settings_broker();
-    if(broker_rc!=-2)return broker_rc;
+    if(broker_rc==0)return 0;
 #if defined(__PROSPERO__)
+    // Even a reachable broker can receive a firmware-specific ShellUI denial.
+    // Its error should not preclude the existing direct, fixed-URI API.
+    // Neither path escalates this process or edits console configuration.
     // A PlayStation URI is NOT an Internet URL. The WebBrowser service
     // rejects pssettings:, as confirmed on hardware. Itemzflow/etaHEN use
     // ShellUIUtilLaunchByUri instead; resolve dynamically to avoid assuming
     // the sandbox grants this private service.
-    int module_result=0;
-    const int module=sceKernelLoadStartModule(
-        "/system_ex/common_ex/lib/libSceShellUIUtil.sprx",
-        0,nullptr,0,0,&module_result);
-    if(module<0)return module;
-    using Initialize=int(*)();
-    using Launch=int(*)(const char*,NiakShellUriArgs*);
-    Initialize init=nullptr;
-    Launch launch=nullptr;
-    void *resolved=nullptr;
-    if(sceKernelDlsym(module,"sceShellUIUtilInitialize",&resolved)<0 ||
-       !resolved)return -10;
-    init=reinterpret_cast<Initialize>(resolved);
-    resolved=nullptr;
-    if(sceKernelDlsym(module,"sceShellUIUtilLaunchByUri",&resolved)<0 ||
-       !resolved)return -11;
-    launch=reinterpret_cast<Launch>(resolved);
-    int user=-1;
-    if(sceUserServiceGetForegroundUser(&user)<0 || user<0)return -12;
-    const int initialized=init();
-    if(initialized<0)return initialized;
-    NiakShellUriArgs args{sizeof(NiakShellUriArgs),
-                           static_cast<std::uint32_t>(user)};
-    // Fixed root settings URI, not debug settings or an editable URL.
-    return launch("pssettings:play?mode=settings",&args);
+    const int direct_rc=[&]() -> int {
+        int module_result=0;
+        const int module=sceKernelLoadStartModule(
+            "/system_ex/common_ex/lib/libSceShellUIUtil.sprx",
+            0,nullptr,0,0,&module_result);
+        if(module<0)return module;
+        using Initialize=int(*)();
+        using Launch=int(*)(const char*,NiakShellUriArgs*);
+        Initialize init=nullptr;
+        Launch launch=nullptr;
+        void *resolved=nullptr;
+        if(sceKernelDlsym(module,"sceShellUIUtilInitialize",&resolved)<0 ||
+           !resolved)return -10;
+        init=reinterpret_cast<Initialize>(resolved);
+        resolved=nullptr;
+        if(sceKernelDlsym(module,"sceShellUIUtilLaunchByUri",&resolved)<0 ||
+           !resolved)return -11;
+        launch=reinterpret_cast<Launch>(resolved);
+        int user=-1;
+        if(sceUserServiceGetForegroundUser(&user)<0 || user<0)return -12;
+        const int initialized=init();
+        if(initialized<0)return initialized;
+        NiakShellUriArgs args{sizeof(NiakShellUriArgs),
+                               static_cast<std::uint32_t>(user)};
+        // Fixed root settings URI, not debug settings or an editable URL.
+        return launch("pssettings:play?mode=settings",&args);
+    }();
+    // Retain the actual privileged-broker rejection rather than concealing
+    // it behind a secondary sandbox failure; direct success still wins.
+    return direct_rc==0 ? 0 : broker_rc!=-2 ? broker_rc : direct_rc;
 #else
-    return -2;
+    return broker_rc;
 #endif
 }
