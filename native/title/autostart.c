@@ -134,6 +134,34 @@ static int niak_avatar_dds_supported(const unsigned char *data,size_t size) {
                         (((size_t)height+3u)/4u);
     return blocks<=(size-128u)/16u;
 }
+/* Match the title's lodepng thumbnail geometry before staging a PNG.
+ * Require its final IEND too: a PNG signature alone accepted truncated old
+ * images and prevented the valid DDS fallback from ever being selected. */
+static unsigned niak_avatar_png_u32(const unsigned char *p) {
+    return ((unsigned)p[0]<<24)|((unsigned)p[1]<<16)|
+           ((unsigned)p[2]<<8)|(unsigned)p[3];
+}
+static int niak_avatar_png_supported(const unsigned char *head,
+                                     const unsigned char *end12,size_t size) {
+    static const unsigned char signature[8]={137,80,78,71,13,10,26,10};
+    static const unsigned char trailer[12]={
+        0,0,0,0,'I','E','N','D',174,66,96,130};
+    if(!head||!end12||size<57||size>2*1024*1024||
+       memcmp(head,signature,sizeof(signature))!=0||
+       niak_avatar_png_u32(head+8)!=13u||
+       memcmp(head+12,"IHDR",4)!=0||
+       memcmp(end12,trailer,sizeof(trailer))!=0)return 0;
+    const unsigned width=niak_avatar_png_u32(head+16);
+    const unsigned height=niak_avatar_png_u32(head+20);
+    if(width<32u||height<32u||width>2048u||height>2048u||
+       head[26]!=0||head[27]!=0||head[28]>1)return 0;
+    const unsigned depth=head[24],color=head[25];
+    if(color==0)return depth==1||depth==2||depth==4||
+                        depth==8||depth==16;
+    if(color==2||color==4||color==6)return depth==8||depth==16;
+    if(color==3)return depth==1||depth==2||depth==4||depth==8;
+    return 0;
+}
 static int copy_profile_image(const char *source,const char *dest,
                               const unsigned char *magic,size_t signature_size) {
     FILE *in=fopen(source,"rb");
@@ -148,6 +176,8 @@ static int copy_profile_image(const char *source,const char *dest,
     fclose(in);
     if(ok && signature_size==4 && memcmp(magic,"DDS ",4)==0)
         ok=niak_avatar_dds_supported(data,size);
+    if(ok && signature_size==8 && data[0]==137u)
+        ok=niak_avatar_png_supported(data,data+size-12u,size);
     if(ok) {
         struct stat folder;
         if(lstat("/data/homebrew/PPSA99386/assets",&folder)==0 &&
@@ -299,13 +329,27 @@ static int current_avatar_asset_staged(int user) {
         }
         valid=loaded==sizeof(header);
     }
+    unsigned char trailer[12]{};
+    if(valid && strcmp(marker+n,"png\n")==0) {
+        if(lseek(avatar_fd,-(off_t)sizeof(trailer),SEEK_END)<0)
+            valid=0;
+        else {
+            size_t tail_loaded=0;
+            while(tail_loaded<sizeof(trailer)) {
+                const ssize_t n=read(avatar_fd,trailer+tail_loaded,
+                                     sizeof(trailer)-tail_loaded);
+                if(n<0 && errno==EINTR)continue;
+                if(n<=0)break;
+                tail_loaded+=(size_t)n;
+            }
+            valid=tail_loaded==sizeof(trailer);
+        }
+    }
     if(close(avatar_fd)!=0)valid=0;
     if(!valid)return 0;
     if(strcmp(marker+n,"dds\n")==0)
         return niak_avatar_dds_supported(header,(size_t)st.st_size);
-    static const unsigned char png[8]={137,80,78,71,13,10,26,10};
-    return memcmp(header,png,sizeof(png))==0 &&
-           memcmp(header+12,"IHDR",4)==0;
+    return niak_avatar_png_supported(header,trailer,(size_t)st.st_size);
 }
 
 /* The user-authorized PLDmgr one-shot stays resident as a narrow, LOCAL-ONLY
