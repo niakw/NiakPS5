@@ -329,7 +329,7 @@ static int current_avatar_asset_staged(int user) {
         }
         valid=loaded==sizeof(header);
     }
-    unsigned char trailer[12]{};
+    unsigned char trailer[12]={0};
     if(valid && strcmp(marker+n,"png\n")==0) {
         if(lseek(avatar_fd,-(off_t)sizeof(trailer),SEEK_END)<0)
             valid=0;
