@@ -171,7 +171,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("niak_fetch_launchbox_asset_ex(",auto)
         self.assertNotIn("requested>=512u",auto)
         self.assertIn("s.retries.clear();",auto)
-        self.assertIn("s.cv.wait_until(lock,due)",auto)
+        self.assertIn("s.cv.wait_until(lock,std::min(due,next_ftp_poll))",auto)
         self.assertIn("s.cv.wait_for(lock,std::chrono::seconds(30))",auto)
         self.assertIn("current!=loaded_stamps",auto)
         self.assertIn("s.selected==watched_title",auto)
@@ -318,6 +318,33 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("WebPDecodeRGBAInto(raw.data(),raw.size(),pixels.data()",auto)
         self.assertIn("for(const std::string& filename:paths)",case)
         self.assertIn("valid_filename(filename)",auto)
+
+    def test_ftp_artwork_arrivals_refresh_only_the_selected_case(self):
+        worker=(ROOT/"title"/"case_auto_art.cpp").read_text()
+        catalog=(ROOT/"title"/"prepare.py").read_text()
+        self.assertIn("using LocalFaceStamps=std::array<std::array<SourceStamp,4>,7>;",worker)
+        self.assertIn("LocalFaceStamps local_face_stamps(const std::string &title)",worker)
+        self.assertIn("if(!valid_id(title.c_str()))return result;",worker)
+        self.assertIn("observed_epoch!=observed_ftp_generation",worker)
+        self.assertIn("std::chrono::steady_clock::now()>=next_ftp_poll",worker)
+        self.assertIn("const auto current_files=local_face_stamps(watched_title);",worker)
+        self.assertIn("lock.unlock();",worker)
+        self.assertIn("s.selected!=watched_title",worker)
+        self.assertIn("s.generation.load()!=observed_epoch",worker)
+        self.assertIn("if(observed_ftp_generation==observed_epoch)",worker)
+        self.assertIn("current_files[side]==observed_ftp_files[side]",worker)
+        self.assertIn("++s.side_completed[side];",worker)
+        self.assertIn("++s.completed;",worker)
+        self.assertIn("std::min(due,next_ftp_poll)",worker)
+        self.assertIn("if(same_focus && completed!=last_case_completed_)",catalog)
+        self.assertIn("niak_invalidate_prepared_case_art(",catalog)
+        self.assertIn("selected.case_reload_mask|=(1u<<side)",catalog)
+        # The observer only reads bounded file metadata; decoding stays on
+        # the existing case-art worker and all GPU uploads stay in Catalog.
+        begin=worker.index("LocalFaceStamps local_face_stamps(")
+        end=worker.index("struct Task {",begin)
+        self.assertNotIn("fopen(",worker[begin:end])
+        self.assertNotIn("niak_fetch_launchbox_asset_ex(",worker[begin:end])
 
     def test_failed_launchbox_webp_write_retries_offline_without_another_http_get(self):
         source=(ROOT/"title"/"case_auto_art.cpp").read_text()
