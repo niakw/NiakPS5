@@ -1195,8 +1195,12 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("sceUserServiceInitialize(NULL)",broker)
         self.assertIn("sceLncUtilInitialize()",broker)
         self.assertIn('sandbox-elevator.elf', (ROOT/"title"/"build.sh").read_text())
-        self.assertIn('niak::bootstrap_own_payload()', source)
-        self.assertIn('niak::payload_install_status = payload_install;', source)
+        # PLDmgr is delivered via the FTP archive. Never mutate credentials
+        # of the GPU-rendering process during startup.
+        self.assertNotIn("bootstrap_own_payload();", source)
+        self.assertIn("niak::payload_install_status = -99;", source)
+        for step in range(1, 11):
+            self.assertIn(f"BOOT {step:02d}:", source)
         self.assertIn('niak_last_launch_result(buffer)',(ROOT/"title"/"patch_home.py").read_text())
         installer=(ROOT/"title"/"elevation"/"one_shot_install.cpp").read_text()
         self.assertIn('elevation::Capability::filesystem', installer)
