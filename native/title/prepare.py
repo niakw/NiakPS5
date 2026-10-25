@@ -263,6 +263,7 @@ audio::SoundSet Shell::sound_set() const''')
         '                                const ui::Fonts &fonts);\n'
         '    bool stream_next_covers(gfx::Renderer &renderer, const ui::Fonts &fonts,\n'
         '                            std::size_t budget);\n'
+        '    bool has_pending_covers() const {return cover_stream_.remaining()!=0;}\n'
         '    bool refresh_selected_case_art(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_game_icons(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_case_background(gfx::Renderer &renderer);\n'
@@ -791,18 +792,38 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         static int prepared_focus=-1;
         const int focus=niak::case_media_stats.preferred_index;
         const bool first_idle_focus=navigation_idle && focus!=prepared_focus;
+        // Limit successful asynchronous GPU uploads to one idle frame.
+        // A completed download is left in its single-result worker slot
+        // until a later tick; do not decode or wait here.
+#if defined(__PROSPERO__)
+        bool gpu_budget_used=false;
+        if(navigation_idle && (frames%4u==0 || first_idle_focus) &&
+           catalog.has_pending_covers()) {
+            (void)catalog.stream_next_covers(renderer,fonts,1);
+            gpu_budget_used=true;
+        }
+        if(navigation_idle && !gpu_budget_used)
+            gpu_budget_used=catalog.refresh_pending_game_icons(renderer);
+        if(navigation_idle && !gpu_budget_used)
+            gpu_budget_used=catalog.refresh_pending_case_art(renderer);
+        if(navigation_idle && !gpu_budget_used)
+            gpu_budget_used=catalog.refresh_pending_case_templates(renderer);
+        if(navigation_idle && !gpu_budget_used)
+            gpu_budget_used=catalog.refresh_pending_case_background(renderer);
+        if(navigation_idle && !gpu_budget_used)
+            niak_profile_poll_avatar(renderer);
+#else
+        // Host fixtures remain eager and deterministic for six-way 3D QA.
         if(navigation_idle && (frames%4u==0 || first_idle_focus))
             (void)catalog.stream_next_covers(renderer,fonts,1);
-        // Consume async icon responses only on the GL-owning render thread.
         if(navigation_idle) {
             (void)catalog.refresh_pending_game_icons(renderer);
             (void)catalog.refresh_pending_case_art(renderer);
             (void)catalog.refresh_pending_case_templates(renderer);
             (void)catalog.refresh_pending_case_background(renderer);
-            // Avatar PNG/DDS bytes are decoded by a CPU worker; only upload
-            // its completed RGBA on the GL-owning thread during idle.
             niak_profile_poll_avatar(renderer);
         }
+#endif
         // Missing icons can recover after ShadowMountPlus starts late.
         // Unlike initial streaming, retry does not re-read local files.
         if(navigation_idle && frames>0 && frames%600u==0)
