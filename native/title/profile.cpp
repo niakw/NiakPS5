@@ -79,8 +79,8 @@ bool prepare_current_avatar(int current,int &width,int &height,
         std::fclose(owner);
     }
     const bool identified=std::strncmp(marker,identity,10)==0 && marker[10]==' ';
-    const bool staged_png=identified && std::strcmp(marker+11,"png\\n")==0;
-    const bool staged_dds=identified && std::strcmp(marker+11,"dds\\n")==0;
+    const bool staged_png=identified && std::strcmp(marker+11,"png\n")==0;
+    const bool staged_dds=identified && std::strcmp(marker+11,"dds\n")==0;
     if(staged_png) {
         if(niak_prepare_profile_png_file(
                 "/app0/assets/niak-profile.png",pixels) ||
