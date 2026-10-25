@@ -1178,6 +1178,9 @@ namespace {
 struct InventoryProbeResult {
     std::vector<std::string> installed;
     std::vector<std::string> applications;
+    // Owner-local FTP overlays are facts about names/categories, NOT proof
+    // of installation. They can arrive after Catalog construction.
+    std::vector<NiakGame> metadata;
 };
 struct InventoryProbeState {
     std::mutex mutex;
@@ -1235,6 +1238,17 @@ InventoryProbeResult scan_inventory_background() {
     if(count<0)count=niak_snapshot_read(NIAK_APPS_SNAPSHOT_FILE,
                                         records.data(),records.size());
     if(count>0)collect_inventory_ids(result.applications,records,count);
+    // Both staged and private local overlays are read on THIS worker, never
+    // during a normal UI tick. The private overlay wins duplicate IDs.
+    std::vector<NiakGame> overlay(NIAKPS5_MAX_GAMES);
+    const int overlays=niak_merge_local_inventories(
+        "/app0/assets/niak-local-titles.tsv",
+        "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+        overlay.data(),overlay.size());
+    if(overlays>0) {
+        overlay.resize(static_cast<std::size_t>(overlays));
+        result.metadata=std::move(overlay);
+    }
     return result;
 }
 void start_inventory_probe() {
@@ -1296,6 +1310,24 @@ bool Catalog::refresh_if_unavailable(gfx::Renderer &renderer,
                 break;
             }
         if(changed)break;
+    }
+    if(!changed)for(const NiakGame &record:result.metadata) {
+        // An FTP manifest can update the French display name of a live
+        // title without adding a new installed ID. Never promote a stale
+        // standalone FTP record into a visible or launchable application.
+        if(std::find(result.installed.begin(),result.installed.end(),
+                     record.id)==result.installed.end())continue;
+        const auto existing=std::find_if(items_.begin(),items_.end(),
+            [&](const Item &entry) {
+                return std::strcmp(entry.title_id,record.id)==0;
+            });
+        if(existing==items_.end())continue;
+        if((record.title[0] &&
+            std::strcmp(existing->title,record.title)!=0) ||
+           (record.application_category==2 && !existing->application)) {
+            changed=true;
+            break;
+        }
     }
     if(!changed)return false;
 
