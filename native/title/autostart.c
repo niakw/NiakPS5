@@ -115,24 +115,26 @@ static void report(const char *msg,int result) {
  * Never collect accounts, credentials, PSN tokens or any other user's media.
  * Source is the local PS5 profile cache; destination is one private app asset.
  */
-/* Match the graphical avatar decoder's DDS/BC3 contract BEFORE writing
- * /data/homebrew. DDS magic alone is not enough: an incompatible 440 image
- * could otherwise suppress the smaller usable 128/64 fallback. */
+/* Match the graphical avatar decoder's DDS/BC1-or-BC3 contract BEFORE
+ * writing /data/homebrew. An incompatible 440 image must not suppress
+ * the smaller usable 128/64 fallback. */
 static unsigned niak_avatar_dds_u32(const unsigned char *p) {
     return (unsigned)p[0]|((unsigned)p[1]<<8)|
            ((unsigned)p[2]<<16)|((unsigned)p[3]<<24);
 }
 static int niak_avatar_dds_supported(const unsigned char *data,size_t size) {
-    if(!data || size<144 || memcmp(data,"DDS ",4)!=0 ||
+    if(!data || size<128 || memcmp(data,"DDS ",4)!=0 ||
        niak_avatar_dds_u32(data+4)!=124u ||
-       niak_avatar_dds_u32(data+76)!=32u ||
-       memcmp(data+84,"DXT5",4)!=0)return 0;
+       niak_avatar_dds_u32(data+76)!=32u)return 0;
+    const int bc1=memcmp(data+84,"DXT1",4)==0;
+    const int bc3=memcmp(data+84,"DXT5",4)==0;
+    if(!bc1 && !bc3)return 0;
     const unsigned width=niak_avatar_dds_u32(data+16);
     const unsigned height=niak_avatar_dds_u32(data+12);
     if(width<16u || height<16u || width>512u || height>512u)return 0;
     const size_t blocks=((size_t)width+3u)/4u*
                         (((size_t)height+3u)/4u);
-    return blocks<=(size-128u)/16u;
+    return blocks<=(size-128u)/(bc1?8u:16u);
 }
 /* Match the title's lodepng thumbnail geometry before staging a PNG.
  * Require its final IEND too: a PNG signature alone accepted truncated old
