@@ -79,6 +79,58 @@ def _bounded_retrieve(ftp,path,limit=MAX_AVATAR):
         raise
     return out.getvalue()
 
+def valid_avatar_png(blob):
+    """Reject truncated/corrupt profile PNGs before choosing one over DDS.
+
+    Match the icon decoder's 32..2048 geometry and verify every PNG chunk's
+    CRC and terminal IEND. Do not decode, store or transmit private pixels.
+    """
+    import zlib
+    if not blob or not 57 <= len(blob) <= 2*1024*1024:
+        return False
+    if blob[:8]!=b"\x89PNG\r\n\x1a\n":
+        return False
+    offset=8
+    seen_ihdr=False
+    seen_idat=False
+    chunks=0
+    while offset+12<=len(blob):
+        length=int.from_bytes(blob[offset:offset+4],"big")
+        end=offset+12+length
+        if length>2*1024*1024 or end>len(blob):
+            return False
+        typ=blob[offset+4:offset+8]
+        payload=blob[offset+8:offset+8+length]
+        stored=int.from_bytes(blob[offset+8+length:end],"big")
+        if (zlib.crc32(typ+payload)&0xffffffff)!=stored:
+            return False
+        if not seen_ihdr:
+            if typ!=b"IHDR" or length!=13:
+                return False
+            width=int.from_bytes(payload[:4],"big")
+            height=int.from_bytes(payload[4:8],"big")
+            if not (32<=width<=2048 and 32<=height<=2048):
+                return False
+            if payload[10]!=0 or payload[11]!=0 or payload[12]>1:
+                return False
+            depth,color=payload[8:10]
+            permitted={0:(1,2,4,8,16),2:(8,16),3:(1,2,4,8),
+                       4:(8,16),6:(8,16)}
+            if depth not in permitted.get(color,()):
+                return False
+            seen_ihdr=True
+        elif typ==b"IHDR":
+            return False
+        if typ==b"IDAT":
+            seen_idat=True
+        if typ==b"IEND":
+            return length==0 and seen_idat and end==len(blob)
+        offset=end
+        chunks+=1
+        if chunks>4096:
+            return False
+    return False
+
 def valid_avatar_dds(blob):
     """Match native avatar_dds.cpp: ordinary 124-byte DDS, DXT5/BC3 only.
 
@@ -130,6 +182,8 @@ def copy_avatar_for_ftp(ftp, user_id=None):
         if not blob or len(blob)<144 or blob[:len(signature)]!=signature:
             continue
         if name.endswith(".dds") and not valid_avatar_dds(blob):
+            continue
+        if name.endswith(".png") and not valid_avatar_png(blob):
             continue
         suffix=".png" if name.endswith(".png") else ".dds"
         # The owner marker is intentionally cleared FIRST. An interrupted
