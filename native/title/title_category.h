@@ -59,19 +59,19 @@ static inline const char *niak_json_skip_value(const char *p) {
     }
     return depth==0 && niak_json_space(start)!=p?p:NULL;
 }
-static inline int niak_is_installed_media_category_for_title(
+static inline int niak_installed_category_for_title(
     const char *json,const char *expected_title) {
     static const char key[]="applicationCategoryType";
     static const char title_key[]="titleId";
     if(!json)return 0;
     const char *p=niak_json_space(json);
     if(*p++!='{')return 0;
-    int found=0,allowed=0,found_title=0;
+    int found=0,category=0,found_title=0;
     for(;;) {
         p=niak_json_space(p);
         if(*p=='}') {
             p=niak_json_space(p+1);
-            return !*p && found && allowed;
+            return !*p && found ? category : 0;
         }
         if(*p!='"')return 0;
         const char *begin=p+1;
@@ -100,7 +100,7 @@ static inline int niak_is_installed_media_category_for_title(
                 if(*p++!='"')return 0;
             }
             p=niak_json_space(p);
-            allowed=value==65536u||value==65792u||value==66048u;
+            category=value==0u?1:(value==65536u||value==65792u||value==66048u)?2:0;
         } else if(is_title && expected_title) {
             if(found_title++)return 0; // conflicting title identity
             const char *end_value=niak_json_string_end(p);
@@ -120,6 +120,11 @@ static inline int niak_is_installed_media_category_for_title(
         }
         if(*p!='}')return 0;
     }
+}
+/* Only validated media manifests authorize NPXS shell-facing titles. */
+static inline int niak_is_installed_media_category_for_title(
+    const char *json,const char *expected_title) {
+ return niak_installed_category_for_title(json,expected_title)==2;
 }
 /* Legacy category-only wrapper, used by standalone parser tests. */
 static inline int niak_is_installed_media_category(const char *json) {
