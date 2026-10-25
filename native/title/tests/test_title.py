@@ -523,8 +523,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("case_media_stats.preferred_index",source)
         self.assertIn("CoverStreamState::invalid",source)
         self.assertIn("Item &item=items_[choice]",source)
-        # No background thread invokes OpenGL texture uploads.
-        self.assertNotIn("std::thread",source)
+        # Background catalogue scanners are allowed, never GL cover uploads.
+        gpu_source=source[source.index("bool Catalog::stream_next_covers"): 
+                          source.index("bool Catalog::refresh_selected_case_art")]
+        self.assertNotIn("std::thread",gpu_source)
+        self.assertNotIn("scan_inventory_background()",gpu_source)
 
     def test_retail_case_runtime(self):
         source=(ROOT/"title"/"case_renderer.cpp").read_text()
