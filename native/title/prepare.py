@@ -612,6 +612,9 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         return false;
     if(!same_focus || completed!=last_case_completed_)
         case_hydration_step_=0;
+    if(same_focus && completed!=last_case_completed_)
+        niak_invalidate_prepared_case_art(
+            items_[static_cast<std::size_t>(index)].title_id);
     if(index!=last_case_focus_) {
         // Keep only the current and immediate previous 3D case resident.
         // Previous focus survives one transition to avoid visual popping.

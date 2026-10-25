@@ -258,6 +258,27 @@ static void queue_prepared_case_art(const char *id,const char *side) {
 }
 #endif
 
+void niak_invalidate_prepared_case_art(const char *id) {
+#if defined(__PROSPERO__)
+    if(!id)return;
+    auto &state=prepared_case_state();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    if(state.selected_id!=id)return;
+    // CDN completed a NEW face while an older copy was queued, decoded or
+    // waiting for upload. Invalidate all old-generation pixels and restart
+    // the 11-stage hydration against the current atomic cache.
+    ++state.generation;
+    state.queued_sides.clear();
+    state.in_flight.clear();
+    state.completed=false;
+    state.completed_pixels.clear();
+    state.completed_id.clear();
+    state.completed_side.clear();
+    state.wake.notify_one();
+#else
+    (void)id;
+#endif
+}
 std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
                                  const char *id,const char *side,float *aspect) {
 #if defined(__PROSPERO__)

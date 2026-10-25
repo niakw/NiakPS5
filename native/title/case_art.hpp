@@ -7,6 +7,8 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,const char *id,con
 std::uint32_t niak_take_prepared_case_art(
     hui::gfx::Renderer &renderer,const char *expected_id,
     char (&side)[16],float *aspect=nullptr);
+// Called when a new CDN face is committed; obsolete pixels must not win.
+void niak_invalidate_prepared_case_art(const char *title_id);
 
 // Private user-supplied PS4/PS5 overlays (front header, back lower strip, spine).
 // Loaded once per renderer session, not packaged in public GitHub sources.
