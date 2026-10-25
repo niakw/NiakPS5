@@ -311,7 +311,7 @@ audio::SoundSet Shell::sound_set() const''')
                      "case_auto_art.cpp","case_auto_art.hpp",
                      "launch_bridge.cpp","launch_bridge.hpp","socket_guard.h","loopback_connect.h","http_icon_response.hpp",
                      "icon_endpoint_policy.hpp","case_texture_scale.hpp","cover_stream_state.hpp","asset_stats.hpp",
-                     "broker_catalog.cpp","broker_catalog.hpp","broker_snapshot.h","local_inventory.h",
+                     "broker_catalog.cpp","broker_catalog.hpp","broker_snapshot.h","local_inventory.h","local_inventory_merge.hpp",
                      "launch_log_status.h","case_fallback_layout.hpp","case_back_media.hpp",
                      "case_footer_alpha.hpp",
                      "app_classification.hpp","localized_name.h","title_category.h"):
@@ -1153,6 +1153,7 @@ extern "C" {
 #include "niak/broker_catalog.hpp"
 #include "niak/broker_snapshot.h"
 #include "niak/local_inventory.h"
+#include "niak/local_inventory_merge.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -1424,32 +1425,14 @@ void Catalog::reload()
     }
     sys::log("[NiakPS5] verified apps: %d; inventory=%zu",
              verified_count,count);
-    // An immutable /app0 snapshot may still exist after a newer FTP overlay
-    // is installed under /data. Reading only the first available file hid
-    // newer French names and app categories. Merge both by EXACT title ID;
-    // the owner's private installed overlay takes precedence for duplicates.
-    // Neither input independently proves a title is still installed.
+    // Both local overlays enrich ONLY live IDs. The private FTP overlay
+    // wins on exact ID collisions, without resurrecting uninstalled titles.
     std::vector<NiakGame> observed(games.size());
-    std::vector<NiakGame> private_titles(games.size());
-    int cached_count=niak_scan_local_inventory(
-        "/app0/assets/niak-local-titles.tsv",observed.data(),observed.size());
-    const int packaged_count=cached_count;
-    const int private_count=niak_scan_local_inventory(
+    int packaged_count=-1,private_count=-1;
+    const int cached_count=niak_merge_local_inventories(
+        "/app0/assets/niak-local-titles.tsv",
         "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
-        private_titles.data(),private_titles.size());
-    if(cached_count<0)cached_count=0;
-    if(private_count>0) {
-        for(int j=0;j<private_count;++j) {
-            const NiakGame &record=private_titles[static_cast<std::size_t>(j)];
-            std::size_t at=0;
-            for(;at<static_cast<std::size_t>(cached_count);++at)
-                if(std::strcmp(observed[at].id,record.id)==0)break;
-            if(at<static_cast<std::size_t>(cached_count))
-                observed[at]=record;
-            else if(static_cast<std::size_t>(cached_count)<observed.size())
-                observed[static_cast<std::size_t>(cached_count++)]=record;
-        }
-    }
+        observed.data(),observed.size(),&packaged_count,&private_count);
     sys::log("[NiakPS5] title overlays: packaged/private/merged=%d/%d/%d",
              packaged_count,private_count,cached_count);
     if(count>0 && cached_count>0) {
