@@ -56,6 +56,10 @@ class AsyncCaseSceneTests(unittest.TestCase):
         self.assertIn("renderer.create_texture(int(width),int(height),pixels.data())",poll)
         self.assertIn("niak_track_case_texture(texture,width,height)",poll)
         self.assertIn("state.queued.erase(id);",poll)
+        self.assertIn("if(!expected_id || id!=expected_id)return 0;",poll)
+        self.assertLess(poll.index("if(!expected_id || id!=expected_id)return 0;"),
+                        poll.index("renderer.create_texture("))
+        self.assertIn("selected->title_id:nullptr;",PATCH)
         self.assertIn("niak_take_downloaded_game_background",HEADER)
         self.assertIn("bool Catalog::refresh_pending_case_background(",PATCH)
         self.assertIn("catalog.refresh_pending_case_background(renderer);",PATCH)

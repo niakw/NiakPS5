@@ -486,7 +486,18 @@ void Catalog::retry_missing_game_icons() {
 // one response after navigation settles, replacing a generated tile in place.
 bool Catalog::refresh_pending_game_icons(gfx::Renderer &renderer) {
     char id[16]{};
-    const auto handle=niak_take_downloaded_game_icon(renderer,id);
+    const auto accept=[](const char *prepared,void *opaque)->bool {
+        auto &catalog=*static_cast<Catalog *>(opaque);
+        const auto match=std::find_if(
+            catalog.items_.begin(),catalog.items_.end(),
+            [&](const Item &item) {
+                return item.title_id[0] &&
+                    std::strcmp(item.title_id,prepared)==0;
+            });
+        return match!=catalog.items_.end() && !match->cover_is_image;
+    };
+    const auto handle=niak_take_downloaded_game_icon(
+        renderer,id,accept,this);
     if(!handle)return false;
     const auto it=std::find_if(items_.begin(),items_.end(),
         [&](const Item &item) {
@@ -508,10 +519,17 @@ bool Catalog::refresh_pending_game_icons(gfx::Renderer &renderer) {
 bool Catalog::refresh_pending_case_background(gfx::Renderer &renderer) {
     char title_id[16]{};
     float aspect=16.0f/9.0f;
-    auto texture=niak_take_downloaded_game_background(
-        renderer,title_id,&aspect);
-    if(!texture)return false;
     const int focus=niak::case_media_stats.preferred_index;
+    const bool focused=focus>=0 &&
+        static_cast<std::size_t>(focus)<items_.size();
+    const Item *selected=focused?
+        &items_[static_cast<std::size_t>(focus)]:nullptr;
+    const char *expected=selected && !selected->application &&
+        !selected->case_front && !selected->case_scene?
+        selected->title_id:nullptr;
+    auto texture=niak_take_downloaded_game_background(
+        renderer,title_id,&aspect,expected);
+    if(!texture)return false;
     if(focus<0 || static_cast<std::size_t>(focus)>=items_.size()) {
         niak_destroy_case_texture(renderer,texture);
         return false;

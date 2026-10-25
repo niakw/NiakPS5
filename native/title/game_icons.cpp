@@ -520,7 +520,9 @@ void niak_request_missing_game_icon(const char *id) {
 }
 
 std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
-                                             char (&title_id)[16]) {
+                                             char (&title_id)[16],
+                                             bool (*accept)(const char *,void *),
+                                             void *opaque) {
     title_id[0]=0;
 #if defined(__PROSPERO__)
     auto &state=async_icons();
@@ -543,9 +545,12 @@ std::uint32_t niak_take_downloaded_game_icon(hui::gfx::Renderer &renderer,
     // The worker already decoded/resampled this image; only the GPU texture
     // allocation remains on its owning thread. Never decode here.
     if(bytes.size()!=std::size_t(kTarget)*kTarget*4u)return 0;
+    // Drop an icon for an absent/fully loaded title BEFORE allocating VRAM.
+    // The result was consumed above, so the worker is never blocked.
+    if(accept && !accept(title_id,opaque))return 0;
     return renderer.create_texture(kTarget,kTarget,bytes.data());
 #else
-    (void)renderer;
+    (void)renderer;(void)accept;(void)opaque;
     return 0;
 #endif
 }
@@ -621,7 +626,8 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
 }
 
 std::uint32_t niak_take_downloaded_game_background(
-        hui::gfx::Renderer &renderer,char (&title_id)[16],float *aspect) {
+        hui::gfx::Renderer &renderer,char (&title_id)[16],float *aspect,
+        const char *expected_id) {
     title_id[0]=0;
 #if defined(__PROSPERO__)
     auto &state=case_background_state();
@@ -642,6 +648,9 @@ std::uint32_t niak_take_downloaded_game_background(
     if(id.size()>=sizeof(title_id)||width!=768u||height<320u ||
        height>560u||pixels.size()!=std::size_t(width)*height*4u)
         return 0;
+    // On rapid navigation, never allocate a stale scene merely to free it.
+    // Even an empty/invalid selection drains the completed worker slot.
+    if(!expected_id || id!=expected_id)return 0;
     std::memcpy(title_id,id.c_str(),id.size()+1u);
     // Never upload GL textures on the CPU worker.
     const auto texture=renderer.create_texture(int(width),int(height),pixels.data());
@@ -651,7 +660,7 @@ std::uint32_t niak_take_downloaded_game_background(
     }
     return texture;
 #else
-    (void)renderer;(void)aspect;
+    (void)renderer;(void)aspect;(void)expected_id;
     return 0;
 #endif
 }
