@@ -346,6 +346,10 @@ struct AsyncCaseBackground {
     std::condition_variable wake;
     std::deque<std::string> queue;
     std::unordered_set<std::string> queued;
+    // Every focus change supersedes ALL earlier scene work, including an
+    // in-flight decode. No stale artwork may monopolize the next GPU upload.
+    std::uint64_t generation=0;
+    std::string latest_title;
     std::string completed_title;
     std::vector<unsigned char> completed_pixels;
     unsigned completed_width=0,completed_height=0;
@@ -359,6 +363,7 @@ void case_background_worker() {
     auto &state=case_background_state();
     for(;;) {
         std::string id;
+        std::uint64_t generation=0;
         {
             std::unique_lock<std::mutex> lock(state.mutex);
             state.wake.wait(lock,[&] {
@@ -366,6 +371,7 @@ void case_background_worker() {
             });
             id=std::move(state.queue.front());
             state.queue.pop_front();
+            generation=state.generation;
         }
         std::vector<unsigned char> pixels;
         unsigned target_w=0,target_h=0;
@@ -408,6 +414,11 @@ void case_background_worker() {
             break;
         }
         std::lock_guard<std::mutex> lock(state.mutex);
+        // A user can select many games while one big PNG is decoding.
+        // Discard superseded results without modifying queued work for the
+        // latest selection, even if the old and new title IDs are equal.
+        if(generation!=state.generation || id!=state.latest_title)
+            continue;
         if(pixels.empty()) {
             state.queued.erase(id);
             continue;
@@ -422,8 +433,19 @@ void case_background_worker() {
 void enqueue_missing_scene(const char *id) {
     auto &state=case_background_state();
     std::lock_guard<std::mutex> lock(state.mutex);
-    // A duplicate selected scene is not decoded more than once in flight.
-    if(state.queued.size()>=256 || !state.queued.emplace(id).second)return;
+    // There is only one selected 3D case. Older queued requests are not
+    // useful; clear them and invalidate a previous completed buffer.
+    if(state.latest_title!=id) {
+        state.latest_title=id;
+        ++state.generation;
+        state.queue.clear();
+        state.queued.clear();
+        state.completed=false;
+        state.completed_title.clear();
+        state.completed_pixels.clear();
+    }
+    // Deduplicate a pending/in-flight/completed request for this title.
+    if(state.queued.size()>=1 || !state.queued.emplace(id).second)return;
     state.queue.emplace_back(id);
     if(!state.started) {
         state.started=true;
