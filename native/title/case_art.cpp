@@ -19,6 +19,14 @@ extern "C" {
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#if defined(__PROSPERO__)
+#include <condition_variable>
+#include <deque>
+#include <mutex>
+#include <thread>
+#include <unordered_set>
+#endif
 namespace {
 // Texture creation and release always run on the graphics thread.
 std::unordered_map<std::uint32_t,std::uint64_t> tracked_case_textures;
@@ -54,13 +62,14 @@ bool valid_download_source(const std::string &image_path) {
 void niak_track_case_texture(std::uint32_t texture,unsigned width,unsigned height){
  track_case_texture(texture,width,height);
 }
-std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
-                                 const char *id,const char *side,float *aspect) {
+static bool niak_prepare_case_pixels(
+        const char *id,const char *side,
+        std::vector<unsigned char> &prepared,unsigned &out_w,unsigned &out_h) {
  if(!niak_valid_title_id(id)||!side ||
     (std::strcmp(side,"front") && std::strcmp(side,"back") &&
      std::strcmp(side,"logo") && std::strcmp(side,"spine") &&
      std::strcmp(side,"poster") && std::strcmp(side,"hero") &&
-     std::strcmp(side,"shot1") && std::strcmp(side,"shot2")))return 0;
+     std::strcmp(side,"shot1") && std::strcmp(side,"shot2")))return false;
  // Do not let a stale/corrupt private PNG shadow another valid source.
  std::vector<std::string> paths;
  char file[384];
@@ -158,15 +167,166 @@ std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
      if(!niak_scale_case_rgba(pixels,w,h,
          logo?768u:spine?96u:landscape?768u:512u,
          landscape?512u:768u))continue;
-     const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
-     if(!handle)continue;
-     if(aspect)*aspect=float(w)/float(h);
-     track_case_texture(handle,w,h);
-     return handle;
+     out_w=w;out_h=h;
+     prepared=std::move(pixels);
+     return true;
  }
- // Missing artwork is NOT a download request. Only selecting a game can
- // enqueue CDN work. Library streaming loads existing local cache offline.
- return 0;
+ // Pure CPU helper. Work is queued separately on PS5 and previews load
+ // read-only fixtures synchronously on the host.
+ return false;
+}
+
+#if defined(__PROSPERO__)
+// Latest-selected-title worker. This owns no GPU handles or catalogue items;
+// only one resized RGBA image is retained until the graphics thread polls it.
+struct PreparedCaseArt {
+    std::mutex mutex;
+    std::condition_variable wake;
+    std::deque<std::string> queued_sides;
+    std::unordered_set<std::string> in_flight;
+    std::string selected_id;
+    std::uint64_t generation=0;
+    bool started=false,completed=false;
+    std::string completed_id,completed_side;
+    std::vector<unsigned char> completed_pixels;
+    unsigned completed_width=0,completed_height=0;
+};
+static PreparedCaseArt &prepared_case_state() {
+    static auto *state=new PreparedCaseArt;
+    return *state;
+}
+static void prepared_case_worker() {
+    auto &state=prepared_case_state();
+    for(;;) {
+        std::string id,side;
+        std::uint64_t generation=0;
+        {
+            std::unique_lock<std::mutex> lock(state.mutex);
+            state.wake.wait(lock,[&] {
+                return !state.completed && !state.queued_sides.empty();
+            });
+            id=state.selected_id;
+            generation=state.generation;
+            side=std::move(state.queued_sides.front());
+            state.queued_sides.pop_front();
+        }
+        std::vector<unsigned char> pixels;
+        unsigned width=0,height=0;
+        const bool ready=niak_prepare_case_pixels(
+            id.c_str(),side.c_str(),pixels,width,height);
+        {
+            std::lock_guard<std::mutex> lock(state.mutex);
+            // A different game was selected while a large scan decoded.
+            // Its decoded bytes must never be uploaded to an old GPU owner.
+            if(generation!=state.generation || id!=state.selected_id)
+                continue;
+            if(!ready) {
+                state.in_flight.erase(side);
+                continue;
+            }
+            state.completed_id=std::move(id);
+            state.completed_side=std::move(side);
+            state.completed_width=width;
+            state.completed_height=height;
+            state.completed_pixels=std::move(pixels);
+            state.completed=true;
+        }
+    }
+}
+static void queue_prepared_case_art(const char *id,const char *side) {
+    auto &state=prepared_case_state();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    if(state.selected_id!=id) {
+        state.selected_id=id;
+        ++state.generation;
+        state.queued_sides.clear();
+        state.in_flight.clear();
+        state.completed=false;
+        state.completed_pixels.clear();
+        state.completed_id.clear();
+        state.completed_side.clear();
+    }
+    // At most eight distinct face requests per game.
+    if(state.in_flight.size()>=8 || !state.in_flight.emplace(side).second)
+        return;
+    state.queued_sides.emplace_back(side);
+    if(!state.started) {
+        state.started=true;
+        std::thread([] {prepared_case_worker();}).detach();
+    }
+    state.wake.notify_one();
+}
+#endif
+
+std::uint32_t niak_load_case_art(hui::gfx::Renderer &renderer,
+                                 const char *id,const char *side,float *aspect) {
+#if defined(__PROSPERO__)
+    // Preserve the established 11-stage prioritization but no filesystem
+    // reads, PNG/WebP decompression or CPU scaling on the GL thread.
+    if(!niak_valid_title_id(id)||!side ||
+       (std::strcmp(side,"front") && std::strcmp(side,"back") &&
+        std::strcmp(side,"spine") && std::strcmp(side,"logo") &&
+        std::strcmp(side,"poster") && std::strcmp(side,"hero") &&
+        std::strcmp(side,"shot1") && std::strcmp(side,"shot2")))return 0;
+    queue_prepared_case_art(id,side);
+    (void)renderer;(void)aspect;
+    return 0;
+#else
+    // Original host preview remains eager and deterministic.
+    std::vector<unsigned char> pixels;
+    unsigned w=0,h=0;
+    if(!niak_prepare_case_pixels(id,side,pixels,w,h))return 0;
+    const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
+    if(!handle)return 0;
+    if(aspect)*aspect=float(w)/float(h);
+    track_case_texture(handle,w,h);
+    return handle;
+#endif
+}
+
+// Drop mismatched completions BEFORE the GPU allocation, not after it.
+// There is no renderer work, file read or socket call on an empty poll.
+std::uint32_t niak_take_prepared_case_art(
+        hui::gfx::Renderer &renderer,const char *expected_id,
+        char (&side)[16],float *aspect) {
+    side[0]=0;
+#if defined(__PROSPERO__)
+    auto &state=prepared_case_state();
+    std::vector<unsigned char> pixels;
+    std::string selected_side;
+    unsigned w=0,h=0;
+    {
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if(!state.completed)return 0;
+        const bool selected=expected_id &&
+            state.completed_id==expected_id &&
+            state.selected_id==expected_id;
+        selected_side=std::move(state.completed_side);
+        if(selected) {
+            pixels=std::move(state.completed_pixels);
+            w=state.completed_width;
+            h=state.completed_height;
+        }
+        state.completed_pixels.clear();
+        state.completed=false;
+        state.completed_id.clear();
+        state.in_flight.erase(selected_side);
+    }
+    state.wake.notify_one();
+    if(pixels.empty() || selected_side.size()>=sizeof(side) ||
+       !w || !h || w>2048u || h>1536u ||
+       pixels.size()!=std::size_t(w)*h*4u)return 0;
+    std::memcpy(side,selected_side.c_str(),selected_side.size()+1u);
+    const auto handle=renderer.create_texture(int(w),int(h),pixels.data());
+    if(handle) {
+        if(aspect)*aspect=float(w)/float(h);
+        track_case_texture(handle,w,h);
+    }
+    return handle;
+#else
+    (void)renderer;(void)expected_id;(void)aspect;
+    return 0;
+#endif
 }
 
 void niak_destroy_case_texture(hui::gfx::Renderer &renderer,

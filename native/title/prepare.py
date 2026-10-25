@@ -266,6 +266,7 @@ audio::SoundSet Shell::sound_set() const''')
         '    bool refresh_selected_case_art(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_game_icons(gfx::Renderer &renderer);\n'
         '    bool refresh_pending_case_background(gfx::Renderer &renderer);\n'
+        '    bool refresh_pending_case_art(gfx::Renderer &renderer);\n'
         '    void retry_missing_game_icons();')
     replace_once(catalog_h, '  private:\n', '  private:\n    void reload();\n')
 
@@ -525,6 +526,78 @@ bool Catalog::refresh_pending_case_background(gfx::Renderer &renderer) {
     return true;
 }
 
+// The worker returns only already scaled pixels. Refuse obsolete titles
+// BEFORE allocating their textures, then bind one approved scan per idle frame.
+bool Catalog::refresh_pending_case_art(gfx::Renderer &renderer) {
+    const int focus=niak::case_media_stats.preferred_index;
+    if(focus<0 || static_cast<std::size_t>(focus)>=items_.size())return false;
+    Item &selected=items_[static_cast<std::size_t>(focus)];
+    if(!selected.title_id[0] || selected.application)return false;
+    char side[16]{};
+    float aspect=1.0f;
+    auto handle=niak_take_prepared_case_art(
+        renderer,selected.title_id,side,&aspect);
+    if(!handle)return false;
+    std::uint32_t *destination=nullptr;
+    float *destination_aspect=nullptr;
+    if(std::strcmp(side,"front")==0)destination=&selected.case_front;
+    else if(std::strcmp(side,"back")==0)destination=&selected.case_back;
+    else if(std::strcmp(side,"spine")==0)destination=&selected.case_spine;
+    else if(std::strcmp(side,"logo")==0) {
+        destination=&selected.logo_art;
+        destination_aspect=&selected.logo_art_aspect;
+    } else if(std::strcmp(side,"poster")==0) {
+        destination=&selected.case_poster;
+        destination_aspect=&selected.poster_aspect;
+    } else if(std::strcmp(side,"hero")==0) {
+        destination=&selected.case_hero;
+        destination_aspect=&selected.case_hero_aspect;
+    } else if(std::strcmp(side,"shot1")==0) {
+        destination=&selected.case_shot1;
+        destination_aspect=&selected.case_shot1_aspect;
+    } else if(std::strcmp(side,"shot2")==0) {
+        destination=&selected.case_shot2;
+        destination_aspect=&selected.case_shot2_aspect;
+    }
+    const bool redundant=(selected.case_front &&
+        (std::strcmp(side,"logo")==0 || std::strcmp(side,"poster")==0)) ||
+        (selected.case_back &&
+        (std::strcmp(side,"shot1")==0 || std::strcmp(side,"shot2")==0 ||
+         (std::strcmp(side,"hero")==0 && selected.case_front)));
+    if(!destination || *destination || redundant) {
+        niak_destroy_case_texture(renderer,handle);
+        return false;
+    }
+    *destination=handle;
+    if(destination_aspect)*destination_aspect=aspect;
+    if(selected.case_front) {
+        niak_destroy_case_texture(renderer,selected.logo_art);
+        niak_destroy_case_texture(renderer,selected.case_poster);
+        niak_destroy_case_texture(renderer,selected.case_scene);
+        selected.case_template_front=0;
+    }
+    if(selected.case_back) {
+        if(selected.case_front)
+            niak_destroy_case_texture(renderer,selected.case_hero);
+        niak_destroy_case_texture(renderer,selected.case_shot1);
+        niak_destroy_case_texture(renderer,selected.case_shot2);
+        selected.case_template_back=0;
+    }
+    if(selected.case_spine)selected.case_template_spine=0;
+    auto &stats=niak::case_media_stats;
+    stats.fronts=stats.backs=stats.spines=stats.scenes=stats.templates=0;
+    for(const Item &item:items_) {
+        stats.fronts+=item.case_front!=0;
+        stats.backs+=item.case_back!=0;
+        stats.spines+=item.case_spine!=0;
+        stats.scenes+=item.case_scene!=0;
+        stats.templates+=item.case_template_front!=0 &&
+                         item.case_template_back!=0 &&
+                         item.case_template_spine!=0;
+    }
+    return true;
+}
+
 bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
 {
     const int index=niak::case_media_stats.preferred_index;
@@ -697,6 +770,7 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
         // Consume async icon responses only on the GL-owning render thread.
         if(navigation_idle) {
             (void)catalog.refresh_pending_game_icons(renderer);
+            (void)catalog.refresh_pending_case_art(renderer);
             (void)catalog.refresh_pending_case_background(renderer);
         }
         // Missing icons can recover after ShadowMountPlus starts late.
