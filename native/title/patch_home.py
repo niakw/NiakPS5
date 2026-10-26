@@ -305,12 +305,12 @@ def patch(kit):
         // Detect the local marker only; the title sandbox cannot certify that
         // Payload Manager actually executed its one-shot payload.
         const bool enabled=[] {
-            std::FILE *file=std::fopen("/data/niakps5-autostart.enabled","rb");
+            std::FILE *file=std::fopen("/data/NiakPS5/state/autostart.enabled","rb");
             if(!file)return false;
             std::fclose(file);return true;
         }();
         const bool disabled=[] {
-            std::FILE *file=std::fopen("/data/niakps5-autostart.disable","rb");
+            std::FILE *file=std::fopen("/data/NiakPS5/state/autostart.disable","rb");
             if(!file)return false;
             std::fclose(file);return true;
         }();
@@ -325,7 +325,8 @@ def patch(kit):
             last_check=now;
             broker_pid=niak_launch_broker_pid();
             const auto read_status=[]() -> const char * {
-                std::FILE *log=std::fopen("/data/niakps5-autostart.log","rb");
+                std::FILE *log=std::fopen("/data/NiakPS5/logs/autostart.log","rb");
+                if(!log)log=std::fopen("/data/niakps5-autostart.log","rb");
                 if(!log)return "Journal inaccessible";
                 if(std::fseek(log,0,SEEK_END)!=0) {
                     std::fclose(log);return "Journal illisible";
