@@ -44,6 +44,11 @@ class FTPDropinTests(unittest.TestCase):
         self.assertEqual((slot/"niakps5.elf.json").read_bytes(),
                          (app/"tools/niakps5/niakps5.elf.json").read_bytes())
         self.assertEqual([p.name for p in dest.iterdir()],["data"])
+        runtime=dest/"data/NiakPS5"
+        self.assertEqual({p.name for p in runtime.iterdir()},
+                         {"README.txt","assets","cache","inventory","logs","state"})
+        self.assertTrue((runtime/"inventory/.keep").is_file())
+        self.assertFalse((runtime/"state/autostart.disable").exists())
         self.assertFalse((dest/"data/pldmgr/autoload.txt").exists())
         self.assertFalse((dest/"data/pldmgr/pldmgr_config.txt").exists())
         self.assertEqual((slot/"niakps5.elf").stat().st_mode & 0o777,0o755)
