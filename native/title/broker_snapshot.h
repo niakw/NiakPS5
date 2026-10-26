@@ -15,16 +15,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-/* The payload can update the native title's own existing assets folder.
- * The sandboxed UI reads the same bytes via its mounted /app0 path.
- * Keep /data as a backward-compatible fallback on older installations.
- */
-#define NIAK_SNAPSHOT_FILE "/data/niakps5-games.snapshot"
+/* Runtime snapshots belong under /data/NiakPS5/inventory.\n * Old app-install paths remain READ-ONLY fallback sources.\n */
+#define NIAK_SNAPSHOT_FILE "/data/NiakPS5/inventory/games.snapshot"
 #define NIAK_SNAPSHOT_APP_SOURCE "/data/homebrew/PPSA99386/assets/niakps5-games.snapshot"
 #define NIAK_SNAPSHOT_APP_FILE "/app0/assets/niakps5-games.snapshot"
 #define NIAK_APPS_SNAPSHOT_APP_SOURCE "/data/homebrew/PPSA99386/assets/niakps5-apps.snapshot"
 #define NIAK_APPS_SNAPSHOT_APP_FILE "/app0/assets/niakps5-apps.snapshot"
-#define NIAK_APPS_SNAPSHOT_FILE "/data/niakps5-apps.snapshot"
+#define NIAK_APPS_SNAPSHOT_FILE "/data/NiakPS5/inventory/apps.snapshot"
 #define NIAK_SNAPSHOT_MAX_AGE 600LL
 #define NIAK_SNAPSHOT_MAX_GAMES 512
 #define NIAK_SNAPSHOT_VERSION "NIAKPS5-GAMES-1"
