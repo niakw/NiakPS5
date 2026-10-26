@@ -1256,11 +1256,11 @@ using MetadataStamps=std::array<MetadataStamp,6>;
 MetadataStamps read_description_stamps() {
     static const char *const paths[]={
         "/app0/assets/niak-overviews-fr.tsv",
-        "/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv",
+        "/data/NiakPS5/assets/niak-overviews-fr.tsv",
         "/app0/assets/niak-overviews-fr-sourced.tsv",
-        "/data/homebrew/PPSA99386/assets/niak-overviews-fr-sourced.tsv",
+        "/data/NiakPS5/assets/niak-overviews-fr-sourced.tsv",
         "/app0/assets/niak-launchbox-cases.tsv",
-        "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
+        "/data/NiakPS5/assets/niak-launchbox-cases.tsv"};
     MetadataStamps stamps{};
     for(std::size_t i=0;i<stamps.size();++i) {
         struct stat st{};
@@ -1364,7 +1364,7 @@ InventoryProbeResult scan_inventory_background() {
     std::vector<NiakGame> overlay(NIAKPS5_MAX_GAMES);
     const int overlays=niak_merge_local_inventories(
         "/app0/assets/niak-local-titles.tsv",
-        "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+        "/data/NiakPS5/assets/niak-local-titles.tsv",
         overlay.data(),overlay.size());
     if(overlays>0) {
         overlay.resize(static_cast<std::size_t>(overlays));
@@ -1651,7 +1651,7 @@ void Catalog::reload()
     int packaged_count=-1,private_count=-1;
     const int cached_count=niak_merge_local_inventories(
         "/app0/assets/niak-local-titles.tsv",
-        "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+        "/data/NiakPS5/assets/niak-local-titles.tsv",
         observed.data(),observed.size(),&packaged_count,&private_count);
     sys::log("[NiakPS5] title overlays: packaged/private/merged=%d/%d/%d",
              packaged_count,private_count,cached_count);
