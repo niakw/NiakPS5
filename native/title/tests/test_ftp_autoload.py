@@ -97,7 +97,7 @@ class AutoloadTests(unittest.TestCase):
                <FileName>00000000-0000-0000-0000-000000427261.png</FileName>
              </GameImage></LaunchBox>"""
             with ZipFile(archive,"w") as z:z.writestr("Metadata.xml",xml)
-            f=FakeFTP({f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv":
+            f=FakeFTP({f"{ftpmod.ASSETS_ROOT}/niak-local-titles.tsv":
                 b"PPSA02387\tA Plague Tale: Innocence\tJeu\t\t\n",
                 "/user/app/PPSA02387/sce_sys/param.json":b'{"titleId":"PPSA02387"}'})
             with patch.object(ftpmod,"__file__",str(tools/"ftp_install.py")):
@@ -149,7 +149,7 @@ class AutoloadTests(unittest.TestCase):
                            case_templates=overlay)
         self.assertEqual(f.files[ftpmod.AUTOLOAD],original)
         for name in sizes:
-            remote=f"/data/homebrew/PPSA99386/assets/niak-templates/{name}"
+            remote=f"/data/NiakPS5/assets/niak-templates/{name}"
             self.assertEqual(f.files[remote],imgs[name])
         with ZipFile(overlay,"a") as archive:
             archive.writestr("PPSA99386/../../untrusted.png",b"bad")
@@ -173,7 +173,7 @@ class AutoloadTests(unittest.TestCase):
         console=FakeFTP()
         with redirect_stdout(io.StringIO()):
             self.assertEqual(ftpmod.upload_case_templates(console,self.root),6)
-        private="/data/homebrew/PPSA99386/assets/niak-templates/"
+        private="/data/NiakPS5/assets/niak-templates/"
         self.assertEqual(sum(p.startswith(private) for p in console.files),6)
         self.assertNotIn(ftpmod.PAYLOAD,console.files)
         (folder/"ps5-spine.png").write_bytes(b"BAD")
@@ -203,7 +203,7 @@ class AutoloadTests(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             self.assertEqual(ftpmod.stage_installed_artwork(console,2),2)
             self.assertEqual(ftpmod.stage_installed_artwork(console,2),0)
-        cached="/data/homebrew/PPSA99386/assets/niak-installed/"
+        cached="/data/NiakPS5/assets/niak-installed/"
         self.assertEqual(len([p for p in console.files if p.startswith(cached)]),2)
         for side in ("icon","scene"):
             candidates=[cached+title+"-"+side+ext for ext in (".webp",".png")]
@@ -227,7 +227,7 @@ class AutoloadTests(unittest.TestCase):
         bad="NPXS99999"
         # The cache discovery itself must be restricted to verified media
         # metadata, not just any directory matching an NPXS identifier.
-        overlay=f"/data/homebrew/PPSA99386/assets/niak-local-titles.tsv"
+        overlay=f"/data/NiakPS5/assets/niak-local-titles.tsv"
         ftp=FakeFTP({overlay:(good+"\tLecteur vidéo\tApplication\t\t\n"+
                               bad+"\tService système\tAutre\t\t\n").encode()})
         with redirect_stdout(io.StringIO()):
@@ -269,7 +269,7 @@ class AutoloadTests(unittest.TestCase):
         self.assertIn("Marqueur activation : True",report)
 
     def test_empty_catalog_scan_clears_stale_private_overlay(self):
-        path=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"
+        path=f"{ftpmod.ASSETS_ROOT}/niak-local-titles.tsv"
         old=b"NPXS12345\\tAncien media\\tApplication\\t\\t\\n"
         ftp=FakeFTP({path:old})
         count=ftpmod.upload_local_homebrew_names(ftp)
@@ -285,7 +285,7 @@ class AutoloadTests(unittest.TestCase):
                             "/mnt/ext0/user/app","/mnt/ext1/user/app"):
                     raise error_perm("550 Permission denied")
                 return super().nlst(path)
-        private=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"
+        private=f"{ftpmod.ASSETS_ROOT}/niak-local-titles.tsv"
         old=b"PPSA00001\\tJeu deja connu\\tJeu\\t\\t\\n"
         console=InaccessibleTitles({private:old})
         self.assertEqual(ftpmod.upload_local_homebrew_names(console),0)
@@ -295,7 +295,7 @@ class AutoloadTests(unittest.TestCase):
         # The folder and an explicit titleId must represent the same title;
         # otherwise stale/copied param.json can mislabel a title in the UI.
         root="/user/app/PPSA12345/sce_sys/param.json"
-        path=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"
+        path=f"{ftpmod.ASSETS_ROOT}/niak-local-titles.tsv"
         ftp=FakeFTP({root:b'{"titleId":"PPSA99999","titleName":"Wrong Game","applicationCategoryType":0}'})
         self.assertEqual(ftpmod.upload_local_homebrew_names(ftp),0)
         self.assertEqual(ftp.files[path],b"")
@@ -321,7 +321,7 @@ class AutoloadTests(unittest.TestCase):
             files[f"{base}/{ident}/sce_sys/param.json"]=json.dumps(meta).encode()
         ftp=FakeFTP(files)
         self.assertEqual(ftpmod.upload_local_homebrew_names(ftp),2)
-        overlay=ftp.files[f"/data/homebrew/{ftpmod.TITLE}/assets/niak-local-titles.tsv"].decode()
+        overlay=ftp.files[f"{ftpmod.ASSETS_ROOT}/niak-local-titles.tsv"].decode()
         self.assertIn("PPSA12345\tJeu valide\tJeu",overlay)
         self.assertIn("PPSA23456\tList params\tJeu",overlay)
         self.assertNotIn("PPSA34567",overlay)
@@ -468,8 +468,8 @@ class AutoloadTests(unittest.TestCase):
         sample=make_png_avatar()
         f=FakeFTP({source:sample})
         ftpmod.install(f,self.root,False)
-        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
-        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile-source.txt"],
+        self.assertEqual(f.files["/data/NiakPS5/assets/niak-profile.png"],sample)
+        self.assertEqual(f.files["/data/NiakPS5/assets/niak-profile-source.txt"],
                          b"0x12345678 png\n")
 
     def test_multiple_profiles_are_not_guessed(self):
@@ -477,17 +477,17 @@ class AutoloadTests(unittest.TestCase):
         sample=make_png_avatar()
         f=FakeFTP({root+"0x11111111/avatar.png":sample,root+"0x22222222/avatar.png":sample})
         ftpmod.install(f,self.root,False)
-        self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-profile.png",f.files)
+        self.assertNotIn("/data/NiakPS5/assets/niak-profile.png",f.files)
         ftpmod.install(f,self.root,False,avatar_user_id="0x22222222")
-        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile.png"],sample)
-        self.assertEqual(f.files["/data/homebrew/PPSA99386/assets/niak-profile-source.txt"],
+        self.assertEqual(f.files["/data/NiakPS5/assets/niak-profile.png"],sample)
+        self.assertEqual(f.files["/data/NiakPS5/assets/niak-profile-source.txt"],
                          b"0x22222222 png\n")
 
     def test_avatar_upload_failure_clears_previous_owner_before_image_update(self):
         from ftplib import error_perm
         source="/system_data/priv/cache/profile/0x12345678/avatar.png"
-        marker="/data/homebrew/PPSA99386/assets/niak-profile-source.txt"
-        destination="/data/homebrew/PPSA99386/assets/niak-profile.png"
+        marker="/data/NiakPS5/assets/niak-profile-source.txt"
+        destination="/data/NiakPS5/assets/niak-profile.png"
         class BrokenFTP(FakeFTP):
             def storbinary(self,command,buf):
                 if command=="STOR "+destination:
@@ -517,7 +517,7 @@ class AutoloadTests(unittest.TestCase):
         self.assertFalse(ftpmod.valid_avatar_png(good[:-12]))
         self.assertFalse(ftpmod.valid_avatar_png(b"\x89PNG\r\n\x1a\n"+bytes(200)))
         ftpmod.install(ftp,self.root,False,avatar_user_id=user)
-        dest="/data/homebrew/PPSA99386/assets/"
+        dest="/data/NiakPS5/assets/"
         self.assertEqual(ftp.files[dest+"niak-profile.dds"],dds)
         self.assertEqual(ftp.files[dest+"niak-profile-source.txt"],
                          b"0xA0B0C0D0 dds\n")
@@ -539,7 +539,7 @@ class AutoloadTests(unittest.TestCase):
         dds=make_bc3_avatar_dds(128)
         f=FakeFTP({"/system_data/priv/cache/profile/"+user+"/avatar128.dds":dds})
         ftpmod.install(f,self.root,False,avatar_user_id=user)
-        root="/data/homebrew/PPSA99386/assets/"
+        root="/data/NiakPS5/assets/"
         self.assertEqual(f.files[root+"niak-profile.dds"],dds)
         self.assertEqual(f.files[root+"niak-profile-source.txt"],b"0xA0B0C0D0 dds\n")
         native=(SCRIPT.parent/"profile.cpp").read_text()
@@ -556,7 +556,7 @@ class AutoloadTests(unittest.TestCase):
         root="/system_data/priv/cache/profile/"+user+"/"
         f=FakeFTP({root+"avatar440.dds":high,root+"avatar128.dds":low})
         ftpmod.install(f,self.root,False,avatar_user_id=user)
-        output="/data/homebrew/PPSA99386/assets/"
+        output="/data/NiakPS5/assets/"
         self.assertEqual(f.files[output+"niak-profile.dds"],high)
         self.assertEqual(f.files[output+"niak-profile-source.txt"],
                          b"0xA0B0C0D0 dds\n")
@@ -568,7 +568,7 @@ class AutoloadTests(unittest.TestCase):
         root="/system_data/priv/cache/profile/"+user+"/"
         ftp=FakeFTP({root+"avatar440.dds":high,root+"avatar128.dds":low})
         ftpmod.install(ftp,self.root,False,avatar_user_id=user)
-        output="/data/homebrew/PPSA99386/assets/"
+        output="/data/NiakPS5/assets/"
         self.assertTrue(ftpmod.valid_avatar_dds(high))
         self.assertEqual(ftp.files[output+"niak-profile.dds"],high)
         self.assertFalse(ftpmod.valid_avatar_dds(high[:-1]))
@@ -583,7 +583,7 @@ class AutoloadTests(unittest.TestCase):
         ftp=FakeFTP({root+"avatar440.dds":bytes(high),
                      root+"avatar128.dds":low})
         ftpmod.install(ftp,self.root,False,avatar_user_id=user)
-        output="/data/homebrew/PPSA99386/assets/"
+        output="/data/NiakPS5/assets/"
         self.assertFalse(ftpmod.valid_avatar_dds(bytes(high)))
         self.assertTrue(ftpmod.valid_avatar_dds(low))
         self.assertEqual(ftp.files[output+"niak-profile.dds"],low)
@@ -674,7 +674,7 @@ class AutoloadTests(unittest.TestCase):
             def read(self,size):return jpeg.getvalue()
         with patch.object(urllib.request,"urlopen",return_value=Response()):
             self.assertEqual(ftpmod.fetch_retail_covers(f,self.root),1)
-        destination=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{ident}-front.webp"
+        destination=f"{ftpmod.ASSETS_ROOT}/niak-cases/{ident}-front.webp"
         self.assertIn(destination,f.files)
         self.assertTrue(ftpmod._case_png_usable(f.files[destination],"front"))
 
@@ -700,10 +700,10 @@ class AutoloadTests(unittest.TestCase):
               patch.object(ftpmod,"_decode_retail_image",return_value=b"compressed png")):
             count=ftpmod.fetch_retail_covers(f,self.root)
         self.assertEqual(count,3)
-        self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-spine.png",f.files)
-        self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-front.png",f.files)
-        self.assertIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA34015-back.png",f.files)
-        self.assertNotIn("/data/homebrew/PPSA99386/assets/niak-cases/PPSA01234-front.png",f.files)
+        self.assertIn("/data/NiakPS5/assets/niak-cases/PPSA34015-spine.png",f.files)
+        self.assertIn("/data/NiakPS5/assets/niak-cases/PPSA34015-front.png",f.files)
+        self.assertIn("/data/NiakPS5/assets/niak-cases/PPSA34015-back.png",f.files)
+        self.assertNotIn("/data/NiakPS5/assets/niak-cases/PPSA01234-front.png",f.files)
 
     def test_refresh_art_is_isolated_from_payload_manager(self):
         # --refresh-art delegates only to the two read-only discovery /
@@ -735,7 +735,7 @@ class AutoloadTests(unittest.TestCase):
         })
         count=ftpmod.upload_local_homebrew_names(f)
         self.assertEqual(count,3)
-        overlay=f.files["/data/homebrew/PPSA99386/assets/niak-local-titles.tsv"].decode()
+        overlay=f.files["/data/NiakPS5/assets/niak-local-titles.tsv"].decode()
         self.assertIn("PPSA11111\tTest Game\tJeu\t",overlay)
         self.assertIn("PPSA22222\tTest App\tApplication\t",overlay)
         self.assertIn("NPXS50001\tTest Streaming\tApplication\t",overlay)
@@ -855,7 +855,7 @@ class AutoloadTests(unittest.TestCase):
         import io
         from contextlib import redirect_stdout
         game="/user/app/PPSA34015/eboot.bin"
-        art=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/PPSA34015-front.png"
+        art=f"{ftpmod.ASSETS_ROOT}/niak-cases/PPSA34015-front.png"
         files={game:b"game",art:b"cached"}
         ftp=FakeFTP(files)
         output=io.StringIO()
@@ -873,7 +873,7 @@ class AutoloadTests(unittest.TestCase):
         for mode in ("absolute","basename","relative"):
             with self.subTest(mode=mode):
                 ident="PPSA34015"
-                stored=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{ident}-front.png"
+                stored=f"{ftpmod.ASSETS_ROOT}/niak-cases/{ident}-front.png"
                 ftp=FakeFTP({stored:b"cached",
                              f"/user/app/{ident}/eboot.bin":b"game",
                              ftpmod.CASE_CACHE_SOURCES:(
@@ -903,7 +903,7 @@ class AutoloadTests(unittest.TestCase):
         from unittest.mock import patch
         import urllib.request
         id="PPSA34015"
-        existing=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{id}-front.png"
+        existing=f"{ftpmod.ASSETS_ROOT}/niak-cases/{id}-front.png"
         f=FakeFTP({f"/user/app/{id}/eboot.bin":b"game",existing:b"image",
                    ftpmod.CASE_CACHE_SOURCES:
                    (id+"\tfront\t00000000-0000-0000-0000-000000000001.jpg\n").encode()})
@@ -935,7 +935,7 @@ class AutoloadTests(unittest.TestCase):
         (self.root/"assets").mkdir(exist_ok=True)
         (self.root/"assets/niak-launchbox-cases.tsv").write_text(
             f"{ident}\t-\tfr:{image}\t-\t-\t-\t8\n")
-        asset=f"/data/homebrew/{ftpmod.TITLE}/assets/niak-cases/{ident}-front.png"
+        asset=f"{ftpmod.ASSETS_ROOT}/niak-cases/{ident}-front.png"
         f=FakeFTP({f"/user/app/{ident}/eboot.bin":b"present",
                    asset:b"old",
                    ftpmod.CASE_CACHE_SOURCES:
