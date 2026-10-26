@@ -53,10 +53,21 @@ def stage(title:Path,output:Path):
     app=output/"data/homebrew"/TITLE
     slot=output/"data/pldmgr/payloads"/OWN_PAYLOAD
     shutil.copytree(title,app,symlinks=False)
+    # PS5 launcher files must remain in the registered title mount.
+    # Persistent writable NiakPS5 state belongs under a distinct, human-
+    # readable /data/NiakPS5 root, never inside the title installation.
+    runtime=output/"data/NiakPS5"
+    for subdir in ("assets","cache","inventory","logs","state"):
+        folder=runtime/subdir
+        folder.mkdir(parents=True,exist_ok=True)
+        (folder/".keep").write_text("NiakPS5 runtime directory\\n",encoding="utf-8")
+    (runtime/"README.txt").write_text(
+        "NiakPS5 persistent runtime files. Do not delete PPSA99386 while "
+        "it is the mounted PS5 executable title.\\n",encoding="utf-8")
     slot.mkdir(parents=True,exist_ok=True)
     for name in ("niakps5.elf","niakps5.elf.json"):
         shutil.copy2(title/"tools/niakps5"/name,slot/name)
-    for directory in (output,output/"data",output/"data/homebrew",
+    for directory in (output,output/"data",runtime,*(runtime/p for p in ("assets","cache","inventory","logs","state")),output/"data/homebrew",
                       output/"data/pldmgr",output/"data/pldmgr/payloads",slot):
         directory.chmod(0o755)
     # Some FTP clients preserve these POSIX flags; the ZIP metadata also
