@@ -1140,8 +1140,13 @@ def diagnose(ftp,local_directory=None):
     # Markers prove configuration only; not execution. Never call it "working"
     # unless the user's PS5 log records a successful service call.
     marker=_listed(ftp,STATE_ROOT)
-    print("Marqueur activation :",known(present(marker,"niakps5-autostart.enabled")))
-    print("Marqueur désactivation :",known(present(marker,"niakps5-autostart.disable")))
+    legacy_markers=_listed(ftp,"/data")
+    print("Marqueur activation :",known(present(marker,"autostart.enabled")))
+    disabled=present(marker,"autostart.disable")
+    legacy_disabled=present(legacy_markers,"niakps5-autostart.disable")
+    print("Marqueur désactivation :",
+          disabled is True or legacy_disabled is True if
+          disabled is not None or legacy_disabled is not None else "inconnu")
     try: log=_bounded_retrieve(ftp,LOG_ROOT + "/autostart.log")
     except (OSError,ValueError): log=None
     if log is None:
