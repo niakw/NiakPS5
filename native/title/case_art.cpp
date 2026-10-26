@@ -89,7 +89,7 @@ static bool niak_prepare_case_pixels(
  // placing the newer private image first prevents that obsolete cache
  // from hiding the freshly downloaded cover.
  std::snprintf(file,sizeof(file),
-     "/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp",id,side);
+     "/data/NiakPS5/assets/niak-cdn-case-%s-%s.webp",id,side);
  paths.emplace_back(file);
  const std::size_t private_slot=paths.size()-1;
  std::snprintf(file,sizeof(file),"/download0/niak-case-%s-%s.webp",id,side);
@@ -116,9 +116,9 @@ static bool niak_prepare_case_pixels(
  paths.emplace_back(file);
  // Prefer WebP FTP art when present; retain PNG for older installations.
  for(const char *format:{
-     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.webp",
+     "/data/NiakPS5/assets/niak-cases/%s-%s.webp",
      "/app0/assets/niak-cases/%s-%s.webp",
-     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",
+     "/data/NiakPS5/assets/niak-cases/%s-%s.png",
      "/app0/assets/niak-cases/%s-%s.png"}) {
      std::snprintf(file,sizeof(file),format,id,side);
      paths.emplace_back(file);
@@ -137,7 +137,7 @@ static bool niak_prepare_case_pixels(
      // The FTP override and packaged scans have independent provenance.
      // Only worker-generated PNGs require the atomic .source sidecar.
      if((filename.rfind("/download0/niak-case-",0)==0 ||
-         filename.rfind("/data/homebrew/PPSA99386/assets/niak-cdn-case-",0)==0) &&
+         filename.rfind("/data/NiakPS5/assets/niak-cdn-case-",0)==0) &&
         !valid_download_source(filename))continue;
      FILE *fp=std::fopen(filename.c_str(),"rb");
      if(!fp)continue;
@@ -448,7 +448,7 @@ bool prepare_case_template_pixels(int generation,int side,
 #endif
  if(!fp) {
      std::snprintf(file,sizeof(file),
-        "/data/homebrew/PPSA99386/assets/niak-templates/%s-%s.png",platform,part);
+        "/data/NiakPS5/assets/niak-templates/%s-%s.png",platform,part);
      fp=std::fopen(file,"rb");
  }
  if(!fp) {
@@ -461,7 +461,7 @@ bool prepare_case_template_pixels(int generation,int side,
 #if defined(__PROSPERO__)
  if(!fp) {
      std::snprintf(file,sizeof(file),
-        "/data/homebrew/PPSA99386/assets/niak-templates/%s-%s.webp",
+        "/data/NiakPS5/assets/niak-templates/%s-%s.webp",
         platform,part);
      fp=std::fopen(file,"rb");
  }
