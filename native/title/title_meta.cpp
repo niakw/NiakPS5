@@ -18,7 +18,7 @@ static Index read_titles(){
  Index index;
  for(const char *source : {"/app0/assets/niak-ps-titles.tsv",
                              "/app0/assets/niak-local-titles.tsv",
-                             "/data/homebrew/PPSA99386/assets/niak-local-titles.tsv"}) {
+                             "/data/NiakPS5/assets/niak-local-titles.tsv"}) {
  FILE *f=std::fopen(source,"rb");if(!f)continue;
  char line[1200];
  while(std::fgets(line,sizeof(line),f)){
@@ -174,7 +174,7 @@ std::string niak_title_overview(const char *id) {
  static const auto sourced_loader=[](){
    std::unordered_map<std::string,std::string> data;
    for(const char *path : {"/app0/assets/niak-overviews-fr-sourced.tsv",
-       "/data/homebrew/PPSA99386/assets/niak-overviews-fr-sourced.tsv"}) {
+       "/data/NiakPS5/assets/niak-overviews-fr-sourced.tsv"}) {
      FILE *f=std::fopen(path,"rb");if(!f)continue;
      char line[1800];
      while(std::fgets(line,sizeof(line),f)) {
@@ -212,7 +212,7 @@ std::string niak_title_overview(const char *id) {
    // A sparse overlay must not hide every other packaged description.
    for(const char *source : {
        "/app0/assets/niak-overviews-fr.tsv",
-       "/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"}) {
+       "/data/NiakPS5/assets/niak-overviews-fr.tsv"}) {
      FILE *f=std::fopen(source,"rb");
      if(!f)continue;
      char line[2048];
@@ -252,7 +252,7 @@ std::string niak_title_overview(const char *id) {
    // is allowed to improve them, but its "-" or missing Overview column
    // must not permanently hide bundled descriptions.
    const char *const sources[]={"/app0/assets/niak-launchbox-cases.tsv",
-       "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
+       "/data/NiakPS5/assets/niak-launchbox-cases.tsv"};
    for(const char *source:sources) {
    FILE *f=std::fopen(source,"rb");if(!f)continue;
    char line[8192];
