@@ -92,8 +92,8 @@ class NativeTitleTests(unittest.TestCase):
 
     def test_pldmgr_dropin_requires_no_extra_marker(self):
         source=(ROOT/"title"/"autostart.c").read_text()
-        self.assertIn("if(is_regular_file(NIAK_DISABLED))return 0;",source)
-        self.assertIn("if(is_regular_file(NIAK_DISABLED))break;",source)
+        self.assertIn("if(niak_autostart_disabled())return 0;",source)
+        self.assertIn("if(niak_autostart_disabled())break;",source)
         self.assertNotIn("!is_regular_file(NIAK_ENABLED)",source)
         build=(ROOT/"title"/"build.sh").read_text()
         self.assertIn('mkdir -p "$out/tools/niakps5"',build)
@@ -147,7 +147,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("completed==last_case_completed_",builder)
         self.assertIn("/download0/niak-case-%s-%s.png",case)
         self.assertIn("/download0/niak-case-%s-%s.webp",case)
-        self.assertIn("/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp",case)
+        self.assertIn("/data/NiakPS5/assets/niak-cdn-case-%s-%s.webp",case)
         self.assertIn("constexpr const char *FALLBACK_ROOT=",auto)
         self.assertIn("std::string fallback_cache_path(const Task& task)",auto)
         self.assertIn("if(save_to(primary,name,webp))",auto)
@@ -155,11 +155,11 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn('std::remove((backup+".source").c_str())',auto)
         self.assertIn('std::remove((primary+".source").c_str())',auto)
         self.assertIn("existing(fallback_target,candidates[i])",auto)
-        self.assertIn('filename.rfind("/data/homebrew/PPSA99386/assets/niak-cdn-case-",0)',case)
-        self.assertLess(case.index("/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp"),
+        self.assertIn('filename.rfind("/data/NiakPS5/assets/niak-cdn-case-",0)',case)
+        self.assertLess(case.index("/data/NiakPS5/assets/niak-cdn-case-%s-%s.webp"),
                         case.index("/download0/niak-case-%s-%s.webp"))
-        self.assertLess(case.index("/data/homebrew/PPSA99386/assets/niak-cdn-case-%s-%s.webp"),
-                        case.index("/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.webp"))
+        self.assertLess(case.index("/data/NiakPS5/assets/niak-cdn-case-%s-%s.webp"),
+                        case.index("/data/NiakPS5/assets/niak-cases/%s-%s.webp"))
         self.assertIn("WebPDecodeRGBAInto(",case)
         self.assertIn("WebPEncodeRGBA(",auto)
         self.assertIn("WebPGetInfo(raw.data(),raw.size(),&iw,&ih)",auto)
@@ -292,7 +292,7 @@ class NativeTitleTests(unittest.TestCase):
         case_art=(ROOT/"title"/"case_art.cpp").read_text()
         ftp=(ROOT/"title"/"ftp_install.py").read_text()
         self.assertLess(case_art.index('"/download0/niak-case-%s-%s.png"'),
-                        case_art.index('"/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png"'))
+                        case_art.index('"/data/NiakPS5/assets/niak-cases/%s-%s.png"'))
         self.assertIn("source==first_source and any(",ftp)
         self.assertIn("_cache_hit(ftp,file,side) for file in existing",ftp)
         self.assertIn("examined>=reusable_rank",auto)
@@ -421,7 +421,7 @@ class NativeTitleTests(unittest.TestCase):
     def test_autostart_is_explicit_and_reversible(self):
         source = (ROOT / "title" / "autostart.c").read_text()
         self.assertIn("niakps5-autostart.enabled", source)
-        self.assertIn("if(is_regular_file(NIAK_DISABLED))return 0;",source)
+        self.assertIn("if(niak_autostart_disabled())return 0;",source)
         self.assertNotIn("!is_regular_file(NIAK_ENABLED)",source)
         self.assertIn("niakps5-autostart.disable", source)
         self.assertIn("sceSystemServiceLaunchApp", source)
@@ -586,9 +586,9 @@ class NativeTitleTests(unittest.TestCase):
         end=source.index("static auto french=french_loader();",start)
         loader=source[start:end]
         self.assertIn('"/app0/assets/niak-overviews-fr.tsv"',loader)
-        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"',loader)
+        self.assertIn('"/data/NiakPS5/assets/niak-overviews-fr.tsv"',loader)
         self.assertLess(loader.index('"/app0/assets/niak-overviews-fr.tsv"'),
-                        loader.index('"/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"'))
+                        loader.index('"/data/NiakPS5/assets/niak-overviews-fr.tsv"'))
         self.assertIn("for(const char *source :",loader)
         self.assertIn("data[std::string(line)]=translation;",loader)
         self.assertNotIn("data.emplace(line,translation)",loader)
@@ -608,9 +608,9 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("last_applied_description_stamps()=result.description_stamps;",source)
         self.assertIn("niak_invalidate_title_metadata();",source)
         self.assertIn("(void)last_applied_description_stamps();",source)
-        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-overviews-fr.tsv"',source)
-        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-overviews-fr-sourced.tsv"',source)
-        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"',source)
+        self.assertIn('"/data/NiakPS5/assets/niak-overviews-fr.tsv"',source)
+        self.assertIn('"/data/NiakPS5/assets/niak-overviews-fr-sourced.tsv"',source)
+        self.assertIn('"/data/NiakPS5/assets/niak-launchbox-cases.tsv"',source)
         # Only the inventory thread collects stat data. The ordinary
         # renderer checks a prepared fixed-size, in-memory value.
         start=source.index("bool Catalog::refresh_if_unavailable(")
@@ -1190,7 +1190,7 @@ class NativeTitleTests(unittest.TestCase):
         self.assertIn("serve_launch_requests",(ROOT/"title"/"autostart.c").read_text())
         broker=(ROOT/"title"/"autostart.c").read_text()
         self.assertNotIn("ticks<21600",broker)
-        self.assertIn("is_regular_file(NIAK_DISABLED)",broker)
+        self.assertIn("niak_autostart_disabled()",broker)
         self.assertIn("PING\\n",(ROOT/"title"/"autostart.c").read_text())
         self.assertIn("sceUserServiceInitialize(NULL)",broker)
         self.assertIn("sceLncUtilInitialize()",broker)
@@ -1255,7 +1255,7 @@ class NativeTitleTests(unittest.TestCase):
                       (ROOT/"title"/"title_meta.cpp").read_text())
         self.assertIn('shelves_[0].items=shelves_[1].items',source)
         self.assertNotIn('shelves_[0].items.push_back(shelves_[1].items.front())',source)
-        self.assertIn("/data/homebrew/PPSA99386/assets/niak-local-titles.tsv",
+        self.assertIn("/data/NiakPS5/assets/niak-local-titles.tsv",
                       (ROOT/"title"/"title_meta.cpp").read_text())
         self.assertIn("applicationCategoryType",(ROOT/"title"/"ftp_install.py").read_text())
         self.assertIn("/download0/niak-favorites.tsv",source)
