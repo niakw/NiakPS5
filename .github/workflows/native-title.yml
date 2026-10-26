@@ -109,6 +109,11 @@ jobs:
           root=base/'data'
           title=root/'homebrew/PPSA99386'
           payload=root/'pldmgr/payloads/niakps5'
+          runtime=root/'NiakPS5'
+          assert (runtime/'README.txt').is_file(), 'NiakPS5 runtime root missing'
+          for subdir in ('assets','cache','inventory','logs','state'):
+              assert (runtime/subdir/'README.txt').is_file(), (
+                  f'Missing persistent runtime folder in artifact: {subdir}')
           for f in (title/'eboot.bin',title/'sce_module/libc.prx',
                     title/'sce_sys/param.json',payload/'niakps5.elf',
                     payload/'niakps5.elf.json'):
