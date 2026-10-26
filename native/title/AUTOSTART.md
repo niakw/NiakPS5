@@ -12,8 +12,8 @@ Le mini-payload :
 - demande le lancement du titre avec un contexte utilisateur initialisé (taille ABI 32 octets, utilisateur actif) ; si SystemService refuse avec \`0x80940005\`, essaie \`sceLncUtilLaunchApp\` pour le même titre ;
 - refuse d'interrompre un autre titre déjà au premier plan ;
 - tente le lancement toutes les 3 s pendant les 12 premières tentatives, puis toutes les 30 s dans une fenêtre totale de 10 minutes pour laisser ShadowMountPlus enregistrer le titre ; ne ferme jamais un autre jeu, et garde le courtier actif après cette fenêtre ;
-- fonctionne depuis l'entrée explicite dans \`/data/pldmgr/autoload.txt\` ; le marqueur historique \`/data/niakps5-autostart.enabled\` n'est plus requis ;
-- ne fait rien si \`/data/niakps5-autostart.disable\` existe.
+- fonctionne depuis l'entrée explicite dans \`/data/pldmgr/autoload.txt\` ; le marqueur historique \`/data/NiakPS5/state/autostart.enabled\` n'est plus requis ;
+- ne fait rien si \`/data/NiakPS5/state/autostart.disable\` existe.
 
 ## Erreur 0x80940005 et présence réelle du payload
 
@@ -61,7 +61,7 @@ En cas de droits insuffisants, les réglages de NiakPS5 indiquent l'état
 du courtier local ; la compatibilité matérielle 13.60 n'est pas garantie.
 
 **Sécurité :** garder le payload en lancement unique, jamais en boucle ;
-`/data/niakps5-autostart.disable` désactive le service sans toucher à
+`/data/NiakPS5/state/autostart.disable` désactive le service sans toucher à
 l'autoload de l'utilisateur.
 
 ## Limite du remplacement du shell
@@ -73,16 +73,16 @@ Un vrai remplacement du design de \`SceShellUI\` avec ta propre disposition de m
 
 ## Option expérimentale : retour après la fermeture d'un jeu
 
-L'option `--return-after-game` de l'installeur crée le marqueur `/data/niakps5-return-after-game.enabled`. Le payload reste en veille, compare l'ID de l'application au premier plan et, **seulement après avoir vu un jeu remplacer NiakPS5 puis se fermer**, tente de revenir sur l'accueil après environ dix secondes sans grand titre actif. Le moniteur est également armé quand l'utilisateur ouvre NiakPS5 manuellement, puis lance un jeu depuis son interface, même si le démarrage automatique avait échoué.
+L'option `--return-after-game` de l'installeur crée le marqueur `/data/NiakPS5/state/return-after-game.enabled`. Le payload reste en veille, compare l'ID de l'application au premier plan et, **seulement après avoir vu un jeu remplacer NiakPS5 puis se fermer**, tente de revenir sur l'accueil après environ dix secondes sans grand titre actif. Le moniteur est également armé quand l'utilisateur ouvre NiakPS5 manuellement, puis lance un jeu depuis son interface, même si le démarrage automatique avait échoué.
 
-Ce mécanisme ne peut pas lire le bouton PS (intercepté par le système) et **ne peut pas remplacer le menu Sony**. Il ne se déclenche pas lorsque le jeu reste actif derrière le Control Center. Cela reste expérimental : la validation sur firmware 13.60 est indispensable avant activation. Désactivation sans désinstaller : créer `/data/niakps5-autostart.disable` ou supprimer `/data/niakps5-return-after-game.enabled`. Une réinstallation sans `--return-after-game` supprime également l'ancien marqueur de retour (sans désactiver le démarrage automatique). Le moniteur s'arrête s'il ne parvient pas à identifier l'application ou si une tentative de retour échoue. Aucun hook ni accès mémoire système.
+Ce mécanisme ne peut pas lire le bouton PS (intercepté par le système) et **ne peut pas remplacer le menu Sony**. Il ne se déclenche pas lorsque le jeu reste actif derrière le Control Center. Cela reste expérimental : la validation sur firmware 13.60 est indispensable avant activation. Désactivation sans désinstaller : créer `/data/NiakPS5/state/autostart.disable` ou supprimer `/data/NiakPS5/state/return-after-game.enabled`. Une réinstallation sans `--return-after-game` supprime également l'ancien marqueur de retour (sans désactiver le démarrage automatique). Le moniteur s'arrête s'il ne parvient pas à identifier l'application ou si une tentative de retour échoue. Aucun hook ni accès mémoire système.
 
 
 ## Comparaison avec NiakTV
 
 Sur Android TV, `HomeRedirectService` reçoit un évènement `TYPE_WINDOW_STATE_CHANGED` d'AccessibilityService et lance `MainActivity`. Le système PS5 ne fournit pas cette API au titre NiakPS5. Le mode `--return-after-game` observe seulement les transitions entre applications PS5 en avant-plan, par périodes de deux secondes. Il ne voit ni l'appui court/long sur PS ni le contexte des fenêtres du Centre de contrôle.
 
-Le verrou `redirect_gate.h` vérifie : un vrai autre bigapp a succédé à NiakPS5, puis une période continue d'au moins dix secondes sans grand titre actif, mesurée avec l'horloge monotone (indépendamment du nombre de requêtes réseau). Il ignore une erreur d'observation, attend au moins ~10 s avant de lancer, ne lance qu'une fois, et ne tente pas de remplacer le shell Sony. Ce mode est désactivé sans le marqueur `/data/niakps5-return-after-game.enabled`.
+Le verrou `redirect_gate.h` vérifie : un vrai autre bigapp a succédé à NiakPS5, puis une période continue d'au moins dix secondes sans grand titre actif, mesurée avec l'horloge monotone (indépendamment du nombre de requêtes réseau). Il ignore une erreur d'observation, attend au moins ~10 s avant de lancer, ne lance qu'une fois, et ne tente pas de remplacer le shell Sony. Ce mode est désactivé sans le marqueur `/data/NiakPS5/state/return-after-game.enabled`.
 
 La redirection immédiate au bouton PS comme NiakTV nécessiterait une instrumentation spécifique de `SceShellUI`, plus invasive et non validée sur le firmware de test. Ne pas la confondre avec le mode de retour après fermeture d'un jeu.
 
@@ -119,3 +119,12 @@ Le payload initialise maintenant `sceLncUtilInitialize()` après `sceUserService
 ## Retour après fermeture d'un jeu
 
 Par défaut, un lancement **explicitement initié depuis NiakPS5** arme un retour unique après fermeture du jeu, sous réserve que PLDmgr observe le jeu en exécution puis un accueil Sony stable pendant dix secondes, avec le même utilisateur. Le bouton PS et la sortie d'un jeu ne sont pas interceptés. Un jeu nécessitant un disque ou une licence valide demeure soumis aux vérifications Sony : aucune tentative de contournement. En cas d'échec de lancement sans processus de jeu observé, le retour n'est pas déclenché. Pour désactiver cette fonction, créer le marqueur `/data/niakps5-return-after-game.disable` ; pour la réactiver, supprimer ce marqueur. Le marqueur historique `.enabled` est conservé pour compatibilité mais n'est plus nécessaire.
+
+
+## Organisation permanente des fichiers
+
+Les données durables sont regroupées dans `/data/NiakPS5/` (`assets/`, `cache/`, `inventory/`, `logs/`, `state/`). Le broker crée ces dossiers au démarrage si nécessaire ; le ZIP FTP les prépare aussi. Les anciens fichiers ne sont pas supprimés automatiquement.
+
+`/data/homebrew/PPSA99386/` est le **titre exécutable** monté en `/app0`. Il doit rester présent tant qu'un autre mécanisme d'installation enregistré et testé ne lui succède pas ; le supprimer empêcherait le titre de démarrer. La copie du payload dans `/data/pldmgr/payloads/niakps5/` demeure une contrainte de Payload Manager.
+
+Les caches écrits directement par l'interface peuvent encore devoir utiliser son bac à sable `/download0` si le firmware lui interdit l'accès direct à `/data/NiakPS5`. Ce dossier n'est alors pas visible sous `/data/` par FTP.
