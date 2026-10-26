@@ -1015,8 +1015,13 @@ bool Catalog::refresh_selected_case_art(gfx::Renderer &renderer)
     if (std::strncmp(line, "[NiakPS5] BOOT ", 15) == 0)
     {
         const bool first = std::strstr(line, "BOOT 01:") != nullptr;
-        if (std::FILE *boot = std::fopen("/download0/niak-boot-phase.log",
-                                         first ? "wb" : "ab"))
+        std::FILE *boot = std::fopen("/data/NiakPS5/logs/boot-phase.log",
+                                     first ? "wb" : "ab");
+        // Retail title sandboxes may deny direct /data writes. Preserve the
+        // private mount as a last-resort crash trace instead of crashing.
+        if(!boot)boot = std::fopen("/download0/niak-boot-phase.log",
+                                   first ? "wb" : "ab");
+        if (boot)
         {
             (void)std::fwrite(line, 1, std::strlen(line), boot);
             (void)std::fclose(boot);
