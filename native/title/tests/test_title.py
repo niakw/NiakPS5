@@ -413,14 +413,14 @@ class NativeTitleTests(unittest.TestCase):
 
     def test_return_to_niak_for_explicit_game_launch_without_opt_in(self):
         source=(ROOT/"title"/"autostart.c").read_text()
-        self.assertIn("!is_regular_file(NIAK_RESUME_DISABLED)",source)
+        self.assertIn("!niak_return_disabled()",source)
         self.assertIn("Return gate source app",source)
         self.assertIn("Return gate armed",source)
         self.assertIn("niak_redirect_arm_after_launch(",source)
 
     def test_autostart_is_explicit_and_reversible(self):
         source = (ROOT / "title" / "autostart.c").read_text()
-        self.assertIn("niakps5-autostart.enabled", source)
+        self.assertIn('NIAK_ENABLED "/data/NiakPS5/state/autostart.enabled"', source)
         self.assertIn("if(niak_autostart_disabled())return 0;",source)
         self.assertNotIn("!is_regular_file(NIAK_ENABLED)",source)
         self.assertIn("niakps5-autostart.disable", source)
