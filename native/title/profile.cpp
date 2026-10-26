@@ -87,19 +87,19 @@ bool matching_avatar_marker(const char *path,int current,const char *format) {
 bool prepare_current_avatar(int current,int &width,int &height,
                             std::vector<std::uint8_t> &pixels) {
     const bool data_png=matching_avatar_marker(
-        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt",
+        "/data/NiakPS5/assets/niak-profile-source.txt",
         current,"png");
     const bool app_png=matching_avatar_marker(
         "/app0/assets/niak-profile-source.txt",current,"png");
     const bool data_dds=matching_avatar_marker(
-        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt",
+        "/data/NiakPS5/assets/niak-profile-source.txt",
         current,"dds");
     const bool app_dds=matching_avatar_marker(
         "/app0/assets/niak-profile-source.txt",current,"dds");
     // The broker's current private staging takes precedence. A fallback
     // package image is allowed only with its OWN matching owner/type marker.
     if((data_png && niak_prepare_profile_png_file(
-           "/data/homebrew/PPSA99386/assets/niak-profile.png",pixels)) ||
+           "/data/NiakPS5/assets/niak-profile.png",pixels)) ||
        (app_png && niak_prepare_profile_png_file(
            "/app0/assets/niak-profile.png",pixels))) {
         width=height=256;
@@ -125,7 +125,7 @@ bool prepare_current_avatar(int current,int &width,int &height,
         if(prepare_dds_avatar(dds_path,width,height,pixels))return true;
     }
     if((data_dds && prepare_dds_avatar(
-           "/data/homebrew/PPSA99386/assets/niak-profile.dds",
+           "/data/NiakPS5/assets/niak-profile.dds",
            width,height,pixels)) ||
        (app_dds && prepare_dds_avatar(
            "/app0/assets/niak-profile.dds",width,height,pixels)))
@@ -157,9 +157,9 @@ AvatarFileStamp avatar_file_stamp(const char *path) {
 AvatarFileStamps read_avatar_source_stamps(int current) {
     AvatarFileStamps stamps{};
     static const char *const private_files[]={
-        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt",
-        "/data/homebrew/PPSA99386/assets/niak-profile.png",
-        "/data/homebrew/PPSA99386/assets/niak-profile.dds",
+        "/data/NiakPS5/assets/niak-profile-source.txt",
+        "/data/NiakPS5/assets/niak-profile.png",
+        "/data/NiakPS5/assets/niak-profile.dds",
         "/app0/assets/niak-profile-source.txt",
         "/app0/assets/niak-profile.png",
         "/app0/assets/niak-profile.dds"};
