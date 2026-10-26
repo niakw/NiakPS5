@@ -1369,10 +1369,13 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
         if raw is not None and retrieve(ftp,CONFIG+".niakps5.bak") is None:
             upload(ftp,CONFIG+".niakps5.bak",raw)
     return_flag=STATE_ROOT + "/return-after-game.enabled"
-    if not return_after_game and retrieve(ftp,return_flag) is not None:
-        # A failed opt-out must stop BEFORE the new payload/configuration is
-        # written, rather than leaving a partially reconfigured installation.
-        ftp.delete(return_flag)
+    legacy_return_flag="/data/niakps5-return-after-game.enabled"
+    if not return_after_game:
+        # Reinstalls must clear both current and older opt-in markers.
+        # An undeletable marker MUST abort before changing PLDmgr state.
+        for prior_flag in (return_flag,legacy_return_flag):
+            if retrieve(ftp,prior_flag) is not None:
+                ftp.delete(prior_flag)
     upload(ftp, PAYLOAD, elf.read_bytes())
     metadata=directory/"tools/niakps5/niakps5.elf.json"
     if metadata.is_file():
