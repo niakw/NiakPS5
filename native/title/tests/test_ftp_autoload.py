@@ -252,9 +252,9 @@ class AutoloadTests(unittest.TestCase):
                 return [value.rsplit("/",1)[-1] for value in super().nlst(path)]
         base="/data/homebrew/PPSA99386"
         files={base+"/eboot.bin":b"native",
-               base+"/assets/niak-launchbox-cases.tsv":b"# index",
-               base+"/assets/niak-local-titles.tsv":b"# local",
-               base+"/assets/niak-profile.png":b"private avatar",
+               ftpmod.ASSETS_ROOT+"/niak-launchbox-cases.tsv":b"# index",
+               ftpmod.ASSETS_ROOT+"/niak-local-titles.tsv":b"# local",
+               ftpmod.ASSETS_ROOT+"/niak-profile.png":b"private avatar",
                ftpmod.PAYLOAD:b"payload",
                "/data/NiakPS5/state/autostart.enabled":b""}
         stream=StringIO()
