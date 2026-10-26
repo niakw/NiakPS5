@@ -239,9 +239,9 @@ std::uint32_t decode_upload(hui::gfx::Renderer &renderer,
 // opens local files on PS5; the host preview retains its existing eager path.
 constexpr const char *kInstalledIconPaths[] = {
         "/app0/assets/niak-installed/%s-icon.webp",
-        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.webp",
+        "/data/NiakPS5/assets/niak-installed/%s-icon.webp",
         "/app0/assets/niak-installed/%s-icon.png",
-        "/data/homebrew/PPSA99386/assets/niak-installed/%s-icon.png",
+        "/data/NiakPS5/assets/niak-installed/%s-icon.png",
         "/data/homebrew/%s/sce_sys/icon0.png",
         "/user/app/%s/sce_sys/icon0.png",
         "/user/appmeta/%s/icon0.png",
@@ -379,9 +379,9 @@ void case_background_worker() {
         // scene, then pic1.png on internal and external storage.
         for(const char *format : {
             "/app0/assets/niak-installed/%s-scene.webp",
-            "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.webp",
+            "/data/NiakPS5/assets/niak-installed/%s-scene.webp",
             "/app0/assets/niak-installed/%s-scene.png",
-            "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.png",
+            "/data/NiakPS5/assets/niak-installed/%s-scene.png",
             "/data/homebrew/%s/sce_sys/pic1.png",
             "/user/app/%s/sce_sys/pic1.png",
             "/user/appmeta/%s/pic1.png",
@@ -600,9 +600,9 @@ std::uint32_t niak_load_game_background(hui::gfx::Renderer &renderer,const char 
 #endif
     for(const char *format : {
         "/app0/assets/niak-installed/%s-scene.webp",
-        "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.webp",
+        "/data/NiakPS5/assets/niak-installed/%s-scene.webp",
         "/app0/assets/niak-installed/%s-scene.png",
-        "/data/homebrew/PPSA99386/assets/niak-installed/%s-scene.png",
+        "/data/NiakPS5/assets/niak-installed/%s-scene.png",
         "/data/homebrew/%s/sce_sys/pic1.png",
         "/user/app/%s/sce_sys/pic1.png",
         "/user/appmeta/%s/pic1.png",
@@ -699,7 +699,7 @@ std::uint32_t niak_load_profile_cache_png(hui::gfx::Renderer &renderer,unsigned 
 std::uint32_t niak_load_local_png(hui::gfx::Renderer &renderer, const char *path)
 {
     if(!path || (std::strcmp(path,"/app0/assets/niak-profile.png") != 0 &&
-        std::strcmp(path,"/data/homebrew/PPSA99386/assets/niak-profile.png") != 0))
+        std::strcmp(path,"/data/NiakPS5/assets/niak-profile.png") != 0))
         return 0;
     std::FILE *f=std::fopen(path,"rb");
     if(!f)return 0;
