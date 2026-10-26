@@ -128,7 +128,7 @@ class SourceTests(unittest.TestCase):
                   patch.object(ftp,"_decode_retail_image",return_value=b"valid fixture")):
                 count=ftp.fetch_alternative_covers(fake,folder)
             self.assertEqual(count,2)
-            base=f"/data/homebrew/{ftp.TITLE}/assets/niak-cases/PPSA04716-"
+            base=f"{ftp.ASSETS_ROOT}/niak-cases/PPSA04716-"
             self.assertEqual(fake.files[base+"front.png"],b"valid fixture")
             self.assertEqual(fake.files[base+"back.png"],b"valid fixture")
             self.assertNotIn(base+"spine.png",fake.files)
@@ -164,7 +164,7 @@ class SourceTests(unittest.TestCase):
                   patch("urllib.request.urlopen",side_effect=api),
                   patch.object(ftp,"_decode_retail_image",return_value=b"portrait")):
                 self.assertEqual(ftp.fetch_alternative_covers(fake,folder),1)
-            root=f"/data/homebrew/{ftp.TITLE}/assets/niak-cases/PPSA04716-"
+            root=f"{ftp.ASSETS_ROOT}/niak-cases/PPSA04716-"
             self.assertEqual(fake.files[root+"poster.png"],b"portrait")
             self.assertNotIn(root+"front.png",fake.files)
             self.assertNotIn(root+"back.png",fake.files)
