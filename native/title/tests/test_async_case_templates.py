@@ -10,7 +10,7 @@ class TemplateWorkerTests(unittest.TestCase):
     def test_one_cpu_pipeline_preserves_six_assets_and_alpha(self):
         cpu=SOURCE[SOURCE.index("bool prepare_case_template_pixels("):
                    SOURCE.index("#if defined(__PROSPERO__)\nstruct PreparedTemplates")]
-        self.assertIn('"/data/homebrew/PPSA99386/assets/niak-templates/%s-%s.png"',cpu)
+        self.assertIn('"/data/NiakPS5/assets/niak-templates/%s-%s.png"',cpu)
         self.assertIn('"/app0/assets/niak-templates/%s-%s.webp"',cpu)
         self.assertIn("niak_footer_paper_to_alpha(pixels,w,h,generation==0)",cpu)
         self.assertIn("niak_scale_case_rgba(pixels,w,h,side==2?96u:1024u,",cpu)
