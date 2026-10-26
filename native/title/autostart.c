@@ -31,9 +31,9 @@
 /* Legacy marker is tolerated but no longer required: PLDmgr's explicit
  * autoload.txt entry is itself the opt-in. A freshly dropped payload must
  * not silently exit merely because ftp_install.py was never executed. */
-#define NIAK_ENABLED "/data/niakps5-autostart.enabled"
-#define NIAK_DISABLED "/data/niakps5-autostart.disable"
-#define NIAK_LOG "/data/niakps5-autostart.log"
+#define NIAK_ENABLED "/data/NiakPS5/state/autostart.enabled"
+#define NIAK_DISABLED "/data/NiakPS5/state/autostart.disable"
+#define NIAK_LOG "/data/NiakPS5/logs/autostart.log"
 
 extern int sceKernelUsleep(unsigned int microseconds);
 extern int sceUserServiceGetForegroundUser(int *user_id);
@@ -101,15 +101,40 @@ static int is_regular_file(const char *path) {
     struct stat st;
     return lstat(path,&st)==0 && S_ISREG(st.st_mode);
 }
+/* The broker owns one writable runtime tree, not the app installation. */
+static int niak_runtime_dirs(void) {
+    static const char *const dirs[]={
+        "/data/NiakPS5","/data/NiakPS5/logs","/data/NiakPS5/state",
+        "/data/NiakPS5/inventory","/data/NiakPS5/assets",
+        "/data/NiakPS5/cache"};
+    for(size_t i=0;i<sizeof(dirs)/sizeof(dirs[0]);++i) {
+        struct stat st;
+        if(mkdir(dirs[i],0755)!=0 && errno!=EEXIST)return -1;
+        if(lstat(dirs[i],&st)!=0 || !S_ISDIR(st.st_mode)) {
+            errno=ENOTDIR;return -1;
+        }
+    }
+    return 0;
+}
+static int niak_autostart_disabled(void) {
+    return is_regular_file(NIAK_DISABLED) ||
+           is_regular_file("/data/niakps5-autostart.disable");
+}
+static int niak_return_disabled(void) {
+    return is_regular_file(NIAK_RESUME_DISABLED) ||
+           is_regular_file("/data/niakps5-return-after-game.disable");
+}
+
 static void report(const char *msg,int result) {
     FILE *out=fopen(NIAK_LOG,"a");
+    if(!out)out=fopen("/data/niakps5-autostart.log","a");
     if(out) {
         fprintf(out,"%s rc=0x%08x\n",msg,(unsigned)result);
         fclose(out);
     }
 }
-#define NIAK_RESUME "/data/niakps5-return-after-game.enabled"
-#define NIAK_RESUME_DISABLED "/data/niakps5-return-after-game.disable"
+#define NIAK_RESUME "/data/NiakPS5/state/return-after-game.enabled"
+#define NIAK_RESUME_DISABLED "/data/NiakPS5/state/return-after-game.disable"
 
 /* Import only the foreground user's existing PNG, if one exists.
  * Never collect accounts, credentials, PSN tokens or any other user's media.
@@ -222,7 +247,7 @@ static int copy_profile_image(const char *source,const char *dest,
         ok=niak_avatar_png_supported(data,size);
     if(ok) {
         struct stat folder;
-        if(lstat("/data/homebrew/PPSA99386/assets",&folder)==0 &&
+        if(lstat("/data/NiakPS5/assets",&folder)==0 &&
            S_ISDIR(folder.st_mode)) {
             char temp[256];
             const int label=snprintf(temp,sizeof(temp),"%s.XXXXXX",dest);
@@ -260,7 +285,7 @@ static int copy_profile_image(const char *source,const char *dest,
  * type. No PSN identifier or personal image leaves this console. */
 static int mark_profile_asset(int user,const char *format) {
     if(user<0 || !format)return 0;
-    const char *dst="/data/homebrew/PPSA99386/assets/niak-profile-source.txt";
+    const char *dst="/data/NiakPS5/assets/niak-profile-source.txt";
     char temp[]="/data/homebrew/PPSA99386/assets/.niak-profile-source-XXXXXX";
     int fd=mkstemp(temp);
     if(fd<0)return 0;
@@ -279,7 +304,7 @@ static int mark_profile_asset(int user,const char *format) {
  * If permissions prevent invalidation, do not overwrite the old image:
  * another profile could otherwise inherit a mismatched owner marker. */
 static int invalidate_profile_asset(void) {
-    const char *path="/data/homebrew/PPSA99386/assets/niak-profile-source.txt";
+    const char *path="/data/NiakPS5/assets/niak-profile-source.txt";
     const int fd=open(path,O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW,0600);
     if(fd<0)return 0;
     const int ok=fchmod(fd,0644)==0 && fsync(fd)==0;
@@ -295,7 +320,7 @@ static int copy_current_avatar_png(int user) {
     static const unsigned char png[8]={137,80,78,71,13,10,26,10};
     static const unsigned char dds[4]={'D','D','S',' '};
     snprintf(source,sizeof(source),"%s/avatar.png",profile);
-    if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.png",png,8)) {
+    if(copy_profile_image(source,"/data/NiakPS5/assets/niak-profile.png",png,8)) {
         if(mark_profile_asset(user,"png")) {
             report("Current user PNG avatar staged",0);
             return 1;
@@ -311,7 +336,7 @@ static int copy_current_avatar_png(int user) {
     for(size_t i=0;i<sizeof(avatar_files)/sizeof(avatar_files[0]);++i) {
         const char *name=avatar_files[i];
         snprintf(source,sizeof(source),"%s/%s",profile,name);
-        if(copy_profile_image(source,"/data/homebrew/PPSA99386/assets/niak-profile.dds",dds,4)) {
+        if(copy_profile_image(source,"/data/NiakPS5/assets/niak-profile.dds",dds,4)) {
             if(mark_profile_asset(user,"dds")) {
                 report("Current user DDS avatar staged",0);
                 return 1;
@@ -332,7 +357,7 @@ static int copy_current_avatar_png(int user) {
 static int current_avatar_asset_staged(int user) {
     if(user<0)return 0;
     const char *marker_path=
-        "/data/homebrew/PPSA99386/assets/niak-profile-source.txt";
+        "/data/NiakPS5/assets/niak-profile-source.txt";
     const int fd=open(marker_path,O_RDONLY|O_NOFOLLOW|O_NONBLOCK);
     if(fd<0)return 0;
     struct stat marker_info;
@@ -350,9 +375,9 @@ static int current_avatar_asset_staged(int user) {
     if(n!=11 || strncmp(marker,expected,(size_t)n)!=0)return 0;
     const char *image=NULL;
     if(strcmp(marker+n,"png\n")==0)
-        image="/data/homebrew/PPSA99386/assets/niak-profile.png";
+        image="/data/NiakPS5/assets/niak-profile.png";
     else if(strcmp(marker+n,"dds\n")==0)
-        image="/data/homebrew/PPSA99386/assets/niak-profile.dds";
+        image="/data/NiakPS5/assets/niak-profile.dds";
     else return 0;
     // A file of plausible length is not necessarily a decodable avatar.
     // Older builds could stage an unsupported avatar440.dds and mark it
@@ -469,7 +494,7 @@ static void serve_launch_requests(void) {
     // launch service after roughly twelve hours. Keep the opt-in broker
     // alive until the user disables it or the console shuts down.
     for(;;) {
-        if(is_regular_file(NIAK_DISABLED))break;
+        if(niak_autostart_disabled())break;
         const uint64_t now=niak_monotonic_ms();
         if(now>=next_heartbeat_ms) {
             // PING may be blocked by the sandbox, while the UI can read our
@@ -479,24 +504,18 @@ static void serve_launch_requests(void) {
             const int count=niak_broker_inventory(inventory,sizeof(inventory),"");
             if(count>=0) {
                 const long long stamp=(long long)time(NULL);
-                /* Stage to the mounted title's assets so /app0 can read it
-                 * without depending on sandbox access to the /data root. */
-                if(niak_snapshot_write(NIAK_SNAPSHOT_APP_SOURCE,inventory,
-                                       count,stamp)==0)
-                    report("NiakPS5 app snapshot installed titles",count);
-                else report("NiakPS5 app snapshot write refused",errno);
+                /* The executable title is not a writable data directory.
+                 * Use the owned canonical runtime inventory instead. */
                 if(niak_snapshot_write(NIAK_SNAPSHOT_FILE,inventory,
                                        count,stamp)==0)
-                    report("NiakPS5 legacy snapshot installed titles",count);
-                else report("NiakPS5 legacy snapshot write refused",errno);
+                    report("NiakPS5 snapshot installed titles",count);
+                else report("NiakPS5 snapshot write refused",errno);
                 // Preserve media/app category from the privileged, live
                 // installed manifests. The old GAMES socket only sends IDs.
                 char app_ids[8192]={0};
                 const int apps=niak_broker_apps_from_inventory(
                     inventory,app_ids,sizeof(app_ids),"");
                 if(apps>=0) {
-                    (void)niak_snapshot_write(NIAK_APPS_SNAPSHOT_APP_SOURCE,
-                                              app_ids,apps,stamp);
                     (void)niak_snapshot_write(NIAK_APPS_SNAPSHOT_FILE,
                                               app_ids,apps,stamp);
                     report("NiakPS5 verified installed applications",apps);
@@ -641,7 +660,7 @@ static void serve_launch_requests(void) {
                             /* Only an explicit Niak launch can arm this one-shot
                              * redirect. An opt-out marker disables it. */
                             gate_ready=niak_redirect_arm_after_launch(
-                                &gate,!is_regular_file(NIAK_RESUME_DISABLED),
+                                &gate,!niak_return_disabled(),
                                 source_app,result);
                             return_user=gate_ready?user:-1;
                             report("Return gate source app",source_app);
@@ -657,7 +676,7 @@ static void serve_launch_requests(void) {
                 close(client);
             }
         }
-        if(is_regular_file(NIAK_RESUME_DISABLED)) {
+        if(niak_return_disabled()) {
             gate_ready=0;
             return_user=-1;
             continue;
@@ -682,13 +701,15 @@ static void serve_launch_requests(void) {
     report("Local launch broker shutdown",0);
 }
 int main(void) {
+    const int layout_rc=niak_runtime_dirs();
+    if(layout_rc!=0)report("NiakPS5 runtime folder unavailable",errno);
     /* On PS5 this FreeBSD syscall names the executing payload thread, which
      * is visible in common process/thread scanners instead of payload.elf.
      * The external ELF loader may still control the executable filename. */
 #ifdef SYS_thr_set_name
     (void)syscall(SYS_thr_set_name,-1,"NiakPS5");
 #endif
-    if(is_regular_file(NIAK_DISABLED))return 0;
+    if(niak_autostart_disabled())return 0;
     report("NiakPS5 optional autostart start",0);
     /* Raw PLDmgr ELFs do not inherit a UI title's UserService init.
      * Without this, GetForegroundUser fails with 0x80960002. */
