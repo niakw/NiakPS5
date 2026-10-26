@@ -34,6 +34,8 @@
 #define NIAK_ENABLED "/data/NiakPS5/state/autostart.enabled"
 #define NIAK_DISABLED "/data/NiakPS5/state/autostart.disable"
 #define NIAK_LOG "/data/NiakPS5/logs/autostart.log"
+#define NIAK_RESUME "/data/NiakPS5/state/return-after-game.enabled"
+#define NIAK_RESUME_DISABLED "/data/NiakPS5/state/return-after-game.disable"
 
 extern int sceKernelUsleep(unsigned int microseconds);
 extern int sceUserServiceGetForegroundUser(int *user_id);
@@ -133,8 +135,6 @@ static void report(const char *msg,int result) {
         fclose(out);
     }
 }
-#define NIAK_RESUME "/data/NiakPS5/state/return-after-game.enabled"
-#define NIAK_RESUME_DISABLED "/data/NiakPS5/state/return-after-game.disable"
 
 /* Import only the foreground user's existing PNG, if one exists.
  * Never collect accounts, credentials, PSN tokens or any other user's media.
