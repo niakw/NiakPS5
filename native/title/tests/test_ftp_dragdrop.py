@@ -47,7 +47,7 @@ class FTPDropinTests(unittest.TestCase):
         runtime=dest/"data/NiakPS5"
         self.assertEqual({p.name for p in runtime.iterdir()},
                          {"README.txt","assets","cache","inventory","logs","state"})
-        self.assertTrue((runtime/"inventory/.keep").is_file())
+        self.assertTrue((runtime/"inventory/README.txt").is_file())
         self.assertFalse((runtime/"state/autostart.disable").exists())
         self.assertFalse((dest/"data/pldmgr/autoload.txt").exists())
         self.assertFalse((dest/"data/pldmgr/pldmgr_config.txt").exists())
