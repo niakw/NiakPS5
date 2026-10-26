@@ -38,10 +38,10 @@ constexpr const char *ROOT="/download0/niak-case-";
 // The FTP-installed title already owns this directory. A distinct basename
 // avoids overwriting existing manually supplied niak-cases artwork.
 constexpr const char *FALLBACK_ROOT=
-    "/data/homebrew/PPSA99386/assets/niak-cdn-case-";
+    "/data/NiakPS5/assets/niak-cdn-case-";
 constexpr const char *INDEX_SOURCES[]={
     "/app0/assets/niak-launchbox-cases.tsv",
-    "/data/homebrew/PPSA99386/assets/niak-launchbox-cases.tsv"};
+    "/data/NiakPS5/assets/niak-launchbox-cases.tsv"};
 constexpr std::size_t kMaxQueued=512;
 struct SourceStamp {
  std::uint64_t size=0,mtime=0,ctime=0,inode=0;
@@ -75,9 +75,9 @@ LocalFaceStamps local_face_stamps(const std::string &title) {
  static const char *const sides[]={
      "front","back","spine","logo","hero","shot1","shot2"};
  static const char *const formats[]={
-     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.webp",
+     "/data/NiakPS5/assets/niak-cases/%s-%s.webp",
      "/app0/assets/niak-cases/%s-%s.webp",
-     "/data/homebrew/PPSA99386/assets/niak-cases/%s-%s.png",
+     "/data/NiakPS5/assets/niak-cases/%s-%s.png",
      "/app0/assets/niak-cases/%s-%s.png"};
  if(!valid_id(title.c_str()))return result;
  for(std::size_t side=0;side<result.size();++side) {
