@@ -16,6 +16,10 @@ import re
 import json
 
 TITLE = "PPSA99386"
+DATA_ROOT = "/data/NiakPS5"
+ASSETS_ROOT = DATA_ROOT + "/assets"
+STATE_ROOT = DATA_ROOT + "/state"
+LOG_ROOT = DATA_ROOT + "/logs"
 PAYLOAD = "/data/pldmgr/payloads/niakps5/niakps5.elf"
 PAYLOAD_META = PAYLOAD + ".json"
 AUTOLOAD_NAME = "niakps5.elf"
@@ -34,7 +38,8 @@ def mkdirs(ftp, dirname):
         else:
             # Only chmod newly created NiakPS5-owned directories. Never
             # change /data, other homebrew apps, or Payload Manager's roots.
-            owned = (current.startswith("/data/homebrew/PPSA99386/") or
+            owned = (current.startswith(DATA_ROOT + "/") or current == DATA_ROOT or
+                     current.startswith("/data/homebrew/PPSA99386/") or
                      current == "/data/homebrew/PPSA99386" or
                      current.startswith("/data/pldmgr/payloads/niakps5/") or
                      current == "/data/pldmgr/payloads/niakps5")
@@ -191,11 +196,11 @@ def copy_avatar_for_ftp(ftp, user_id=None):
         # The owner marker is intentionally cleared FIRST. An interrupted
         # FTP upload must never expose another user's new avatar under an old
         # account's previously cached marker.
-        marker=f"/data/homebrew/{TITLE}/assets/niak-profile-source.txt"
+        marker=f"{ASSETS_ROOT}/niak-profile-source.txt"
         upload(ftp,marker,b"")
-        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-profile{suffix}",blob)
+        upload(ftp,f"{ASSETS_ROOT}/niak-profile{suffix}",blob)
         owner=f"0x{int(user,16):08X} {suffix[1:]}\n"
-        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-profile-source.txt",
+        upload(ftp,f"{ASSETS_ROOT}/niak-profile-source.txt",
                owner.encode("ascii"))
         print("Avatar: actual PS5 profile image staged locally.")
         return True
@@ -268,7 +273,7 @@ def upload_local_homebrew_names(ftp):
         return 0
     contents="".join(f"{id}\t{name}\t{kind}\t\t\n"
                      for id,(name,kind) in sorted(records.items()))
-    upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",
+    upload(ftp,f"{ASSETS_ROOT}/niak-local-titles.tsv",
            contents.encode("utf-8"))
     print(f"Titles: {len(records)} installed PS4/PS5 title/category records resolved locally.")
     return len(records)
@@ -292,7 +297,7 @@ def _installed_title_ids(ftp, limit=150):
 # A sandboxed title may not read another game's icon0/pic1 even though
 # the owner's FTP server can. Cache publisher-provided game artwork in
 # NiakPS5's own data directory, not private captures or screenshots.
-INSTALLED_ART_ROOT=f"/data/homebrew/{TITLE}/assets/niak-installed"
+INSTALLED_ART_ROOT=f"{ASSETS_ROOT}/niak-installed"
 
 def _prepare_installed_png(data,scene=False):
     """Bounded, locally resized art; WebP quality 80 with PNG fallback."""
@@ -336,7 +341,7 @@ def _verified_media_ids(ftp):
     """Only NPXS titles explicitly marked as installed media applications."""
     try:
         raw=_bounded_retrieve(
-            ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv",limit=512*1024)
+            ftp,f"{ASSETS_ROOT}/niak-local-titles.tsv",limit=512*1024)
     except (OSError,ValueError):
         return []
     if not raw:return []
@@ -454,8 +459,8 @@ def _decode_retail_image(raw,side):
                 return dst.read_bytes()
     return None
 
-LAUNCHBOX_PRIVATE_INDEX=f"/data/homebrew/{TITLE}/assets/niak-launchbox-cases.tsv"
-CASE_CACHE_SOURCES=f"/data/homebrew/{TITLE}/assets/niak-cases/source-cache-v2.tsv"
+LAUNCHBOX_PRIVATE_INDEX=f"{ASSETS_ROOT}/niak-launchbox-cases.tsv"
+CASE_CACHE_SOURCES=f"{ASSETS_ROOT}/niak-cases/source-cache-v2.tsv"
 CASE_SIDES=frozenset(("front","back","spine","logo","hero","shot1","shot2"))
 
 def _read_case_sources(ftp):
@@ -605,7 +610,7 @@ def translate_private_overviews(ftp,folder):
         if not result:
             print("Traductions : aucune traduction API disponible, anglais conservé.")
             return 0
-        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-overviews-fr.tsv",result)
+        upload(ftp,f"{ASSETS_ROOT}/niak-overviews-fr.tsv",result)
         translated=result.count(b"\n")
         print(f"Traductions FR : {translated} descriptions sauvegardées localement.")
         return translated
@@ -634,7 +639,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
         return 0
     import urllib.request
     import urllib.error
-    cached=_remote_filenames(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases") or set()
+    cached=_remote_filenames(ftp,f"{ASSETS_ROOT}/niak-cases") or set()
     sources=_read_case_sources(ftp)
     updated_sources=False
     reusable=0
@@ -660,7 +665,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
             slots += [("hero",6),("shot1",7),("shot2",8)]
         used_images=set()
         for side,field in slots:
-            stem=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}"
+            stem=f"{ASSETS_ROOT}/niak-cases/{ident}-{side}"
             webp_dest=stem+".webp"
             png_dest=stem+".png"
             choices=columns[field]
@@ -742,7 +747,7 @@ def fetch_retail_covers(ftp, folder, maximum_titles=150, force=False):
                   "conserver le cache et utiliser le boîtier reconstruit.")
         if failed_ftp:
             print("LaunchBox : écriture des visuels non autorisée ; "
-                  "vérifier l'accès FTP à /data/homebrew/PPSA99386/assets/niak-cases.")
+                  "vérifier l'accès FTP à /data/NiakPS5/assets/niak-cases.")
     if not indexed_matches:
         print("LaunchBox: vérifier le nom/version du titre dans l'index; "
               "aucune jaquette ne peut être déduite d'un identifiant seul.")
@@ -754,7 +759,7 @@ def _name_index(ftp,folder):
     """Use real local PS5 param.json names first, packaged public index second."""
     result={}
     for raw in (
-        _bounded_retrieve(ftp,f"/data/homebrew/{TITLE}/assets/niak-local-titles.tsv"),
+        _bounded_retrieve(ftp,f"{ASSETS_ROOT}/niak-local-titles.tsv"),
         (folder/"assets/niak-ps-titles.tsv").read_bytes()
             if (folder/"assets/niak-ps-titles.tsv").is_file() else None):
         if raw is None:continue
@@ -789,16 +794,16 @@ def fetch_alternative_covers(ftp,folder,maximum_titles=150,force=False):
     spec.loader.exec_module(providers)
     ids=_installed_title_ids(ftp,maximum_titles)
     names=_name_index(ftp,folder)
-    cached=_remote_filenames(ftp,f"/data/homebrew/{TITLE}/assets/niak-cases") or set()
+    cached=_remote_filenames(ftp,f"{ASSETS_ROOT}/niak-cases") or set()
     total=0
     requests=0
     used={"thegamesdb":0,"steamgriddb":0}
     for ident in ids:
         name=names.get(ident)
         if not name:continue
-        paths={side:f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-{side}.png"
+        paths={side:f"{ASSETS_ROOT}/niak-cases/{ident}-{side}.png"
                for side in ("front","back")}
-        poster=f"/data/homebrew/{TITLE}/assets/niak-cases/{ident}-poster.png"
+        poster=f"{ASSETS_ROOT}/niak-cases/{ident}-poster.png"
         missing={side for side,path in paths.items()
                  if force or posixpath.basename(path) not in cached}
         if not missing:continue
@@ -1049,10 +1054,10 @@ def diagnose(ftp,local_directory=None):
     """Read-only PS5 deployment report. Never edit system/app databases."""
     app=f"/data/homebrew/{TITLE}"
     files=_listed(ftp,app)
-    assets=_listed(ftp,app+"/assets")
-    covers=_listed(ftp,app+"/assets/niak-cases")
-    installed_art=_remote_filenames(ftp,app+"/assets/niak-installed")
-    templates=_listed(ftp,app+"/assets/niak-templates")
+    assets=_listed(ftp,ASSETS_ROOT)
+    covers=_listed(ftp,ASSETS_ROOT+"/niak-cases")
+    installed_art=_remote_filenames(ftp,ASSETS_ROOT+"/niak-installed")
+    templates=_listed(ftp,ASSETS_ROOT+"/niak-templates")
     payloads=_listed(ftp,"/data/pldmgr/payloads/niakps5")
     def known(state):
         return "accès refusé / inconnu" if state is None else str(state)
@@ -1062,6 +1067,8 @@ def diagnose(ftp,local_directory=None):
         return None if entries is None else name in {
             posixpath.basename(str(value).rstrip("/")) for value in entries}
     print("NiakPS5 — diagnostic local (aucun fichier modifié)")
+    print("Données durables :",DATA_ROOT,"(dossier autonome)")
+    print("Installation exécutable :",app,"(nécessaire tant que /app0 en dépend)")
     print("Titre eboot.bin :",known(present(files,"eboot.bin")))
     diagnose_title_registration(ftp)
     diagnose_appdb_registration(ftp)
@@ -1132,11 +1139,15 @@ def diagnose(ftp,local_directory=None):
     print("PLDmgr AUTOLOAD_ENABLED :",enabled if config is not None else "inconnu")
     # Markers prove configuration only; not execution. Never call it "working"
     # unless the user's PS5 log records a successful service call.
-    marker=_listed(ftp,"/data")
+    marker=_listed(ftp,STATE_ROOT)
     print("Marqueur activation :",known(present(marker,"niakps5-autostart.enabled")))
     print("Marqueur désactivation :",known(present(marker,"niakps5-autostart.disable")))
-    try: log=_bounded_retrieve(ftp,"/data/niakps5-autostart.log")
+    try: log=_bounded_retrieve(ftp,LOG_ROOT + "/autostart.log")
     except (OSError,ValueError): log=None
+    if log is None:
+        try: log=_bounded_retrieve(ftp,"/data/niakps5-autostart.log")
+        except (OSError,ValueError): log=None
+    # Legacy read-only compatibility when updating an existing console.
     if log:
         history,heartbeat=interpret_broker_log(log.decode("utf8","replace"))
         print("Dernière exécution PLDmgr :",history)
@@ -1193,7 +1204,7 @@ def load_private_template_zip(path):
 
 def upload_private_template_zip(ftp,images):
     for name,content in sorted(images.items()):
-        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-templates/{name}",content)
+        upload(ftp,f"{ASSETS_ROOT}/niak-templates/{name}",content)
     if images:print(f"Boîtiers 3D : {len(images)}/6 gabarits privés intégrés.")
 
 
@@ -1217,7 +1228,7 @@ def upload_case_templates(ftp,directory):
         else: valid=450<=width<=1600 and 220<=height<=900
         if not valid or width*height>2500000:
             raise ValueError("Invalid case template proportions")
-        upload(ftp,f"/data/homebrew/{TITLE}/assets/niak-templates/{path.name}",content)
+        upload(ftp,f"{ASSETS_ROOT}/niak-templates/{path.name}",content)
     if entries:
         print(f"Boîtiers 3D : {len(entries)}/6 gabarits personnels envoyés. "
               "Relancer NiakPS5 pour recharger les textures.")
@@ -1270,6 +1281,9 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     # This mode still replaces the companion ELF and its checksum sidecar.
     validate_install_folder(directory, autoload or preserve_autoload)
     private_templates=load_private_template_zip(case_templates)
+    mkdirs(ftp,DATA_ROOT)
+    for part in ("assets","cache","inventory","logs","state"):
+        mkdirs(ftp,DATA_ROOT+"/"+part)
     for local in sorted(directory.rglob("*")):
         if local.is_symlink():
             raise ValueError("Symlinks are not accepted")
@@ -1349,7 +1363,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
             upload(ftp,AUTOLOAD+".niakps5.bak",original)
         if raw is not None and retrieve(ftp,CONFIG+".niakps5.bak") is None:
             upload(ftp,CONFIG+".niakps5.bak",raw)
-    return_flag="/data/niakps5-return-after-game.enabled"
+    return_flag=STATE_ROOT + "/return-after-game.enabled"
     if not return_after_game and retrieve(ftp,return_flag) is not None:
         # A failed opt-out must stop BEFORE the new payload/configuration is
         # written, rather than leaving a partially reconfigured installation.
@@ -1363,7 +1377,7 @@ def install(ftp, directory, autoload, return_after_game=False, avatar_user_id=No
     if raw!=config_body:
         upload(ftp, CONFIG, config_body)
     # Activate only once both the binary and the autoload configuration exist.
-    upload(ftp, "/data/niakps5-autostart.enabled", b"")
+    upload(ftp, STATE_ROOT + "/autostart.enabled", b"")
     if return_after_game:
         upload(ftp, return_flag, b"")
     print("Autoload configure en derniere position. Desactiver via le fichier")
