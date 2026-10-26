@@ -60,7 +60,7 @@ def stage(title:Path,output:Path):
     for subdir in ("assets","cache","inventory","logs","state"):
         folder=runtime/subdir
         folder.mkdir(parents=True,exist_ok=True)
-        (folder/".keep").write_text("NiakPS5 runtime directory\\n",encoding="utf-8")
+        (folder/"README.txt").write_text("NiakPS5 "+subdir+" runtime directory\\n",encoding="utf-8")
     (runtime/"README.txt").write_text(
         "NiakPS5 persistent runtime files. Do not delete PPSA99386 while "
         "it is the mounted PS5 executable title.\\n",encoding="utf-8")
