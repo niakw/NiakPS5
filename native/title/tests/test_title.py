@@ -744,6 +744,15 @@ class NativeTitleTests(unittest.TestCase):
         self.assertNotIn("std::thread",gpu_source)
         self.assertNotIn("scan_inventory_background()",gpu_source)
 
+    def test_avatar_owner_marker_atomic_staging_is_in_writable_runtime(self):
+        broker=(ROOT/"title"/"autostart.c").read_text()
+        marker=broker[broker.index("static int mark_profile_asset("):
+                      broker.index("static int invalidate_profile_asset(void) {")]
+        self.assertIn('char temp[]="/data/NiakPS5/assets/.niak-profile-source-XXXXXX";',marker)
+        self.assertIn('const char *dst="/data/NiakPS5/assets/niak-profile-source.txt";',marker)
+        self.assertNotIn('/data/homebrew/PPSA99386/assets/.niak-profile-source-',marker)
+        self.assertIn("if(ok)ok=rename(temp,dst)==0;",marker)
+
     def test_unreadable_current_profile_never_invalidates_staged_ftp_avatar(self):
         broker=(ROOT/"title"/"autostart.c").read_text()
         start=broker.index("static int copy_profile_image(")
