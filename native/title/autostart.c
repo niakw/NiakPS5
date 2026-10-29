@@ -286,7 +286,8 @@ static int copy_profile_image(const char *source,const char *dest,
 static int mark_profile_asset(int user,const char *format) {
     if(user<0 || !format)return 0;
     const char *dst="/data/NiakPS5/assets/niak-profile-source.txt";
-    char temp[]="/data/homebrew/PPSA99386/assets/.niak-profile-source-XXXXXX";
+    /* Keep atomic owner-marker rename within the writable runtime directory. */
+    char temp[]="/data/NiakPS5/assets/.niak-profile-source-XXXXXX";
     int fd=mkstemp(temp);
     if(fd<0)return 0;
     char identity[32];
